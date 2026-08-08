@@ -56,9 +56,14 @@ function MuseumTree() {
 function GoldenFlower({ discovered, discover }: { discovered: boolean; discover: () => void }) {
   const [ratio, setRatio] = useState(1.618);
   const petals = useMemo(() => Array.from({ length: 72 }, (_, i) => {
-    const angle = i * ratio * 137.508;
+    const angle = Number((i * ratio * 137.508).toFixed(3));
     const radius = 4.1 * Math.sqrt(i);
-    return { angle, x: Math.cos(angle * Math.PI / 180) * radius, y: Math.sin(angle * Math.PI / 180) * radius, scale: .58 + i / 170 };
+    return {
+      angle,
+      x: Number((Math.cos(angle * Math.PI / 180) * radius).toFixed(3)),
+      y: Number((Math.sin(angle * Math.PI / 180) * radius).toFixed(3)),
+      scale: Number((.58 + i / 170).toFixed(3)),
+    };
   }), [ratio]);
 
   return (

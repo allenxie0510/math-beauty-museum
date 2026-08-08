@@ -336,8 +336,15 @@ export default function Home() {
   const [certificateOpen, setCertificateOpen] = useState(false);
   const [name, setName] = useState("Allen");
   const [gardenProgress, setGardenProgress] = useState(0);
+  const [unlockNotice, setUnlockNotice] = useState(false);
+  const certificateUnlocked = useRef(false);
   const discover = useCallback((id: ExhibitId) => setDiscoveries(prev => { const next = new Set(prev); next.add(id); return next; }), []);
-  const updateGardenProgress = useCallback((value:number)=>setGardenProgress(value),[]);
+  const updateGardenProgress = useCallback((value:number)=>{
+    setGardenProgress(value);
+    if(value>=5&&!certificateUnlocked.current){certificateUnlocked.current=true;setUnlockNotice(true)}
+  },[]);
+  const openCertificate = useCallback(()=>{setUnlockNotice(false);setCertificateOpen(true)},[]);
+  useEffect(()=>{if(!unlockNotice)return;const timer=window.setTimeout(()=>setUnlockNotice(false),4200);return()=>window.clearTimeout(timer)},[unlockNotice]);
 
   return (
     <main>
@@ -348,7 +355,7 @@ export default function Home() {
           <button onClick={()=>scrollToId("flower")}>探索</button>
           <button onClick={()=>scrollToId("garden")}>花园</button>
         </nav>
-        <button className="progress-button" onClick={()=>gardenProgress>=5 ? setCertificateOpen(true) : scrollToId("garden")}><span>{Math.min(gardenProgress,5)}/5</span><i>{gardenProgress>=5 ? "证书已解锁" : "探险家进度"}</i></button>
+        <button className={`progress-button ${gardenProgress>=5?"certificate-ready":""}`} onClick={()=>gardenProgress>=5 ? openCertificate() : scrollToId("garden")} aria-label={gardenProgress>=5?"领取已解锁的数学之美证书":"查看探险家进度"}><span>{gardenProgress>=5?"🏆":`${Math.min(gardenProgress,5)}/5`}</span><i>{gardenProgress>=5?"领取证书":"探险家进度"}</i></button>
       </header>
 
       <section className="hero" id="top">
@@ -390,9 +397,10 @@ export default function Home() {
       <FourierSound discovered={discoveries.has("sound")} discover={()=>discover("sound")} />
       <SpiralUniverse discovered={discoveries.has("universe")} discover={()=>discover("universe")} />
 
-      <MathGardenWorld onProgress={updateGardenProgress} onOpenCertificate={()=>setCertificateOpen(true)} />
+      <MathGardenWorld onProgress={updateGardenProgress} />
 
       <footer><div className="brand"><span className="brand-mark">φ</span><span>数学美学展<small>Math Beauty Museum</small></span></div><p>愿每个孩子，都有机会看见隐藏在世界中的数学之美。</p><button onClick={()=>scrollToId("top")}>回到展馆入口 ↑</button></footer>
+      {unlockNotice&&<div className="certificate-unlock-toast" role="status"><span>🏆</span><p><b>证书已解锁</b>点击右上角奖杯领取</p><button onClick={()=>setUnlockNotice(false)} aria-label="关闭证书解锁通知">×</button></div>}
       {certificateOpen && <Certificate name={name} setName={setName} close={()=>setCertificateOpen(false)} />}
     </main>
   );

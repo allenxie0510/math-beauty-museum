@@ -296,7 +296,7 @@ function MathGardenCanvas({ selectedId, onSelect, settings }: { selectedId: Gard
   return <div className="garden-webgl" ref={host}><div className="webgl-fallback">你的浏览器暂时无法开启 3D 花园，请尝试更新浏览器或开启图形加速。</div></div>;
 }
 
-export function MathGardenWorld({ onProgress, onOpenCertificate }: { onProgress:(count:number)=>void; onOpenCertificate:()=>void }) {
+export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>void }) {
   const [selectedId,setSelectedId]=useState<GardenId|null>(null);
   const [discoveries,setDiscoveries]=useState<Set<GardenId>>(()=>new Set());
   const [settings,setSettings]=useState<GardenSettings>(DEFAULT_SETTINGS);
@@ -341,10 +341,7 @@ export function MathGardenWorld({ onProgress, onOpenCertificate }: { onProgress:
         {selected.controls.map(control=><label className="garden-control" key={control.key}><span>{control.label}<b>{Number(settings[control.key]).toFixed(control.step<.1?2:control.step<1?1:0)}{control.suffix}</b></span><input type="range" aria-label={control.label} min={control.min} max={control.max} step={control.step} value={settings[control.key]} onChange={e=>setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}/></label>)}
         {selected.id==="pond"&&<button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"暂停音乐水池":"听听水波的声音"}<small>频率会跟随参数实时改变</small></span></button>}
         <div className="garden-reward"><span>🌱 +1 数学种子</span><span>⭐ +2 美学星星</span></div>
-        {count>=5&&<button className="garden-certificate-button" onClick={onOpenCertificate}>生成发现者证书 <span>↗</span></button>}
       </aside>}
-
-      {count>=5&&<div className="garden-unlock"><span>🏆</span><p><b>Math Beauty Explorer</b>证书已经解锁</p><button onClick={onOpenCertificate}>领取证书 →</button></div>}
     </section>
   );
 }

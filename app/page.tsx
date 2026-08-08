@@ -1,24 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MathGardenWorld } from "./MathGarden3D";
 
 type ExhibitId = "flower" | "forest" | "geometry" | "sound" | "universe";
-
-const EXHIBITS: Array<{
-  id: ExhibitId;
-  no: string;
-  room: string;
-  title: string;
-  english: string;
-  symbol: string;
-  color: string;
-}> = [
-  { id: "flower", no: "01", room: "自然馆", title: "黄金比例花", english: "Golden Flower", symbol: "φ", color: "#ff86d6" },
-  { id: "forest", no: "02", room: "自然馆", title: "分形森林", english: "Fractal Forest", symbol: "∞", color: "#b8f36b" },
-  { id: "geometry", no: "03", room: "建筑馆", title: "数学建筑师", english: "Geometry Builder", symbol: "△", color: "#ffb866" },
-  { id: "sound", no: "04", room: "声音馆", title: "声音实验室", english: "Fourier Sound Lab", symbol: "∿", color: "#68e3ff" },
-  { id: "universe", no: "05", room: "宇宙馆", title: "螺旋宇宙", english: "Spiral Universe", symbol: "✦", color: "#9e8cff" },
-];
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -332,10 +317,12 @@ function Certificate({ name, setName, close }: { name: string; setName: (n:strin
           <Mark>THE LANGUAGE OF THE UNIVERSE</Mark>
           <p className="certificate-kicker">数学美学展 · 探索证明</p>
           <h2>数学之美<br />发现者证书</h2>
-          <p>谨此证明</p>
+          <p>恭喜</p>
           <input value={name} onChange={(e)=>setName(e.target.value)} aria-label="你的名字" placeholder="在这里写下你的名字" />
-          <p>完成了五项数学探索，并发现<br />自然、建筑、声音与宇宙背后的美丽规律。</p>
+          <p>发现了数学隐藏在世界中的美。<br />完成了自然、建筑、声音与宇宙中的五项探索。</p>
           <div className="certificate-formulas"><span>φ</span><span>∞</span><span>△</span><span>∿</span><span>✦</span></div>
+          <div className="certificate-domains"><span>✓ 黄金比例</span><span>✓ 分形森林</span><span>✓ 声音波纹</span><span>✓ 宇宙螺旋</span></div>
+          <p className="certificate-explorer">MATH BEAUTY EXPLORER</p>
           <div className="certificate-footer"><span>MATH BEAUTY MUSEUM</span><span>{new Date().getFullYear()} · 数学探索编号 0518</span></div>
         </div>
         <button className="print-button" onClick={()=>window.print()}>打印 / 保存证书 <span>↗</span></button>
@@ -347,9 +334,10 @@ function Certificate({ name, setName, close }: { name: string; setName: (n:strin
 export default function Home() {
   const [discoveries, setDiscoveries] = useState<Set<ExhibitId>>(() => new Set());
   const [certificateOpen, setCertificateOpen] = useState(false);
-  const [name, setName] = useState("");
-  const count = discoveries.size;
+  const [name, setName] = useState("Allen");
+  const [gardenProgress, setGardenProgress] = useState(0);
   const discover = useCallback((id: ExhibitId) => setDiscoveries(prev => { const next = new Set(prev); next.add(id); return next; }), []);
+  const updateGardenProgress = useCallback((value:number)=>setGardenProgress(value),[]);
 
   return (
     <main>
@@ -360,7 +348,7 @@ export default function Home() {
           <button onClick={()=>scrollToId("flower")}>探索</button>
           <button onClick={()=>scrollToId("garden")}>花园</button>
         </nav>
-        <button className="progress-button" onClick={()=>count===5 ? setCertificateOpen(true) : scrollToId("garden")}><span>{count}/5</span><i>{count===5 ? "证书已解锁" : "探索进度"}</i></button>
+        <button className="progress-button" onClick={()=>gardenProgress>=5 ? setCertificateOpen(true) : scrollToId("garden")}><span>{Math.min(gardenProgress,5)}/5</span><i>{gardenProgress>=5 ? "证书已解锁" : "探险家进度"}</i></button>
       </header>
 
       <section className="hero" id="top">
@@ -402,16 +390,7 @@ export default function Home() {
       <FourierSound discovered={discoveries.has("sound")} discover={()=>discover("sound")} />
       <SpiralUniverse discovered={discoveries.has("universe")} discover={()=>discover("universe")} />
 
-      <section className="garden" id="garden">
-        <div className="garden-glow" /><div className="garden-copy"><Mark>THE MATHEMATICAL GARDEN · 数学花园</Mark><h2>{count === 5 ? <>你的好奇心，<br /><em>让整座花园发光了。</em></> : <>每一次发现，<br /><em>都会点亮一株生命。</em></>}</h2><p>{count === 5 ? "五种规律已经在你手中相遇。现在，领取属于你的数学之美发现者证书。" : `继续探索，还差 ${5-count} 个发现就能点亮整座花园。`}</p></div>
-        <div className="discovery-garden">
-          {EXHIBITS.map((item,index)=><button key={item.id} className={`discovery-plant plant-${index+1} ${discoveries.has(item.id)?"found":""}`} onClick={()=>scrollToId(item.id)} style={{"--plant-color":item.color} as React.CSSProperties}><i>{item.symbol}</i><span>{item.title}<small>{discoveries.has(item.id)?"已发现":"等待探索"}</small></span></button>)}
-        </div>
-        <div className="certificate-callout">
-          <div className="mini-certificate"><span>φ</span><h3>数学之美<br />发现者证书</h3><div>∞　△　∿　✦</div></div>
-          <div><span className="progress-ring">{count}<small>/5</small></span><h3>{count === 5 ? "证书已经解锁" : "完成五项探索，生成你的证书"}</h3><p>你的名字，将和五枚数学发现一起留在证书上。</p><button disabled={count<5} className="primary-button" onClick={()=>setCertificateOpen(true)}>{count===5?"生成我的证书":"继续探索"} <span>↗</span></button></div>
-        </div>
-      </section>
+      <MathGardenWorld onProgress={updateGardenProgress} onOpenCertificate={()=>setCertificateOpen(true)} />
 
       <footer><div className="brand"><span className="brand-mark">φ</span><span>数学美学展<small>Math Beauty Museum</small></span></div><p>愿每个孩子，都有机会看见隐藏在世界中的数学之美。</p><button onClick={()=>scrollToId("top")}>回到展馆入口 ↑</button></footer>
       {certificateOpen && <Certificate name={name} setName={setName} close={()=>setCertificateOpen(false)} />}

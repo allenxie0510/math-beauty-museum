@@ -75,8 +75,8 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "shell", icon: "◉", name: "斐波那契贝壳", english: "Fibonacci Shell", formula: "Fₙ = Fₙ₋₁ + Fₙ₋₂",
-    discovery: "你发现了一枚会数数的贝壳！", explanation: "每一段生长都接续前两段的尺度，数列变成了可以触摸的自然曲线。",
+    id: "shell", icon: "◉", name: "斐波那契蜗牛", english: "Fibonacci Snail", formula: "Fₙ = Fₙ₋₁ + Fₙ₋₂",
+    discovery: "你发现了一只背着数列的蜗牛！", explanation: "它背上的立体螺旋壳沿着斐波那契节奏生长，身体、触角与壳共同组成一只真正的数学蜗牛。",
     color: "#ffc46f", controls: [
       { key: "shellTurns", label: "螺旋圈数", min: 2.5, max: 6, step: 0.1 },
       { key: "shellGrowth", label: "增长速度", min: 0.12, max: 0.32, step: 0.01 },
@@ -145,14 +145,9 @@ function makeOrganicMaterial(colors:string[], options:Partial<THREE.MeshPhysical
   return new THREE.MeshPhysicalMaterial({color:"#ffffff",map,bumpMap:map,bumpScale:.012,roughness:.34,metalness:.015,clearcoat:.22,clearcoatRoughness:.38,sheen:.3,sheenColor:new THREE.Color(colors[0]),...options});
 }
 
-function makePetalGeometry(radialSegments=20,heightSegments=18) {
-  const geometry=new THREE.SphereGeometry(.5,radialSegments,heightSegments);
-  const position=geometry.attributes.position as THREE.BufferAttribute;
-  for(let i=0;i<position.count;i++){
-    const y=position.getY(i);const tip=y>.08?Math.max(.24,1-(y-.08)*1.45):1;
-    position.setX(i,position.getX(i)*tip);position.setZ(i,position.getZ(i)*tip);
-  }
-  position.needsUpdate=true;geometry.computeVertexNormals();return geometry;
+function makePetalGeometry(_radialSegments=20,_heightSegments=18) {
+  const shape=new THREE.Shape();shape.moveTo(0,-.52);shape.bezierCurveTo(-.3,-.42,-.42,-.08,-.34,.22);shape.bezierCurveTo(-.28,.46,-.12,.56,0,.57);shape.bezierCurveTo(.12,.56,.28,.46,.34,.22);shape.bezierCurveTo(.42,-.08,.3,-.42,0,-.52);shape.closePath();
+  const geometry=new THREE.ExtrudeGeometry(shape,{depth:.052,bevelEnabled:true,bevelSize:.035,bevelThickness:.018,bevelSegments:3,curveSegments:18});geometry.translate(0,0,-.026);geometry.computeVertexNormals();return geometry;
 }
 
 function orientAlong(object:THREE.Object3D,direction:THREE.Vector3) {
@@ -161,7 +156,7 @@ function orientAlong(object:THREE.Object3D,direction:THREE.Vector3) {
 
 function cylinderBetween(start: THREE.Vector3, end: THREE.Vector3, radius: number, color: string) {
   const direction = new THREE.Vector3().subVectors(end, start);
-  const branchTip=new THREE.Color(color).lerp(new THREE.Color("#f4d9ee"),.34).getStyle();
+  const branchTip=new THREE.Color(color).lerp(new THREE.Color("#d9efb1"),.34).getStyle();
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * .72, radius, direction.length(), 12), makeOrganicMaterial([color,branchTip],{roughness:.58,clearcoat:.04}));
   mesh.position.copy(start).add(end).multiplyScalar(.5);
   orientAlong(mesh,direction);
@@ -173,14 +168,14 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
   const stemCurve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(-.08,.65,.03),new THREE.Vector3(.08,1.28,-.04),new THREE.Vector3(0,1.86,0)]);
   const stem=new THREE.Mesh(new THREE.TubeGeometry(stemCurve,40,.09,12,false),makeOrganicMaterial(["#438b62","#a9df78"],{roughness:.55}));stem.castShadow=true;group.add(stem);
   const leafGeometry=makePetalGeometry(18,14),leafMaterial=makeOrganicMaterial(["#4dbf9c","#bce878","#f7c0d8"],{roughness:.46});
-  [[-.08,.54,.2,.72],[.08,1.06,-.2,.58]].forEach(([x,y,z,scale],index)=>{const leaf=new THREE.Mesh(leafGeometry,leafMaterial);leaf.scale.set(.24,scale,.12);leaf.position.set(x,y,z);orientAlong(leaf,new THREE.Vector3(index?1:-1,.24,index?-1:1));leaf.castShadow=true;group.add(leaf)});
+  [[-.08,.54,.2,.72],[.08,1.06,-.2,.58]].forEach(([x,y,z,scale],index)=>{const leaf=new THREE.Mesh(leafGeometry,leafMaterial);leaf.scale.set(.32,scale,1.05);leaf.position.set(x,y,z);orientAlong(leaf,new THREE.Vector3(index?1:-1,.24,index?-1:1));leaf.castShadow=true;group.add(leaf)});
   const bloom=new THREE.Group();bloom.name="petals";bloom.position.y=1.92;
   const count=Math.round(s.flowerPetals),petalGeometry=makePetalGeometry(24,18);
   const petalMaterial=makeOrganicMaterial(["#55d1c5","#c6eef0","#ef9fca","#ffcfdf"],{roughness:.3,clearcoat:.28});
   for(let i=0;i<count;i++){
     const theta=THREE.MathUtils.degToRad(i*s.flowerAngle),progress=i/Math.max(1,count-1);
     const ring=.1+Math.sqrt(i)*.09*s.flowerRatio;const direction=new THREE.Vector3(Math.cos(theta)*(1.2-progress*.35),.35+progress*.72,Math.sin(theta)*(1.2-progress*.35)).normalize();
-    const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.25-progress*.045,.68-progress*.18,.2);petal.position.set(Math.cos(theta)*ring,.02+progress*.24,Math.sin(theta)*ring);orientAlong(petal,direction);petal.castShadow=true;bloom.add(petal);
+    const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.38-progress*.065,.62-progress*.14,.72);petal.position.set(Math.cos(theta)*ring,.02+progress*.24,Math.sin(theta)*ring);orientAlong(petal,direction);petal.castShadow=true;bloom.add(petal);
   }
   const seedMaterial=makeOrganicMaterial(["#f8cb5c","#ff8f8a"],{roughness:.4,clearcoat:.16});
   for(let i=0;i<34;i++){const theta=i*2.39996,r=.055*Math.sqrt(i);const seed=new THREE.Mesh(new THREE.IcosahedronGeometry(.038,1),seedMaterial);seed.position.set(Math.cos(theta)*r,.23+Math.max(0,.16-r*.32),Math.sin(theta)*r);seed.castShadow=true;bloom.add(seed)}
@@ -190,13 +185,12 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
 function buildTree(group: THREE.Group, s: GardenSettings) {
   const angle = THREE.MathUtils.degToRad(s.treeAngle);
   const maxDepth = Math.round(s.treeDepth);
-  const leafGeometry=makePetalGeometry(16,12);const leafMaterials=[makeOrganicMaterial(["#5acb9d","#cde977"],{roughness:.52}),makeOrganicMaterial(["#a88ce9","#efafd3","#d8ef83"],{roughness:.48})];
+  const leafGeometry=makePetalGeometry(16,12);const leafMaterials=[makeOrganicMaterial(["#188b4d","#58c765","#b7ea69"],{roughness:.52}),makeOrganicMaterial(["#246f3f","#72d271","#d0ef82"],{roughness:.48})];
   const branch = (start: THREE.Vector3, length: number, theta: number, depth: number, zBias: number) => {
     const end = start.clone().add(new THREE.Vector3(Math.sin(theta)*length,Math.cos(theta)*length,zBias*length));
-    const color=depth<=2?"#74bd77":"#7f5aa8";group.add(cylinderBetween(start,end,.035+depth*.02,color));
+    const color=depth<=2?"#39a95d":"#247544";group.add(cylinderBetween(start,end,.035+depth*.02,color));
     if (depth <= 0) {
-      for(let i=0;i<4;i++){const leaf=new THREE.Mesh(leafGeometry,leafMaterials[i%2]);const turn=i*Math.PI*.72+end.x;leaf.scale.set(.12,.34,.08);leaf.position.copy(end).add(new THREE.Vector3(Math.cos(turn)*.09,i*.035,Math.sin(turn)*.09));orientAlong(leaf,new THREE.Vector3(Math.cos(turn),.55,Math.sin(turn)));leaf.castShadow=true;group.add(leaf)}
-      const bud=new THREE.Mesh(new THREE.IcosahedronGeometry(.09,2),makeOrganicMaterial(["#f0a7d0","#d6ef7c"]));bud.position.copy(end).add(new THREE.Vector3(0,.12,0));group.add(bud);return;
+      for(let i=0;i<5;i++){const leaf=new THREE.Mesh(leafGeometry,leafMaterials[i%2]);const turn=i*Math.PI*.6+end.x;leaf.scale.set(.19,.35,1);leaf.position.copy(end).add(new THREE.Vector3(Math.cos(turn)*.11,i*.026,Math.sin(turn)*.11));orientAlong(leaf,new THREE.Vector3(Math.cos(turn),.5,Math.sin(turn)));leaf.castShadow=true;group.add(leaf)}return;
     }
     branch(end, length * s.treeRatio, theta - angle, depth - 1, -.10 + zBias * .45);
     branch(end, length * s.treeRatio, theta + angle, depth - 1, .10 + zBias * .45);
@@ -257,18 +251,22 @@ function buildPond(group: THREE.Group, s: GardenSettings) {
   }
   [[-.7,.1],[.66,-.35]].forEach(([x,z],index)=>{const pad=new THREE.Mesh(new THREE.CircleGeometry(.28-index*.03,40),makeOrganicMaterial(["#68c99b","#d7ed7b"],{side:THREE.DoubleSide,roughness:.48}));pad.rotation.x=-Math.PI/2;pad.position.set(x,.16,z);group.add(pad)});
   const lotus=new THREE.Group();lotus.position.set(-.66,.2,.1);const lotusPetal=makePetalGeometry(14,10),lotusMaterial=makeOrganicMaterial(["#fff0f1","#f2a3ca","#d18ce1"],{roughness:.3});for(let i=0;i<9;i++){const a=i*Math.PI*2/9;const petal=new THREE.Mesh(lotusPetal,lotusMaterial);petal.scale.set(.09,.25,.07);petal.position.set(Math.cos(a)*.13,.08,Math.sin(a)*.13);orientAlong(petal,new THREE.Vector3(Math.cos(a),.55,Math.sin(a)));lotus.add(petal)}group.add(lotus);
-  [0,1,2].forEach(i=>{const note=new THREE.Mesh(new THREE.SphereGeometry(.085+i*.018,18,14),makeOrganicMaterial(i===1?["#f7aad0","#9f78dc"]:["#8fe7e2","#6c73d9"],{roughness:.18,clearcoat:.55}));note.position.set(-.45+i*.45,.65+i*.24,.12-i*.12);note.userData.float=i;note.castShadow=true;group.add(note)});
+  [0,1,2].forEach(i=>{const note=new THREE.Mesh(new THREE.TorusGeometry(.08+i*.018,.014,8,32),makeOrganicMaterial(i===1?["#f7aad0","#9f78dc"]:["#8fe7e2","#6c73d9"],{roughness:.18,clearcoat:.55}));note.position.set(-.45+i*.45,.65+i*.24,.12-i*.12);note.rotation.set(.35+i*.28,.4-i*.16,.2+i*.36);note.userData.float=i;note.castShadow=true;group.add(note)});
   group.userData.pondSpeed=s.pondSpeed;
 }
 
 function buildShell(group: THREE.Group, s: GardenSettings) {
-  const chamberGeometry=new THREE.SphereGeometry(1,24,18);const chamberMaterials=[makeOrganicMaterial(["#fff2c7","#ffc27d"],{roughness:.3}),makeOrganicMaterial(["#ffd1bd","#ed8fba"],{roughness:.28}),makeOrganicMaterial(["#d9b5ec","#8edfdc"],{roughness:.26}),makeOrganicMaterial(["#bcece5","#fff0c5"],{roughness:.25})];
-  const visualTurns=1.45+(s.shellTurns-2.5)/3.5*1.45,steps=34;let lastPosition=new THREE.Vector3(),lastSize=.1,lastTheta=0;
-  for(let i=0;i<steps;i++){const t=i/(steps-1),theta=t*Math.PI*2*visualTurns,growth=.072+s.shellGrowth*.12,r=.055*Math.exp(theta*growth);const size=(s.shellTube*.62+.035)*( .35+t*1.15);const chamber=new THREE.Mesh(chamberGeometry,chamberMaterials[Math.min(3,Math.floor(t*4))]);chamber.position.set(Math.cos(theta)*r*3.1,.62+Math.sin(theta)*r*3.1,0);chamber.scale.set(size*1.18,size*.88,size*.48);chamber.rotation.z=theta+.3;chamber.castShadow=true;group.add(chamber);lastPosition.copy(chamber.position);lastSize=size;lastTheta=theta}
-  const center=new THREE.Mesh(new THREE.SphereGeometry(.18,28,20),makeOrganicMaterial(["#fff4cf","#ef9fbd","#8fded8"],{roughness:.22,clearcoat:.38}));center.position.set(0,.62,-.01);center.scale.z=.5;center.castShadow=true;group.add(center);
-  const lip=new THREE.Mesh(new THREE.TorusGeometry(lastSize*.66,.025,10,38),makeOrganicMaterial(["#fff8de","#f6a6c9"],{roughness:.18,clearcoat:.45}));lip.position.copy(lastPosition).add(new THREE.Vector3(Math.cos(lastTheta)*lastSize*.36,Math.sin(lastTheta)*lastSize*.36,.035));lip.rotation.z=lastTheta;group.add(lip);
-  const pearl=new THREE.Mesh(new THREE.SphereGeometry(.11,24,18),makeOrganicMaterial(["#ffffff","#f5d4ef","#c7eff0"],{roughness:.08,clearcoat:.75}));pearl.position.copy(lastPosition).add(new THREE.Vector3(0,0,.12));pearl.castShadow=true;group.add(pearl);
-  group.rotation.set(-.12,.35,-.12);
+  const bodyMaterial=makeOrganicMaterial(["#35a982","#78d8a0","#d0ed7a"],{roughness:.46,clearcoat:.12});
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.18,1.15,10,20),bodyMaterial);body.rotation.z=Math.PI/2;body.position.set(.25,.2,0);body.scale.z=.68;body.castShadow=true;group.add(body);
+  const foot=new THREE.Mesh(new THREE.CapsuleGeometry(.09,1.2,8,18),makeOrganicMaterial(["#247a64","#69c994"],{roughness:.58}));foot.rotation.z=Math.PI/2;foot.position.set(.18,.05,0);foot.scale.set(1,.75,.82);group.add(foot);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,28,22),bodyMaterial);head.position.set(.95,.31,0);head.scale.set(1,.92,.88);head.castShadow=true;group.add(head);
+  const stalkMaterial=makeOrganicMaterial(["#2d896d","#9adb8b"],{roughness:.5});
+  [-1,1].forEach(side=>{const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(1.02,.45,side*.1),new THREE.Vector3(1.12,.67,side*.14),new THREE.Vector3(1.22,.83,side*.2)]);const stalk=new THREE.Mesh(new THREE.TubeGeometry(curve,22,.025,8,false),stalkMaterial);stalk.castShadow=true;group.add(stalk);const eye=new THREE.Mesh(new THREE.SphereGeometry(.06,16,12),makeMaterial("#263237",{roughness:.22,clearcoat:.5}));eye.position.set(1.22,.83,side*.2);group.add(eye)});
+  const smileCurve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(1.17,.25,-.18),new THREE.Vector3(1.25,.19,0),new THREE.Vector3(1.17,.25,.18));const smile=new THREE.Mesh(new THREE.TubeGeometry(smileCurve,18,.012,6,false),makeMaterial("#276753",{roughness:.5}));group.add(smile);
+  const shellScale=.9+(s.shellTube-.08)/.16*.22;const shellCenter=new THREE.Vector3(-.18,.9,0);
+  const shell=new THREE.Mesh(new THREE.SphereGeometry(.72,48,36),makeOrganicMaterial(["#ffe38f","#f3a1bf","#9c83e4","#74dcd2"],{roughness:.24,clearcoat:.42}));shell.position.copy(shellCenter);shell.scale.set(shellScale,shellScale,shellScale*.62);shell.castShadow=true;group.add(shell);
+  const visualTurns=1.55+(s.shellTurns-2.5)/3.5*1.25,spiralPoints:THREE.Vector3[]=[];for(let i=0;i<=120;i++){const t=i/120,theta=t*Math.PI*2*visualTurns,r=.035+.54*Math.pow(t,.78+s.shellGrowth);spiralPoints.push(new THREE.Vector3(shellCenter.x+Math.cos(theta)*r*shellScale,shellCenter.y+Math.sin(theta)*r*shellScale,.46*shellScale))}const spiral=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(spiralPoints),140,.018+s.shellTube*.035,8,false),makeOrganicMaterial(["#fff8d2","#ef8fbd","#72d8d0"],{roughness:.18,clearcoat:.5}));spiral.castShadow=true;group.add(spiral);
+  const spiralCore=new THREE.Mesh(new THREE.SphereGeometry(.09,20,16),makeOrganicMaterial(["#fff4bd","#f49cc5"],{roughness:.18,clearcoat:.55}));spiralCore.position.set(shellCenter.x,shellCenter.y,.47*shellScale);group.add(spiralCore);
 }
 
 function buildMobius(group: THREE.Group, s: GardenSettings) {
@@ -287,7 +285,6 @@ function buildMobius(group: THREE.Group, s: GardenSettings) {
   const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeVertexNormals();
   const ribbon=new THREE.Mesh(geometry,new THREE.MeshPhysicalMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:.22,metalness:.04,clearcoat:.55,clearcoatRoughness:.2,sheen:.4,sheenColor:new THREE.Color("#e8b7ef")}));ribbon.castShadow=true;group.add(ribbon);
   [-1,1].forEach(edge=>{const points:THREE.Vector3[]=[];for(let i=0;i<=segments;i++){const u=i/segments*Math.PI*2,v=edge*s.mobiusWidth,twist=s.mobiusTwist*u/2,radius=s.mobiusRadius;points.push(new THREE.Vector3((radius+v*Math.cos(twist))*Math.cos(u),v*Math.sin(twist),(radius+v*Math.cos(twist))*Math.sin(u)))}const trim=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,true),segments,.018,6,true),makeMaterial(edge>0?"#fff2b1":"#c7fbf0",{emissive:edge>0?"#c98044":"#4b9d9d",emissiveIntensity:.35,roughness:.18}));group.add(trim)});
-  for(let i=0;i<7;i++){const a=i/7*Math.PI*2,v=Math.sin(i*1.7)*s.mobiusWidth*.72,twist=s.mobiusTwist*a/2,r=s.mobiusRadius;const bead=new THREE.Mesh(new THREE.SphereGeometry(.045,14,10),makeOrganicMaterial(["#ffffff","#f5b6d8"],{roughness:.12,clearcoat:.65}));bead.position.set((r+v*Math.cos(twist))*Math.cos(a),v*Math.sin(twist),(r+v*Math.cos(twist))*Math.sin(a));group.add(bead)}
 }
 
 function buildItem(group: THREE.Group, id: GardenId, settings: GardenSettings) {
@@ -316,15 +313,15 @@ function MathGardenCanvas({ selectedId, onSelect, settings }: { selectedId: Gard
     container.dataset.webglReady="false";
     let renderer:THREE.WebGLRenderer;
     try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:"high-performance"});}catch(error){console.error("Math garden WebGL initialization failed",error);return;}
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.8));renderer.setSize(container.clientWidth,container.clientHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.82;renderer.domElement.setAttribute("aria-label","可旋转和缩放的数学花园三维空间");renderer.domElement.setAttribute("role","img");container.appendChild(renderer.domElement);
-    const scene=new THREE.Scene();scene.background=new THREE.Color("#91cfe5");scene.fog=new THREE.FogExp2("#b6dce8",.032);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.8));renderer.setSize(container.clientWidth,container.clientHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;renderer.domElement.setAttribute("aria-label","可旋转和缩放的数学花园三维空间");renderer.domElement.setAttribute("role","img");container.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();scene.background=new THREE.Color("#7ed7ef");scene.fog=new THREE.FogExp2("#a6e2ec",.024);
     const camera=new THREE.PerspectiveCamera(45,container.clientWidth/container.clientHeight,.1,80);camera.position.set(0,7.2,12.5);
     const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.055;controls.enablePan=false;controls.minDistance=6.5;controls.maxDistance=17;controls.minPolarAngle=.55;controls.maxPolarAngle=1.36;controls.autoRotate=true;controls.autoRotateSpeed=.22;controls.target.set(0,1,0);
-    scene.add(new THREE.HemisphereLight("#fff7ed","#b66b9e",1.08));const sun=new THREE.DirectionalLight("#ffe6c7",2.05);sun.position.set(-6,11,8);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-11;sun.shadow.camera.right=11;sun.shadow.camera.top=11;sun.shadow.camera.bottom=-11;scene.add(sun);const fill=new THREE.PointLight("#947bd8",8,18);fill.position.set(4,5,-3);scene.add(fill);const rimLight=new THREE.PointLight("#52cdbf",6,16);rimLight.position.set(-6,3,3);scene.add(rimLight);
-    const ground=new THREE.Mesh(new THREE.CircleGeometry(12.5,96),makeOrganicMaterial(["#ef9fbc","#f5bd99","#84d6c8"],{roughness:.72,clearcoat:.04}));ground.rotation.x=-Math.PI/2;ground.position.y=-.04;ground.receiveShadow=true;scene.add(ground);
-    const path=new THREE.Mesh(new THREE.TorusGeometry(5.1,.5,24,128),makeOrganicMaterial(["#fff5f1","#e6d5fa","#c6eff0"],{roughness:.58,clearcoat:.12}));path.rotation.x=Math.PI/2;path.scale.z=.7;path.position.y=.015;path.receiveShadow=true;scene.add(path);
-    [[-7,-3,2.4,"#d9c7ff"],[7,-4,3,"#ffc1d9"],[-8,4,2.6,"#b5e7f2"],[8,5,3.5,"#d5ed93"]].forEach(([x,z,scale,color],index)=>{const secondary=index%2?"#f7cbdf":"#a8e4df";const hill=new THREE.Mesh(new THREE.SphereGeometry(1.8,36,24),makeOrganicMaterial([color as string,secondary],{roughness:.64,clearcoat:.08}));hill.position.set(x as number,-.45,z as number);hill.scale.set(scale as number,1,1.2);hill.receiveShadow=true;scene.add(hill)});
-    const pebbleGeometry=new THREE.IcosahedronGeometry(.12,2),pebbleMaterials=[makeOrganicMaterial(["#70d7bc","#d7ee7c"]),makeOrganicMaterial(["#9f88e6","#ef9fc8"]),makeOrganicMaterial(["#ffc480","#f29abc"])];for(let i=0;i<30;i++){const a=i*2.39996,r=6.4+(i%5)*.68;const pebble=new THREE.Mesh(pebbleGeometry,pebbleMaterials[i%3]);pebble.position.set(Math.cos(a)*r,.05+(i%3)*.035,Math.sin(a)*r);pebble.scale.set(.7+(i%4)*.2,1.1+(i%5)*.18,.7+(i%3)*.16);pebble.rotation.set(a*.12,a,.1);pebble.castShadow=true;scene.add(pebble)}
+    scene.add(new THREE.HemisphereLight("#fffaf0","#d46ca7",1.42));const sun=new THREE.DirectionalLight("#fff0cc",2.65);sun.position.set(-6,11,8);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-11;sun.shadow.camera.right=11;sun.shadow.camera.top=11;sun.shadow.camera.bottom=-11;scene.add(sun);const fill=new THREE.PointLight("#9c75ec",10,18);fill.position.set(4,5,-3);scene.add(fill);const rimLight=new THREE.PointLight("#36e0c1",8,16);rimLight.position.set(-6,3,3);scene.add(rimLight);
+    const ground=new THREE.Mesh(new THREE.CircleGeometry(12.5,96),makeOrganicMaterial(["#f58ab8","#ffc269","#59d6b7"],{roughness:.68,clearcoat:.05}));ground.rotation.x=-Math.PI/2;ground.position.y=-.04;ground.receiveShadow=true;scene.add(ground);
+    const path=new THREE.Mesh(new THREE.TorusGeometry(5.1,.5,24,128),makeOrganicMaterial(["#fffdf5","#dfc1ff","#91ede2"],{roughness:.52,clearcoat:.16}));path.rotation.x=Math.PI/2;path.scale.z=.7;path.position.y=.015;path.receiveShadow=true;scene.add(path);
+    [[-7,-3,2.4,"#bca3ff"],[7,-4,3,"#ff9fca"],[-8,4,2.6,"#83e5ed"],[8,5,3.5,"#bde960"]].forEach(([x,z,scale,color],index)=>{const secondary=index%2?"#ffbfda":"#72dfcf";const hill=new THREE.Mesh(new THREE.SphereGeometry(1.8,36,24),makeOrganicMaterial([color as string,secondary],{roughness:.58,clearcoat:.1}));hill.position.set(x as number,-.45,z as number);hill.scale.set(scale as number,1,1.2);hill.receiveShadow=true;scene.add(hill)});
+    const pineTrunkGeometry=new THREE.CylinderGeometry(.075,.11,.72,10),pineConeGeometry=new THREE.ConeGeometry(.62,.92,20),pineTrunkMaterial=makeOrganicMaterial(["#6f5845","#b1855f"],{roughness:.66}),pineMaterials=[makeOrganicMaterial(["#0d7042","#39b95b"],{roughness:.58}),makeOrganicMaterial(["#16884a","#75d969"],{roughness:.55})];for(let i=0;i<7;i++){const angle=.35+i*.91,radius=10.2+(i%2)*1.05,scale=.82+(i%3)*.16,pine=new THREE.Group();pine.position.set(Math.cos(angle)*radius,0,Math.sin(angle)*radius);const trunk=new THREE.Mesh(pineTrunkGeometry,pineTrunkMaterial);trunk.position.y=.36*scale;trunk.scale.setScalar(scale);trunk.castShadow=true;pine.add(trunk);for(let tier=0;tier<3;tier++){const crown=new THREE.Mesh(pineConeGeometry,pineMaterials[(i+tier)%2]);crown.position.y=(.72+tier*.48)*scale;crown.scale.set((1-tier*.15)*scale,(1-tier*.08)*scale,(1-tier*.15)*scale);crown.castShadow=true;pine.add(crown)}scene.add(pine)}
     GARDEN_ITEMS.forEach(item=>{const group=new THREE.Group();group.position.set(...POSITIONS[item.id]);group.userData.gardenId=item.id;buildItem(group,item.id,settingsRef.current);scene.add(group);groups.current.set(item.id,group)});
     const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let pointerStart={x:0,y:0};
     const down=(e:PointerEvent)=>{pointerStart={x:e.clientX,y:e.clientY};controls.autoRotate=false};
@@ -346,19 +343,17 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   const [discoveries,setDiscoveries]=useState<Set<GardenId>>(()=>new Set());
   const [settings,setSettings]=useState<GardenSettings>(DEFAULT_SETTINGS);
   const [pondPlaying,setPondPlaying]=useState(false);
-  const pondAudio=useRef<{context:AudioContext;oscillators:OscillatorNode[]}|null>(null);
+  const pondAudio=useRef<HTMLAudioElement|null>(null);
   const selected=useMemo(()=>GARDEN_ITEMS.find(item=>item.id===selectedId)??null,[selectedId]);
   const count=discoveries.size,seeds=count,stars=count*2,badges=(count>=3?1:0)+(count>=5?1:0)+(count===8?1:0);
   useEffect(()=>onProgress(count),[count,onProgress]);
   const select=useCallback((id:GardenId)=>{setSelectedId(id);setDiscoveries(prev=>{const next=new Set(prev);next.add(id);return next})},[]);
   const togglePondSound=async()=>{
-    if(pondPlaying){pondAudio.current?.oscillators.forEach(osc=>{try{osc.stop()}catch{}});pondAudio.current=null;setPondPlaying(false);return;}
-    const context=new AudioContext();await context.resume();const master=context.createGain();master.gain.value=.045;master.connect(context.destination);
-    const oscillators=[0,1,2].map((index)=>{const osc=context.createOscillator(),gain=context.createGain();osc.type=index===0?"sine":"triangle";osc.frequency.value=110+settings.pondFrequency*22*(index+1);gain.gain.value=.55/(index+1);osc.connect(gain).connect(master);osc.start();return osc});
-    pondAudio.current={context,oscillators};setPondPlaying(true);
+    if(pondPlaying){if(pondAudio.current){pondAudio.current.pause();pondAudio.current.currentTime=0}setPondPlaying(false);return;}
+    if(!pondAudio.current){const audio=new Audio("/audio/mozart-garden.mp3");audio.loop=true;audio.volume=.48;audio.preload="auto";pondAudio.current=audio}
+    try{await pondAudio.current.play();setPondPlaying(true)}catch(error){console.error("Garden music playback failed",error);setPondPlaying(false)}
   };
-  useEffect(()=>{pondAudio.current?.oscillators.forEach((osc,index)=>osc.frequency.setTargetAtTime(110+settings.pondFrequency*22*(index+1),pondAudio.current?.context.currentTime??0,.04))},[settings.pondFrequency]);
-  useEffect(()=>()=>{pondAudio.current?.oscillators.forEach(osc=>{try{osc.stop()}catch{}});void pondAudio.current?.context.close()},[]);
+  useEffect(()=>()=>{if(pondAudio.current){pondAudio.current.pause();pondAudio.current.src=""}},[]);
 
   return (
     <section className="garden-world" id="garden">
@@ -384,7 +379,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         <p className="garden-explanation">{selected.explanation}</p>
         <div className="garden-try-title"><span>试试看改变它</span><i>参数会实时作用于 3D 物体</i></div>
         {selected.controls.map(control=><label className="garden-control" key={control.key}><span>{control.label}<b>{Number(settings[control.key]).toFixed(control.step<.1?2:control.step<1?1:0)}{control.suffix}</b></span><input type="range" aria-label={control.label} min={control.min} max={control.max} step={control.step} value={settings[control.key]} onChange={e=>setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}/></label>)}
-        {selected.id==="pond"&&<button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"暂停音乐水池":"听听水波的声音"}<small>频率会跟随参数实时改变</small></span></button>}
+        {selected.id==="pond"&&<button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"暂停钢琴旋律":"聆听音乐水池"}<small>莫扎特钢琴协奏曲 · 真实演奏片段</small></span></button>}
         <div className="garden-reward"><span>🌱 +1 数学种子</span><span>⭐ +2 美学星星</span></div>
       </aside>}
     </section>

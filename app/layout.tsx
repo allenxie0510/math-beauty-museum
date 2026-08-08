@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og.png`;
+  const imageUrl = `${protocol}://${host}/og-modern.png`;
 
   return {
     title: "数学美学展 · Math Beauty Museum",
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: "数学美学展 · Math Beauty Museum",
       description: "看见公式背后的美。",
-      images: [{ url: imageUrl, width: 1672, height: 941, alt: "数学美学展：发光的数学之树" }],
+      images: [{ url: imageUrl, width: 1672, height: 941, alt: "数学美学展：明快现代的三维数学展厅" }],
       type: "website",
     },
     twitter: {

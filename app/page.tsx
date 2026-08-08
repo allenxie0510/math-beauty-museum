@@ -36,19 +36,17 @@ function DiscoveryStamp({ active }: { active: boolean }) {
   );
 }
 
-function MuseumTree() {
-  const formulas = ["φ", "π", "∞", "∑", "√", "1, 1, 2, 3, 5…"];
+function ModernHallSculpture() {
   return (
-    <div className="tree-scene" aria-label="发光的数学之树">
-      <div className="tree-aura" />
-      <div className="tree-crown crown-a" />
-      <div className="tree-crown crown-b" />
-      <div className="tree-crown crown-c" />
-      <div className="tree-trunk"><span /></div>
-      <div className="tree-ground" />
-      {formulas.map((formula, index) => (
-        <span className={`formula formula-${index + 1}`} key={formula}>{formula}</span>
-      ))}
+    <div className="museum-object" aria-label="漂浮在现代展厅中的三维数学装置">
+      <div className="object-orbit orbit-wide" />
+      <div className="object-orbit orbit-tall" />
+      <div className="math-blob blob-pink"><span>φ</span></div>
+      <div className="math-blob blob-blue"><span>∞</span></div>
+      <div className="math-blob blob-lime"><span>∿</span></div>
+      <div className="math-blob blob-orange"><span>△</span></div>
+      <div className="object-core"><span>∑</span><small>规律在这里相遇</small></div>
+      <div className="object-pedestal"><i /></div>
     </div>
   );
 }
@@ -366,29 +364,33 @@ export default function Home() {
       </header>
 
       <section className="hero" id="top">
-        <div className="stars" aria-hidden="true">{Array.from({length:54},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,top:`${(i*53)%91}%`,animationDelay:`-${i%7}s`}} />)}</div>
+        <div className="hero-architecture" aria-hidden="true"><i /><i /><i /></div>
         <div className="hero-copy">
           <Mark>AI × MATHEMATICS × VISUAL ART</Mark>
           <h1>看见<span>公式背后的美</span></h1>
           <p>欢迎来到一座没有标准答案的博物馆。<br />在这里，数学不是考试，而是世界写给你的秘密语言。</p>
           <button className="primary-button" onClick={()=>scrollToId("hall")}>推开展馆大门 <span>↓</span></button>
         </div>
-        <MuseumTree />
+        <ModernHallSculpture />
         <div className="hero-foot"><span>SCROLL TO EXPLORE</span><i /><p>一次为好奇心准备的数字展览</p></div>
       </section>
 
       <section className="hall" id="hall">
-        <div className="hall-intro"><Mark>THE CENTRAL HALL · 中央大厅</Mark><h2>所有数学规律，<br /><em>来自同一个根源。</em></h2><p>选择一扇门。每一次触碰，都会让隐藏在世界里的规律发光。</p></div>
-        <div className="room-map">
-          {[
-            ["flower","01","自然数学馆","花瓣、枝条与生命的秩序","φ","pink"],
-            ["geometry","02","建筑数学馆","支撑文明的几何骨架","△","orange"],
-            ["sound","03","声音数学馆","把看不见的声音变成波","∿","cyan"],
-            ["universe","04","宇宙数学馆","从贝壳到银河的共同旋律","✦","purple"]
-          ].map(([id,no,title,desc,symbol,color])=>(
-            <button key={id} className={`room-card room-${color}`} onClick={()=>scrollToId(id)}><span>{no}</span><i>{symbol}</i><h3>{title}</h3><p>{desc}</p><b>进入展馆 →</b></button>
-          ))}
-          <div className="map-center"><span>∞</span><small>YOU ARE HERE</small></div>
+        <div className="hall-intro"><Mark>THE CENTRAL HALL · 中央大厅</Mark><h2>一个开阔空间，<br /><em>四种数学视角。</em></h2><p>沿着弧形展墙进入不同展馆，让自然、建筑、声音与宇宙依次展开。</p></div>
+        <div className="hall-space">
+          <div className="hall-curve" aria-hidden="true"><span>MATHEMATICS IS EVERYWHERE</span></div>
+          <div className="hall-floor" aria-hidden="true" />
+          <div className="hall-centerpiece" aria-hidden="true"><i>∞</i><span>中央大厅<small>CENTRAL HALL</small></span></div>
+          <div className="room-map">
+            {[
+              ["flower","01","自然数学馆","花瓣、枝条与生命的秩序","φ","pink"],
+              ["geometry","02","建筑数学馆","支撑文明的几何骨架","△","orange"],
+              ["sound","03","声音数学馆","把看不见的声音变成波","∿","cyan"],
+              ["universe","04","宇宙数学馆","从贝壳到银河的共同旋律","✦","purple"]
+            ].map(([id,no,title,desc,symbol,color])=>(
+              <button key={id} className={`room-card room-${color}`} onClick={()=>scrollToId(id)}><span>{no}</span><i>{symbol}</i><h3>{title}</h3><p>{desc}</p><b>进入展馆 <em>→</em></b></button>
+            ))}
+          </div>
         </div>
       </section>
 

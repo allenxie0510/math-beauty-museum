@@ -152,6 +152,13 @@ function makePetalGeometry(radialSegments=24,heightSegments=16) {
   return geometry;
 }
 
+function makeTreeLeafGeometry() {
+  const geometry=new THREE.SphereGeometry(.5,20,12);
+  geometry.scale(.5,.9,.05);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function orientAlong(object:THREE.Object3D,direction:THREE.Vector3) {
   object.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction.clone().normalize());
 }
@@ -187,12 +194,16 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
 function buildTree(group: THREE.Group, s: GardenSettings) {
   const angle = THREE.MathUtils.degToRad(s.treeAngle);
   const maxDepth = Math.round(s.treeDepth);
-  const leafGeometry=makePetalGeometry(18,12);const leafMaterials=[makeOrganicMaterial(["#188b4d","#58c765","#b7ea69"],{roughness:.52}),makeOrganicMaterial(["#246f3f","#72d271","#d0ef82"],{roughness:.48})];
+  const leafGeometry=makeTreeLeafGeometry();const leafMaterials=[makeOrganicMaterial(["#197a3f","#50b95c","#a6db5e"],{roughness:.58,clearcoat:.08}),makeOrganicMaterial(["#246f3f","#6fc466","#c5e879"],{roughness:.56,clearcoat:.08})];
   const branch = (start: THREE.Vector3, length: number, theta: number, depth: number, zBias: number) => {
     const end = start.clone().add(new THREE.Vector3(Math.sin(theta)*length,Math.cos(theta)*length,zBias*length));
     const color=depth<=2?"#39a95d":"#247544";group.add(cylinderBetween(start,end,.035+depth*.02,color));
     if (depth <= 0) {
-      for(let i=0;i<2;i++){const leaf=new THREE.Mesh(leafGeometry,leafMaterials[i]);const turn=i*Math.PI+end.x*1.7;leaf.scale.set(.5,.72,1);leaf.position.copy(end).add(new THREE.Vector3(Math.cos(turn)*.13,.035+i*.055,Math.sin(turn)*.13));orientAlong(leaf,new THREE.Vector3(Math.cos(turn),.72,Math.sin(turn)));leaf.castShadow=true;group.add(leaf)}return;
+      const branchDirection=new THREE.Vector3(Math.sin(theta),Math.cos(theta),zBias).normalize();
+      const sideDirection=new THREE.Vector3(Math.cos(theta),0,-Math.sin(theta)).normalize();
+      const centerDirection=new THREE.Vector3(branchDirection.x*.42,.96,branchDirection.z*.42).normalize();
+      const leafDirections=[centerDirection,centerDirection.clone().multiplyScalar(.58).add(sideDirection.clone().multiplyScalar(.82)).normalize(),centerDirection.clone().multiplyScalar(.58).add(sideDirection.clone().multiplyScalar(-.82)).normalize()];
+      leafDirections.forEach((direction,index)=>{const leaf=new THREE.Mesh(leafGeometry,leafMaterials[index%2]);const scale=index===0?.37:.33;leaf.scale.setScalar(scale);leaf.position.copy(end).add(direction.clone().multiplyScalar(index===0?.14:.12));orientAlong(leaf,direction);leaf.rotateY(index===0?0:index===1?.22:-.22);leaf.castShadow=true;group.add(leaf)});return;
     }
     branch(end, length * s.treeRatio, theta - angle, depth - 1, -.10 + zBias * .45);
     branch(end, length * s.treeRatio, theta + angle, depth - 1, .10 + zBias * .45);

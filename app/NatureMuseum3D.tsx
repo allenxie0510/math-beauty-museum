@@ -66,7 +66,7 @@ const HALLS: HallDefinition[] = [
     eyebrow: "NATURE MATHEMATICS HALL · 01",
     subtitle: "花瓣、枝条与种子，都在用数学生长",
     category: "自然规律",
-    accent: "#ef79b7",
+    accent: "#9fc94f",
     items: [
       {
         id: "golden",
@@ -75,7 +75,7 @@ const HALLS: HallDefinition[] = [
         name: "黄金比例花",
         english: "Golden Ratio Flower",
         formula: "φ ≈ 1.618",
-        color: "#ef79b7",
+        color: "#a8cf58",
         discovery: "一朵花，正在寻找最舒展的排列。",
         explanation: "花瓣依次转过黄金角，彼此错开，让每一片都更容易得到阳光。改变角度时，你会看到秩序如何出现或消失。",
         visual: "golden",
@@ -93,7 +93,7 @@ const HALLS: HallDefinition[] = [
         name: "分形生长",
         english: "Fractal Growth",
         formula: "Lₙ = L₀ · rⁿ",
-        color: "#9edc65",
+        color: "#72b86c",
         discovery: "一条简单规则，长成了一棵复杂的树。",
         explanation: "每根枝条都缩短一点、转动一点，再复制自己。重复不是单调，它能从很少的信息里创造丰富生命。",
         visual: "fractal",
@@ -111,7 +111,7 @@ const HALLS: HallDefinition[] = [
         name: "斐波那契花盘",
         english: "Fibonacci Phyllotaxis",
         formula: "1, 1, 2, 3, 5, 8…",
-        color: "#e9b94e",
+        color: "#cdb54b",
         discovery: "小小种子，也懂得怎样装满一个圆。",
         explanation: "每颗种子沿固定角度生长，会自然形成两组反向螺旋。向日葵用数列，把有限空间安排得井井有条。",
         visual: "phyllotaxis",
@@ -132,7 +132,7 @@ const HALLS: HallDefinition[] = [
     eyebrow: "ARCHITECTURE MATHEMATICS HALL · 02",
     subtitle: "从一条受力线，到支撑文明的空间秩序",
     category: "建筑结构",
-    accent: "#f39b67",
+    accent: "#ed9b45",
     items: [
       {
         id: "pythagoras",
@@ -141,7 +141,7 @@ const HALLS: HallDefinition[] = [
         name: "勾股结构",
         english: "Pythagorean Structure",
         formula: "a² + b² = c²",
-        color: "#f39b67",
+        color: "#ef9847",
         discovery: "三条边，组成建筑里最可靠的承诺。",
         explanation: "直角三角形可以把受力稳定地传向地面。改变两条直角边，斜梁会始终遵守勾股关系。",
         visual: "pythagoras",
@@ -159,7 +159,7 @@ const HALLS: HallDefinition[] = [
         name: "悬链拱",
         english: "Catenary Arch",
         formula: "y = a cosh(x/a)",
-        color: "#7fc6c4",
+        color: "#dfb354",
         discovery: "一条自然垂落的曲线，翻转后可以撑起穹顶。",
         explanation: "绳索在重力下形成悬链线。把它上下翻转，压力会沿曲线流动，因此许多拱门和穹顶格外稳定。",
         visual: "catenary",
@@ -177,7 +177,7 @@ const HALLS: HallDefinition[] = [
         name: "几何铺砌",
         english: "Geometric Tessellation",
         formula: "Σ interior angles = 360°",
-        color: "#8d79d8",
+        color: "#e77f4c",
         discovery: "没有缝隙的重复，铺成一整面城市表皮。",
         explanation: "三角形、正方形和正六边形能够围绕一点完整拼合。改变边数与旋转角，观察空间何时严丝合缝。",
         visual: "tessellation",
@@ -198,7 +198,7 @@ const HALLS: HallDefinition[] = [
     eyebrow: "SOUND MATHEMATICS HALL · 03",
     subtitle: "让看不见的振动，变成可以阅读的形状",
     category: "声音规律",
-    accent: "#61cfe4",
+    accent: "#d875b5",
     items: [
       {
         id: "sine",
@@ -207,7 +207,7 @@ const HALLS: HallDefinition[] = [
         name: "正弦波",
         english: "Sine Wave",
         formula: "y = A sin(2πft + φ)",
-        color: "#61cfe4",
+        color: "#dc79b7",
         discovery: "最简单的声音，是一条平滑起伏的曲线。",
         explanation: "频率决定音高，振幅决定响度，相位决定波从哪里开始。三个参数共同描述最基础的纯音。",
         visual: "sine",
@@ -225,7 +225,7 @@ const HALLS: HallDefinition[] = [
         name: "傅里叶叠加",
         english: "Fourier Harmonics",
         formula: "f(t) = Σ Aₙ sin(nωt)",
-        color: "#ed82bd",
+        color: "#a979d3",
         discovery: "复杂的声音，可以拆成许多个简单波。",
         explanation: "把不同频率的正弦波叠加，就能得到丰富音色。增加谐波层数，观察简单波如何共同塑造复杂声音。",
         visual: "harmonics",
@@ -243,7 +243,7 @@ const HALLS: HallDefinition[] = [
         name: "克拉尼图形",
         english: "Chladni Figures",
         formula: "∇²u + k²u = 0",
-        color: "#e4b85c",
+        color: "#ed98ae",
         discovery: "沙粒会主动离开振动最强的位置。",
         explanation: "薄板振动时，几乎不动的节点会收集沙粒，显现出隐藏的几何图案。频率模式不同，图案也会改变。",
         visual: "chladni",
@@ -264,7 +264,7 @@ const HALLS: HallDefinition[] = [
     eyebrow: "COSMOS MATHEMATICS HALL · 04",
     subtitle: "从行星轨道，到跨越星系的螺旋节奏",
     category: "宇宙规律",
-    accent: "#8a73d9",
+    accent: "#647fd1",
     items: [
       {
         id: "orbit",
@@ -273,7 +273,7 @@ const HALLS: HallDefinition[] = [
         name: "开普勒轨道",
         english: "Kepler Orbit",
         formula: "r = a(1-e²)/(1+e cos θ)",
-        color: "#75bce7",
+        color: "#5c9bd2",
         discovery: "行星绕行的不是正圆，而是优雅的椭圆。",
         explanation: "太阳位于椭圆的一个焦点。改变离心率，观察轨道从接近圆形逐渐拉长，以及行星速度的变化。",
         visual: "orbit",
@@ -291,7 +291,7 @@ const HALLS: HallDefinition[] = [
         name: "螺旋星系",
         english: "Spiral Galaxy",
         formula: "r = aeᵇθ",
-        color: "#d179c7",
+        color: "#7772ce",
         discovery: "亿万颗星，排列成跨越光年的螺旋。",
         explanation: "星系旋臂近似对数螺旋。改变旋臂数量与曲率，你会发现台风、贝壳和银河共享相似语言。",
         visual: "spiral",
@@ -309,7 +309,7 @@ const HALLS: HallDefinition[] = [
         name: "轨道共振",
         english: "Orbital Resonance",
         formula: "T₁ : T₂ = p : q",
-        color: "#e9b45f",
+        color: "#4f83bd",
         discovery: "不同速度的行星，也能找到共同节拍。",
         explanation: "当两个天体的公转周期形成整数比，它们会周期性回到相似位置，画出稳定而优美的共振轨迹。",
         visual: "resonance",
@@ -516,7 +516,7 @@ function addBoard(scene: THREE.Scene, item: MuseumItem, hall: HallDefinition, x:
   );
   face.position.z = .106;
   group.add(face);
-  group.position.set(x, 3.55, -5.95);
+  group.position.set(x, 3.55, -6);
   group.userData.itemId = item.id;
   group.traverse((child) => { child.userData.itemId = item.id; });
   scene.add(group);
@@ -543,10 +543,10 @@ function MuseumCanvas({ hall, selectedId, onSelect }: { hall: HallDefinition; se
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18;
+    renderer.toneMappingExposure = 1.1;
     renderer.domElement.setAttribute("role", "img");
     renderer.domElement.setAttribute("aria-label", "可拖动浏览并点击墙面展板的" + hall.name + "三维空间");
     container.appendChild(renderer.domElement);
@@ -567,8 +567,24 @@ function MuseumCanvas({ hall, selectedId, onSelect }: { hall: HallDefinition; se
     controls.maxAzimuthAngle = .82;
     controls.target.set(0, 3.45, -3.5);
 
-    scene.add(new THREE.HemisphereLight("#fffdf8", "#938c84", 1.48));
-    scene.add(new THREE.AmbientLight("#fffaf2", .8));
+    scene.add(new THREE.HemisphereLight("#fffdf8", "#8f8983", .95));
+    scene.add(new THREE.AmbientLight("#fffaf2", .36));
+    const softbox = new THREE.RectAreaLight("#fff8ef", 2.2, 14, 4.5);
+    softbox.position.set(0, 5.8, 3.2);
+    softbox.lookAt(0, 3.7, -6);
+    scene.add(softbox);
+    const keyLight = new THREE.DirectionalLight("#fff7ed", 1.65);
+    keyLight.position.set(4.8, 8.5, 5.5);
+    keyLight.target.position.set(0, 3.4, -5.8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.radius = 5;
+    keyLight.shadow.bias = -.00015;
+    keyLight.shadow.camera.left = -12;
+    keyLight.shadow.camera.right = 12;
+    keyLight.shadow.camera.top = 9;
+    keyLight.shadow.camera.bottom = -3;
+    scene.add(keyLight, keyLight.target);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 32), physical("#c7c0b8", { roughness: .82 }));
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
@@ -592,19 +608,13 @@ function MuseumCanvas({ hall, selectedId, onSelect }: { hall: HallDefinition; se
 
     boardPositions.forEach((x) => {
       const target = new THREE.Object3D();
-      target.position.set(x, 3.55, -6);
+      target.position.set(x, 6.52, -6.08);
       scene.add(target);
-      const spot = new THREE.SpotLight("#fff2df", 106, 18, .32, .56, 1.12);
-      spot.position.set(x, 7.15, -2.15);
+      const spot = new THREE.SpotLight("#fff1dc", 58, 14, .19, .9, 2);
+      spot.position.set(x, 7.28, -.9);
       spot.target = target;
-      spot.castShadow = true;
-      spot.shadow.mapSize.set(1024, 1024);
-      spot.shadow.bias = -.0002;
       scene.add(spot);
     });
-    const wallWash = new THREE.PointLight("#fff6eb", 9, 18);
-    wallWash.position.set(0, 2.1, 4);
-    scene.add(wallWash);
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -1041,11 +1051,14 @@ function MuseumPreview({ item, settings }: { item: MuseumItem; settings: MuseumS
   return <canvas ref={canvasRef} aria-label={item.name + "参数图形预览"} />;
 }
 
-export function NatureMuseumWorld({ onEnterGarden }: { onEnterGarden: () => void }) {
+export function NatureMuseumWorld() {
   const [hallIndex, setHallIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settings, setSettings] = useState<MuseumSettings>({ ...DEFAULT_SETTINGS });
   const [discoveries, setDiscoveries] = useState<Set<string>>(() => new Set());
+  const [transition, setTransition] = useState<"idle" | "leaving" | "entering">("idle");
+  const [transitionDirection, setTransitionDirection] = useState<"previous" | "next">("next");
+  const transitionTimers = useRef<number[]>([]);
   const hall = HALLS[hallIndex];
   const selected = useMemo(() => hall.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
   const currentDiscoveries = hall.items.filter((item) => discoveries.has(item.id)).length;
@@ -1056,8 +1069,17 @@ export function NatureMuseumWorld({ onEnterGarden }: { onEnterGarden: () => void
   }, []);
 
   const switchHall = (direction: number) => {
+    if (transition !== "idle") return;
     setSelectedId(null);
-    setHallIndex((previous) => (previous + direction + HALLS.length) % HALLS.length);
+    setTransitionDirection(direction < 0 ? "previous" : "next");
+    setTransition("leaving");
+    const swapTimer = window.setTimeout(() => {
+      setHallIndex((previous) => (previous + direction + HALLS.length) % HALLS.length);
+      setTransition("entering");
+      const enterTimer = window.setTimeout(() => setTransition("idle"), 70);
+      transitionTimers.current.push(enterTimer);
+    }, 380);
+    transitionTimers.current.push(swapTimer);
   };
 
   const resetSelected = () => {
@@ -1077,9 +1099,14 @@ export function NatureMuseumWorld({ onEnterGarden }: { onEnterGarden: () => void
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => () => {
+    transitionTimers.current.forEach((timer) => window.clearTimeout(timer));
+    transitionTimers.current = [];
+  }, []);
+
   return (
     <section
-      className="nature-museum nature-museum-gallery"
+      className={"nature-museum nature-museum-gallery hall-transition-" + transition + " hall-direction-" + transitionDirection}
       id="hall"
       aria-label={hall.name + " WebGL 展厅"}
       data-hall={hall.key}
@@ -1097,28 +1124,9 @@ export function NatureMuseumWorld({ onEnterGarden }: { onEnterGarden: () => void
         <p>{hall.category}<br /><b>{currentDiscoveries === 3 ? "全部发现" : "等待探索"}</b></p>
       </div>
 
-      <div className="museum-hall-switcher" aria-label="切换数学展厅">
-        <button onClick={() => switchHall(-1)} aria-label={"上一个展厅：" + HALLS[(hallIndex + HALLS.length - 1) % HALLS.length].name}>←</button>
-        <div><span>{hall.index} / 04</span><b>{hall.name}</b><small>{hall.english}</small></div>
-        <button onClick={() => switchHall(1)} aria-label={"下一个展厅：" + HALLS[(hallIndex + 1) % HALLS.length].name}>→</button>
-      </div>
-
-      <div className="nature-room-dock" aria-label={hall.name + "展板导航"}>
-        {hall.items.map((item) => (
-          <button
-            key={item.id}
-            className={(selectedId === item.id ? "active " : "") + (discoveries.has(item.id) ? "found" : "")}
-            onClick={() => select(item.id)}
-            style={{ "--nature-color": item.color } as React.CSSProperties}
-          >
-            <i>{item.icon}</i>
-            <span><b>{item.index}</b>{item.name}<small>{item.english}</small></span>
-            <em>{discoveries.has(item.id) ? "✓" : "+"}</em>
-          </button>
-        ))}
-        <button className="nature-garden-exit" onClick={onEnterGarden}>
-          <i>↗</i><span><b>EXIT</b>数学花园<small>继续自由探索</small></span>
-        </button>
+      <div className="museum-hall-arrows" aria-label="切换数学展厅">
+        <button className="hall-arrow-previous" disabled={transition !== "idle"} onClick={() => switchHall(-1)} aria-label={"上一个展厅：" + HALLS[(hallIndex + HALLS.length - 1) % HALLS.length].name}>←</button>
+        <button className="hall-arrow-next" disabled={transition !== "idle"} onClick={() => switchHall(1)} aria-label={"下一个展厅：" + HALLS[(hallIndex + 1) % HALLS.length].name}>→</button>
       </div>
 
       {selected && (

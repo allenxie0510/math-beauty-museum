@@ -30,13 +30,12 @@ test("server-renders the finished mathematics museum", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>数学美学展 · Math Beauty Museum<\/title>/i);
-  assert.match(html, /看见/);
-  assert.match(html, /公式背后的美/);
   assert.match(html, /自然数学馆/);
   assert.match(html, /切换数学展厅/);
   assert.match(html, /上一个展厅：宇宙数学馆/);
   assert.match(html, /下一个展厅：建筑数学馆/);
   assert.match(html, /数学探索花园/);
+  assert.doesNotMatch(html, /journey-intro|class="exhibit|互动实验台/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/i);
 });
 
@@ -66,9 +65,18 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /switchHall\(-1\)/);
   assert.match(museum, /switchHall\(1\)/);
   assert.match(museum, /type="range"/);
-  assert.match(css, /\.museum-hall-switcher/);
+  assert.match(museum, /hall-transition-/);
+  assert.match(museum, /THREE\.PCFSoftShadowMap/);
+  assert.match(museum, /target\.position\.set\(x, 6\.52/);
+  assert.doesNotMatch(museum, /className="nature-room-dock"/);
+  assert.match(css, /\.museum-hall-arrows/);
+  assert.match(css, /\.hall-transition-leaving/);
+  assert.doesNotMatch(css, /\.museum-hall-switcher/);
   assert.match(css, /--hall-accent/);
   assert.match(page, />四展馆</);
+  assert.match(page, /<NatureMuseumWorld \/>/);
+  assert.match(page, /<MathGardenWorld/);
+  assert.doesNotMatch(page, /GoldenFlower|FractalForest|GeometryBuilder|FourierSound|SpiralUniverse|journey-intro/);
   assert.match(layout, /Math Beauty Museum/);
   assert.doesNotMatch(layout, /codex-preview|Starter Project/);
 });

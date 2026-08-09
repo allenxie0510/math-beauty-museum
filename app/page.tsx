@@ -353,7 +353,7 @@ export default function Home() {
         <button className="brand" onClick={()=>scrollToId("top")}><span className="brand-mark">φ</span><span>数学美学展<small>Math Beauty Museum</small></span></button>
         <nav aria-label="展品导航">
           <button onClick={()=>scrollToId("hall")}>展厅</button>
-          <button onClick={()=>scrollToId("hall")}>自然馆</button>
+          <button onClick={()=>scrollToId("hall")}>四展馆</button>
           <button onClick={()=>scrollToId("garden")}>花园</button>
         </nav>
         <button className={`progress-button ${gardenProgress>=5?"certificate-ready":""}`} onClick={()=>gardenProgress>=5 ? openCertificate() : scrollToId("garden")} aria-label={gardenProgress>=5?"领取已解锁的数学之美证书":"查看探险家进度"}><span>{gardenProgress>=5?"🏆":`${Math.min(gardenProgress,5)}/5`}</span><i>{gardenProgress>=5?"领取证书":"探险家进度"}</i></button>

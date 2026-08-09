@@ -145,6 +145,8 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
 @media(max-width:900px){.nature-museum-gallery .nature-museum-title{top:86px;left:18px;padding:12px 14px}.nature-museum-gallery .nature-museum-title h2{font-size:28px;margin:7px 0 5px}.nature-museum-gallery .nature-museum-title p{font-size:7px}.nature-museum-gallery .nature-progress{top:82px}.nature-lab-shell{grid-template-columns:1fr}.nature-lab-controls{background:#fafaf8}.nature-lab-preview{background:#f0f1ef}}
 @media(max-width:520px){.nature-museum-gallery .nature-museum-title{max-width:245px}.nature-museum-gallery .nature-museum-title h2{font-size:25px}.nature-museum-gallery .nature-museum-title p{display:none}.nature-museum-gallery .nature-progress{top:80px}.nature-museum-gallery .nature-room-dock{background:rgba(255,255,253,.96)}.nature-lab-preview{min-height:390px}.nature-lab-preview canvas{min-height:290px}.nature-lab-controls{padding-top:27px}}
 
+.nature-museum-gallery{background:#d2ccc4}.nature-museum-gallery .nature-museum-shade{background:linear-gradient(180deg,rgba(255,250,242,.15),transparent 25%,transparent 74%,rgba(85,76,68,.1));box-shadow:inset 0 0 90px rgba(70,62,55,.05)}
+
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
 @media print{body>*{display:none!important}.modal-backdrop{display:block!important;position:static;background:white;padding:0}.certificate-modal{width:100%;margin:0}.certificate-inner{box-shadow:none;min-height:95vh}.modal-close,.print-button{display:none}}

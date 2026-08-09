@@ -183,13 +183,14 @@ function makeBoardTexture(item: NatureItem) {
 
 function addBoard(scene: THREE.Scene, item: NatureItem, x: number) {
   const group = new THREE.Group();
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(3.28, 5.12, .12), physical("#22262a", { metalness: .24, roughness: .4 }));
-  frame.castShadow = true;
-  group.add(frame);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(3.12, 4.94, .18), physical("#f3eee7", { roughness: .68 }));
+  panel.castShadow = true;
+  panel.receiveShadow = true;
+  group.add(panel);
   const face = new THREE.Mesh(new THREE.PlaneGeometry(3.08, 4.9), new THREE.MeshBasicMaterial({ map: makeBoardTexture(item), toneMapped: false }));
-  face.position.z = .071;
+  face.position.z = .096;
   group.add(face);
-  group.position.set(x, 3.55, -6.04);
+  group.position.set(x, 3.55, -5.96);
   group.userData.natureId = item.id;
   group.traverse((child) => { child.userData.natureId = item.id; });
   scene.add(group);
@@ -219,13 +220,13 @@ function NatureMuseumCanvas({ selectedId, onSelect }: { selectedId: NatureId | n
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.14;
+    renderer.toneMappingExposure = 1.1;
     renderer.domElement.setAttribute("role", "img");
     renderer.domElement.setAttribute("aria-label", "可拖动浏览并点击墙面展板的自然数学馆三维空间");
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#e7e7e5");
+    scene.background = new THREE.Color("#d2ccc4");
     const camera = new THREE.PerspectiveCamera(48, container.clientWidth / container.clientHeight, .1, 70);
     camera.position.set(0, 3.8, 12.3);
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -240,23 +241,23 @@ function NatureMuseumCanvas({ selectedId, onSelect }: { selectedId: NatureId | n
     controls.maxAzimuthAngle = .82;
     controls.target.set(0, 3.45, -3.5);
 
-    scene.add(new THREE.HemisphereLight("#ffffff", "#a8aaac", 1.42));
-    scene.add(new THREE.AmbientLight("#ffffff", .76));
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 32), physical("#e3e1dc", { roughness: .76 }));
+    scene.add(new THREE.HemisphereLight("#fffaf2", "#918a82", 1.38));
+    scene.add(new THREE.AmbientLight("#fff7ed", .68));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 32), physical("#c7c0b8", { roughness: .8 }));
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(21, 7.7, .24), physical("#d7d7d4", { roughness: .9 }));
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(21, 7.7, .24), physical("#e7e1da", { roughness: .92 }));
     backWall.position.set(0, 3.85, -6.25);
     backWall.receiveShadow = true;
     scene.add(backWall);
     [-10.4, 10.4].forEach((x) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(.25, 7.7, 13), physical("#dededb", { roughness: .9 }));
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(.25, 7.7, 13), physical("#ded8d1", { roughness: .92 }));
       wall.position.set(x, 3.85, 0);
       wall.receiveShadow = true;
       scene.add(wall);
     });
-    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(21, 13), physical("#dadad7", { roughness: .78 }));
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(21, 13), physical("#c9c3bc", { roughness: .82 }));
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.set(0, 7.62, 0);
     scene.add(ceiling);
@@ -268,18 +269,14 @@ function NatureMuseumCanvas({ selectedId, onSelect }: { selectedId: NatureId | n
       const target = new THREE.Object3D();
       target.position.set(x, 3.55, -6);
       scene.add(target);
-      const spot = new THREE.SpotLight("#fff7e8", 96, 18, .31, .48, 1.15);
+      const spot = new THREE.SpotLight("#fff2dd", 102, 18, .32, .52, 1.12);
       spot.position.set(x, 7.15, -2.15);
       spot.target = target;
       spot.castShadow = true;
       spot.shadow.mapSize.set(1024, 1024);
       scene.add(spot);
-      const fixture = new THREE.Mesh(new THREE.CylinderGeometry(.11, .16, .34, 18), physical("#44484c", { metalness: .38, roughness: .34 }));
-      fixture.position.copy(spot.position);
-      fixture.rotation.x = -.5;
-      scene.add(fixture);
     });
-    const wallWash = new THREE.PointLight("#ffffff", 8, 18);
+    const wallWash = new THREE.PointLight("#fff3e5", 8, 18);
     wallWash.position.set(0, 2.1, 4);
     scene.add(wallWash);
 

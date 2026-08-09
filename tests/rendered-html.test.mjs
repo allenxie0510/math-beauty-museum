@@ -68,8 +68,16 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /hall-transition-/);
   assert.match(museum, /THREE\.PCFSoftShadowMap/);
   assert.match(museum, /target\.position\.set\(x, 6\.52/);
+  assert.match(museum, /function SoundDrivePanel/);
+  assert.match(museum, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(museum, /context\.createAnalyser\(\)/);
+  assert.match(museum, /id: "crystal"/);
+  assert.match(museum, /id: "pulse"/);
+  assert.match(museum, /id: "cosmos"/);
+  assert.match(museum, /signalRef\.current/);
   assert.doesNotMatch(museum, /className="nature-room-dock"/);
   assert.match(css, /\.museum-hall-arrows/);
+  assert.match(css, /\.sound-drive-panel/);
   assert.match(css, /\.hall-transition-leaving/);
   assert.doesNotMatch(css, /\.museum-hall-switcher/);
   assert.match(css, /--hall-accent/);

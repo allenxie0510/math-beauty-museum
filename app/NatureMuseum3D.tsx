@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
@@ -20,6 +20,16 @@ type VisualKind =
   | "resonance";
 
 type MuseumSettings = Record<string, number>;
+type SoundMode = "idle" | "music" | "microphone";
+type SoundSignal = {
+  mode: SoundMode;
+  energy: number;
+  bass: number;
+  mid: number;
+  treble: number;
+  tick: number;
+};
+type SoundSignalRef = MutableRefObject<SoundSignal>;
 type MuseumControl = {
   key: string;
   label: string;
@@ -328,6 +338,37 @@ const DEFAULT_SETTINGS: MuseumSettings = {};
 HALLS.forEach((hall) => hall.items.forEach((item) => item.controls.forEach((control) => {
   DEFAULT_SETTINGS[control.key] = control.defaultValue;
 })));
+
+const EMPTY_SOUND_SIGNAL: SoundSignal = { mode: "idle", energy: 0, bass: 0, mid: 0, treble: 0, tick: 0 };
+const SOUND_CLIPS = [
+  {
+    id: "crystal",
+    name: "晶体琶音",
+    detail: "清亮 · 高音",
+    tempo: 260,
+    waveform: "sine" as OscillatorType,
+    notes: [261.63, 329.63, 392, 523.25, 392, 329.63],
+    ratios: [1, 2, 3],
+  },
+  {
+    id: "pulse",
+    name: "几何脉冲",
+    detail: "节拍 · 低音",
+    tempo: 220,
+    waveform: "triangle" as OscillatorType,
+    notes: [110, 110, 164.81, 146.83, 110, 220, 164.81, 146.83],
+    ratios: [1, 1.5, 2],
+  },
+  {
+    id: "cosmos",
+    name: "深空和弦",
+    detail: "舒缓 · 宽频",
+    tempo: 620,
+    waveform: "sine" as OscillatorType,
+    notes: [146.83, 220, 293.66, 246.94],
+    ratios: [1, 1.5, 2.01],
+  },
+] as const;
 
 function physical(color: string, options: Partial<THREE.MeshPhysicalMaterialParameters> = {}) {
   return new THREE.MeshPhysicalMaterial({ color, roughness: .58, metalness: .02, clearcoat: .04, ...options });
@@ -692,7 +733,14 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) 
   }
 }
 
-function drawPreview(ctx: CanvasRenderingContext2D, item: MuseumItem, settings: MuseumSettings, width: number, height: number) {
+function drawPreview(
+  ctx: CanvasRenderingContext2D,
+  item: MuseumItem,
+  settings: MuseumSettings,
+  width: number,
+  height: number,
+  signal: SoundSignal,
+) {
   const value = (key: string) => settings[key] ?? DEFAULT_SETTINGS[key] ?? 0;
   const cx = width * .52;
   const cy = height * .49;
@@ -849,9 +897,10 @@ function drawPreview(ctx: CanvasRenderingContext2D, item: MuseumItem, settings: 
       ctx.stroke();
     }
   } else if (item.visual === "sine") {
-    const frequency = value("waveFrequency");
-    const amplitude = value("waveAmplitude");
-    const phase = THREE.MathUtils.degToRad(value("wavePhase"));
+    const live = signal.mode !== "idle";
+    const frequency = value("waveFrequency") * (1 + (live ? signal.mid * .18 : 0));
+    const amplitude = value("waveAmplitude") * (1 + (live ? signal.energy * .72 : 0));
+    const phase = THREE.MathUtils.degToRad(value("wavePhase")) + (live ? signal.tick * .0016 * (1 + signal.treble) : 0);
     ctx.strokeStyle = "rgba(44,45,49,.23)";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -869,22 +918,30 @@ function drawPreview(ctx: CanvasRenderingContext2D, item: MuseumItem, settings: 
       if (x === 90) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = "#46bad4";
-    ctx.lineWidth = 7;
-    ctx.shadowColor = "#61cfe4";
-    ctx.shadowBlur = 15;
+    const sineGradient = ctx.createLinearGradient(90, 0, width - 65, 0);
+    sineGradient.addColorStop(0, "#46bad4");
+    sineGradient.addColorStop(.5, live ? "#e875b5" : "#7a82dc");
+    sineGradient.addColorStop(1, live ? "#f0b854" : "#46bad4");
+    ctx.strokeStyle = sineGradient;
+    ctx.lineWidth = 7 + (live ? signal.energy * 5 : 0);
+    ctx.shadowColor = live ? "#e875b5" : "#61cfe4";
+    ctx.shadowBlur = 15 + (live ? signal.energy * 18 : 0);
     ctx.stroke();
     ctx.shadowBlur = 0;
   } else if (item.visual === "harmonics") {
     const count = Math.round(value("harmonicCount"));
     const decay = value("harmonicDecay");
     const base = value("harmonicBase");
+    const live = signal.mode !== "idle";
+    const animationPhase = live ? signal.tick * .0012 : 0;
+    const bands = [signal.bass, signal.mid, signal.treble];
     const colors = ["#61cfe4", "#ed82bd", "#e4b85c", "#8a73d9", "#79c986", "#f08d67"];
     for (let harmonic = 1; harmonic <= count; harmonic++) {
       ctx.beginPath();
       for (let x = 65; x <= width - 65; x += 2) {
         const t = (x - 65) / (width - 130);
-        const y = cy + Math.sin(t * Math.PI * 2 * base * harmonic) * 72 / Math.pow(harmonic, decay);
+        const bandBoost = live ? .72 + bands[(harmonic - 1) % bands.length] * .82 : 1;
+        const y = cy + Math.sin(t * Math.PI * 2 * base * harmonic + animationPhase * harmonic) * 72 * bandBoost / Math.pow(harmonic, decay);
         if (x === 65) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -899,7 +956,8 @@ function drawPreview(ctx: CanvasRenderingContext2D, item: MuseumItem, settings: 
       const t = (x - 65) / (width - 130);
       let sum = 0;
       for (let harmonic = 1; harmonic <= count; harmonic++) {
-        sum += Math.sin(t * Math.PI * 2 * base * harmonic) / Math.pow(harmonic, decay);
+        const bandBoost = live ? .72 + bands[(harmonic - 1) % bands.length] * .82 : 1;
+        sum += Math.sin(t * Math.PI * 2 * base * harmonic + animationPhase * harmonic) * bandBoost / Math.pow(harmonic, decay);
       }
       const y = cy + sum * 68;
       if (x === 65) ctx.moveTo(x, y);
@@ -910,12 +968,18 @@ function drawPreview(ctx: CanvasRenderingContext2D, item: MuseumItem, settings: 
     gradient.addColorStop(.5, "#ed82bd");
     gradient.addColorStop(1, "#e4b85c");
     ctx.strokeStyle = gradient;
-    ctx.lineWidth = 7;
+    ctx.lineWidth = 7 + (live ? signal.energy * 4 : 0);
+    ctx.shadowColor = live ? "rgba(220,117,181,.5)" : "transparent";
+    ctx.shadowBlur = live ? 10 + signal.energy * 16 : 0;
     ctx.stroke();
+    ctx.shadowBlur = 0;
   } else if (item.visual === "chladni") {
     const m = Math.round(value("chladniM"));
     const n = Math.round(value("chladniN"));
-    const threshold = value("chladniThreshold");
+    const live = signal.mode !== "idle";
+    const threshold = value("chladniThreshold") * (live ? .82 + signal.energy * 1.15 : 1);
+    const phaseX = live ? Math.sin(signal.tick * .0014) * signal.bass * .7 : 0;
+    const phaseY = live ? Math.cos(signal.tick * .0011) * signal.treble * .7 : 0;
     const left = 145;
     const top = 75;
     const size = Math.min(width - 290, height - 150);
@@ -924,13 +988,13 @@ function drawPreview(ctx: CanvasRenderingContext2D, item: MuseumItem, settings: 
     for (let py = 0; py <= size; py += 5) for (let px = 0; px <= size; px += 5) {
       const x = px / size;
       const y = py / size;
-      const mode = Math.sin(m * Math.PI * x) * Math.sin(n * Math.PI * y)
-        - Math.sin(n * Math.PI * x) * Math.sin(m * Math.PI * y);
+      const mode = Math.sin(m * Math.PI * x + phaseX) * Math.sin(n * Math.PI * y + phaseY)
+        - Math.sin(n * Math.PI * x + phaseY) * Math.sin(m * Math.PI * y + phaseX);
       if (Math.abs(mode) < threshold) {
-        const hue = 185 + (x + y) * 70;
+        const hue = 185 + (x + y) * 70 + (live ? signal.mid * 45 : 0);
         ctx.fillStyle = "hsl(" + hue + " 62% 46%)";
         ctx.beginPath();
-        ctx.arc(left + px, top + py, 2.2, 0, Math.PI * 2);
+        ctx.arc(left + px, top + py, 2.2 + (live ? signal.energy * 1.3 : 0), 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -1028,7 +1092,183 @@ function drawPreview(ctx: CanvasRenderingContext2D, item: MuseumItem, settings: 
   }
 }
 
-function MuseumPreview({ item, settings }: { item: MuseumItem; settings: MuseumSettings }) {
+function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
+  const [mode, setMode] = useState<SoundMode>("idle");
+  const [clipId, setClipId] = useState<(typeof SOUND_CLIPS)[number]["id"]>("crystal");
+  const [level, setLevel] = useState(0);
+  const [status, setStatus] = useState("选择音乐片段，或让麦克风捕捉身边的声音");
+  const contextRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const stepTimerRef = useRef<number | null>(null);
+  const analysisRafRef = useRef<number | null>(null);
+
+  const stopEngine = useCallback(() => {
+    if (stepTimerRef.current !== null) window.clearInterval(stepTimerRef.current);
+    if (analysisRafRef.current !== null) window.cancelAnimationFrame(analysisRafRef.current);
+    stepTimerRef.current = null;
+    analysisRafRef.current = null;
+    oscillatorsRef.current.forEach((oscillator) => {
+      try { oscillator.stop(); } catch { /* already stopped */ }
+    });
+    oscillatorsRef.current = [];
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    const context = contextRef.current;
+    contextRef.current = null;
+    if (context && context.state !== "closed") void context.close();
+    signalRef.current = { ...EMPTY_SOUND_SIGNAL };
+    setLevel(0);
+  }, [signalRef]);
+
+  const startAnalysis = useCallback((analyser: AnalyserNode, sourceMode: Exclude<SoundMode, "idle">) => {
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let frame = 0;
+    const average = (from: number, to: number) => {
+      let sum = 0;
+      const end = Math.max(from + 1, Math.min(data.length, to));
+      for (let i = from; i < end; i++) sum += data[i];
+      return sum / Math.max(1, end - from) / 255;
+    };
+    const sample = () => {
+      analyser.getByteFrequencyData(data);
+      const bass = average(0, Math.floor(data.length * .13));
+      const mid = average(Math.floor(data.length * .13), Math.floor(data.length * .46));
+      const treble = average(Math.floor(data.length * .46), data.length);
+      const energy = Math.min(1, bass * .42 + mid * .38 + treble * .32);
+      signalRef.current = { mode: sourceMode, energy, bass, mid, treble, tick: performance.now() };
+      if (frame++ % 4 === 0) setLevel(energy);
+      analysisRafRef.current = window.requestAnimationFrame(sample);
+    };
+    sample();
+  }, [signalRef]);
+
+  const startMusic = useCallback(async (nextClipId: (typeof SOUND_CLIPS)[number]["id"]) => {
+    stopEngine();
+    const clip = SOUND_CLIPS.find((entry) => entry.id === nextClipId) ?? SOUND_CLIPS[0];
+    try {
+      const context = new window.AudioContext();
+      contextRef.current = context;
+      await context.resume();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = .82;
+      const master = context.createGain();
+      master.gain.value = .32;
+      analyser.connect(master);
+      master.connect(context.destination);
+
+      const voices = clip.ratios.map((ratio, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = index === 0 ? clip.waveform : "sine";
+        oscillator.frequency.value = clip.notes[0] * ratio;
+        gain.gain.value = .13 / (index + 1);
+        oscillator.connect(gain);
+        gain.connect(analyser);
+        oscillator.start();
+        return oscillator;
+      });
+      oscillatorsRef.current = voices;
+      let step = 0;
+      const advance = () => {
+        const now = context.currentTime;
+        const note = clip.notes[step % clip.notes.length];
+        voices.forEach((oscillator, index) => {
+          oscillator.frequency.cancelScheduledValues(now);
+          oscillator.frequency.setTargetAtTime(note * clip.ratios[index], now, .045 + index * .02);
+        });
+        master.gain.cancelScheduledValues(now);
+        master.gain.setValueAtTime(.36, now);
+        master.gain.exponentialRampToValueAtTime(.19, now + Math.min(.5, clip.tempo / 1000 * .86));
+        step += 1;
+      };
+      advance();
+      stepTimerRef.current = window.setInterval(advance, clip.tempo);
+      setClipId(clip.id);
+      setMode("music");
+      setStatus("正在播放「" + clip.name + "」· 曲线随频谱实时变化");
+      startAnalysis(analyser, "music");
+    } catch {
+      stopEngine();
+      setMode("idle");
+      setStatus("浏览器暂时无法播放声音，请检查声音权限");
+    }
+  }, [startAnalysis, stopEngine]);
+
+  const startMicrophone = useCallback(async () => {
+    stopEngine();
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus("当前浏览器不支持麦克风输入");
+      return;
+    }
+    setStatus("正在请求麦克风权限…");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      streamRef.current = stream;
+      const context = new window.AudioContext();
+      contextRef.current = context;
+      await context.resume();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = .72;
+      context.createMediaStreamSource(stream).connect(analyser);
+      setMode("microphone");
+      setStatus("麦克风已连接 · 试着说话、拍手或播放声音");
+      startAnalysis(analyser, "microphone");
+    } catch {
+      stopEngine();
+      setMode("idle");
+      setStatus("未能使用麦克风，请允许权限后再试");
+    }
+  }, [startAnalysis, stopEngine]);
+
+  const pause = () => {
+    stopEngine();
+    setMode("idle");
+    setStatus("声音已暂停，可选择另一段音乐或麦克风");
+  };
+
+  useEffect(() => () => stopEngine(), [stopEngine]);
+
+  return (
+    <section className="sound-drive-panel" aria-label="声音实时驱动">
+      <div className="sound-drive-heading">
+        <span><i aria-hidden="true" />声音实时驱动</span>
+        <b>{mode === "music" ? "MUSIC" : mode === "microphone" ? "MIC LIVE" : "READY"}</b>
+      </div>
+      <div className="sound-clip-grid" aria-label="选择声音片段">
+        {SOUND_CLIPS.map((clip) => (
+          <button
+            key={clip.id}
+            className={clipId === clip.id && mode === "music" ? "active" : ""}
+            onClick={() => void startMusic(clip.id)}
+            type="button"
+          >
+            <strong>{clip.name}</strong><small>{clip.detail}</small>
+          </button>
+        ))}
+      </div>
+      <div className="sound-source-actions">
+        <button className={mode === "music" ? "active" : ""} type="button" onClick={() => mode === "music" ? pause() : void startMusic(clipId)}>
+          {mode === "music" ? "暂停音乐" : "播放音乐"}
+        </button>
+        <button className={mode === "microphone" ? "active" : ""} type="button" onClick={() => mode === "microphone" ? pause() : void startMicrophone()}>
+          {mode === "microphone" ? "停止麦克风" : "麦克风驱动"}
+        </button>
+      </div>
+      <div className="sound-level-row">
+        <span>输入强度</span><div className="sound-level-track"><i style={{ width: Math.max(3, level * 100) + "%" }} /></div>
+      </div>
+      <p className="sound-drive-status">{status}</p>
+      <small className="sound-privacy-note">麦克风声音仅在本机实时分析，不录音、不上传。</small>
+    </section>
+  );
+}
+
+function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settings: MuseumSettings; signalRef: SoundSignalRef }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1037,17 +1277,24 @@ function MuseumPreview({ item, settings }: { item: MuseumItem; settings: MuseumS
     if (!ctx) return;
     canvas.width = 1000;
     canvas.height = 680;
-    const background = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    background.addColorStop(0, "#fdfbf7");
-    background.addColorStop(1, item.color + "24");
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    drawGrid(ctx, canvas.width, canvas.height);
-    drawPreview(ctx, item, settings, canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(31,32,35,.72)";
-    ctx.font = "600 18px Arial, sans-serif";
-    ctx.fillText(item.previewCaption, 44, canvas.height - 34);
-  }, [item, settings]);
+    const isSoundVisual = item.visual === "sine" || item.visual === "harmonics" || item.visual === "chladni";
+    let raf = 0;
+    const render = () => {
+      const background = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      background.addColorStop(0, "#fdfbf7");
+      background.addColorStop(1, item.color + "24");
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawGrid(ctx, canvas.width, canvas.height);
+      drawPreview(ctx, item, settings, canvas.width, canvas.height, signalRef.current);
+      ctx.fillStyle = "rgba(31,32,35,.72)";
+      ctx.font = "600 18px Arial, sans-serif";
+      ctx.fillText(item.previewCaption, 44, canvas.height - 34);
+      if (isSoundVisual) raf = window.requestAnimationFrame(render);
+    };
+    render();
+    return () => window.cancelAnimationFrame(raf);
+  }, [item, settings, signalRef]);
   return <canvas ref={canvasRef} aria-label={item.name + "参数图形预览"} />;
 }
 
@@ -1059,6 +1306,7 @@ export function NatureMuseumWorld() {
   const [transition, setTransition] = useState<"idle" | "leaving" | "entering">("idle");
   const [transitionDirection, setTransitionDirection] = useState<"previous" | "next">("next");
   const transitionTimers = useRef<number[]>([]);
+  const soundSignalRef = useRef<SoundSignal>({ ...EMPTY_SOUND_SIGNAL });
   const hall = HALLS[hallIndex];
   const selected = useMemo(() => hall.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
   const currentDiscoveries = hall.items.filter((item) => discoveries.has(item.id)).length;
@@ -1139,6 +1387,7 @@ export function NatureMuseumWorld() {
               <div className="nature-lab-formula"><span>隐藏规律</span><strong>{selected.formula}</strong></div>
               <p className="nature-lab-discovery">{selected.discovery}</p>
               <p className="nature-lab-copy">{selected.explanation}</p>
+              {hall.key === "sound" && <SoundDrivePanel signalRef={soundSignalRef} />}
               <div className="nature-lab-try"><span>改变参数，观察规律</span><button onClick={resetSelected}>恢复默认</button></div>
               {selected.controls.map((control) => {
                 const setting = settings[control.key] ?? control.defaultValue;
@@ -1164,7 +1413,7 @@ export function NatureMuseumWorld() {
             </aside>
             <div className="nature-lab-preview">
               <div className="nature-preview-header"><span>REAL-TIME VISUALIZATION</span><b>参数实时预览</b></div>
-              <MuseumPreview item={selected} settings={settings} />
+              <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />
               <div className="nature-preview-caption"><span>{selected.formula}</span><p>{selected.previewCaption}。图形会随左侧参数实时变化。</p></div>
             </div>
           </div>

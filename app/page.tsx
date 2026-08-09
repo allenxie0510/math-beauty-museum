@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MathGardenWorld } from "./MathGarden3D";
+import { NatureMuseumWorld } from "./NatureMuseum3D";
 
 type ExhibitId = "flower" | "forest" | "geometry" | "sound" | "universe";
 
@@ -352,7 +353,7 @@ export default function Home() {
         <button className="brand" onClick={()=>scrollToId("top")}><span className="brand-mark">φ</span><span>数学美学展<small>Math Beauty Museum</small></span></button>
         <nav aria-label="展品导航">
           <button onClick={()=>scrollToId("hall")}>展厅</button>
-          <button onClick={()=>scrollToId("flower")}>探索</button>
+          <button onClick={()=>scrollToId("hall")}>自然馆</button>
           <button onClick={()=>scrollToId("garden")}>花园</button>
         </nav>
         <button className={`progress-button ${gardenProgress>=5?"certificate-ready":""}`} onClick={()=>gardenProgress>=5 ? openCertificate() : scrollToId("garden")} aria-label={gardenProgress>=5?"领取已解锁的数学之美证书":"查看探险家进度"}><span>{gardenProgress>=5?"🏆":`${Math.min(gardenProgress,5)}/5`}</span><i>{gardenProgress>=5?"领取证书":"探险家进度"}</i></button>
@@ -370,24 +371,7 @@ export default function Home() {
         <div className="hero-foot"><span>SCROLL TO EXPLORE</span><i /><p>一次为好奇心准备的数字展览</p></div>
       </section>
 
-      <section className="hall" id="hall">
-        <div className="hall-intro"><Mark>THE CENTRAL HALL · 中央大厅</Mark><h2>一个开阔空间，<br /><em>四种数学视角。</em></h2><p>沿着弧形展墙进入不同展馆，让自然、建筑、声音与宇宙依次展开。</p></div>
-        <div className="hall-space">
-          <div className="hall-curve" aria-hidden="true"><span>MATHEMATICS IS EVERYWHERE</span></div>
-          <div className="hall-floor" aria-hidden="true" />
-          <div className="hall-centerpiece" aria-hidden="true"><i>∞</i><span>中央大厅<small>CENTRAL HALL</small></span></div>
-          <div className="room-map">
-            {[
-              ["flower","01","自然数学馆","花瓣、枝条与生命的秩序","φ","pink"],
-              ["geometry","02","建筑数学馆","支撑文明的几何骨架","△","orange"],
-              ["sound","03","声音数学馆","把看不见的声音变成波","∿","cyan"],
-              ["universe","04","宇宙数学馆","从贝壳到银河的共同旋律","✦","purple"]
-            ].map(([id,no,title,desc,symbol,color])=>(
-              <button key={id} className={`room-card room-${color}`} onClick={()=>scrollToId(id)}><span>{no}</span><i>{symbol}</i><h3>{title}</h3><p>{desc}</p><b>进入展馆 <em>→</em></b></button>
-            ))}
-          </div>
-        </div>
-      </section>
+      <NatureMuseumWorld onEnterGarden={()=>scrollToId("garden")} />
 
       <section className="journey-intro" id="explore"><Mark>FIVE DISCOVERIES · 五次发现</Mark><h2>用手指改变参数，<br />让规律亲自回答你。</h2><p>每完成一次互动，就会收集一枚“数学发现”。</p></section>
 

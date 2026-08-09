@@ -312,7 +312,7 @@ function NatureMuseumCanvas({ selectedId, settings, onSelect }: { selectedId: Na
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
@@ -436,10 +436,12 @@ function NatureMuseumCanvas({ selectedId, settings, onSelect }: { selectedId: Na
     const focusTarget = new THREE.Vector3(0, 1.75, 0);
     const desiredCamera = new THREE.Vector3(0, 4.15, 11.8);
     let frame = 0;
-    const clock = new THREE.Clock();
-    const animate = () => {
+    const timer = new THREE.Timer();
+    timer.connect(document);
+    const animate = (timestamp?: number) => {
       frame = requestAnimationFrame(animate);
-      const time = clock.getElapsedTime();
+      timer.update(timestamp);
+      const time = timer.getElapsed();
       const selected = selectedRef.current;
       const targets: Record<NatureId, THREE.Vector3> = {
         golden: new THREE.Vector3(0, 2.2, .1), fractal: new THREE.Vector3(-4.2, 2.15, -.5), fibonacci: new THREE.Vector3(4.2, 1.65, -.25),
@@ -469,6 +471,7 @@ function NatureMuseumCanvas({ selectedId, settings, onSelect }: { selectedId: Na
     observer.observe(container);
     return () => {
       cancelAnimationFrame(frame);
+      timer.dispose();
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);

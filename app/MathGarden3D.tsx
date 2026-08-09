@@ -307,12 +307,8 @@ function buildGoldenSpiral(group: THREE.Group, s: GardenSettings) {
 
 function buildEuler(group:THREE.Group,s:GardenSettings) {
   const radius=s.eulerRadius,center=new THREE.Vector3(0,1.25,0),phase=s.eulerPhase;
-  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.18,1.3,.16,56),makeOrganicMaterial(["#f5b2c9","#9c83e7","#65d9d1"],{roughness:.3,clearcoat:.28}));base.position.y=.08;base.castShadow=true;group.add(base);
-  const circle=new THREE.Mesh(new THREE.TorusGeometry(radius,.024,10,96),makeOrganicMaterial(["#fff1a7","#ed86b9","#6bdcd4"],{roughness:.16,clearcoat:.6,emissive:"#d977a5",emissiveIntensity:.28}));circle.position.copy(center);circle.castShadow=true;group.add(circle);
-  group.add(cylinderBetween(new THREE.Vector3(-radius*1.18,center.y,0),new THREE.Vector3(radius*1.18,center.y,0),.012,"#fff3cf"));group.add(cylinderBetween(new THREE.Vector3(0,center.y-radius*1.18,0),new THREE.Vector3(0,center.y+radius*1.18,0),.012,"#fff3cf"));
-  const endpoint=center.clone().add(new THREE.Vector3(Math.cos(phase)*radius,Math.sin(phase)*radius,.035));group.add(cylinderBetween(center,endpoint,.025,"#ffcf63"));
-  const point=new THREE.Mesh(new THREE.SphereGeometry(.09,20,14),makeOrganicMaterial(["#fff2a0","#f078b3"],{roughness:.18,clearcoat:.6,emissive:"#e373ac",emissiveIntensity:.45}));point.position.copy(endpoint);point.castShadow=true;group.add(point);
-  for(let layer=1;layer<=Math.round(s.eulerWaves);layer++){const wavePoints:THREE.Vector3[]=[];for(let i=0;i<=100;i++){const a=i/100*Math.PI*2;wavePoints.push(new THREE.Vector3(Math.cos(a)*radius,center.y+Math.sin(a)*radius,Math.sin(a*layer)*.045*layer))}const wave=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(wavePoints,true),120,.021,7,true),makeMaterial(layer%2?"#ffd784":"#83eee3",{transparent:true,opacity:.8,emissive:layer%2?"#d77d51":"#4ebcb8",emissiveIntensity:.48,roughness:.22}));group.add(wave)}
+  const layerColors=["#ff78b5","#ffd166","#69ded2","#8f7cf2","#ff9668"];
+  for(let layer=1;layer<=Math.round(s.eulerWaves);layer++){const wavePoints:THREE.Vector3[]=[];for(let i=0;i<=120;i++){const a=i/120*Math.PI*2;wavePoints.push(new THREE.Vector3(Math.cos(a)*radius,center.y+Math.sin(a)*radius,Math.sin(a*layer+phase)*.045*layer))}const color=layerColors[layer-1];const wave=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(wavePoints,true),144,.021,7,true),makeMaterial(color,{transparent:true,opacity:.92,emissive:color,emissiveIntensity:.38,roughness:.2,clearcoat:.4}));wave.castShadow=true;group.add(wave)}
 }
 
 function buildMobius(group: THREE.Group, s: GardenSettings) {

@@ -188,6 +188,7 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
   const stem=new THREE.Mesh(new THREE.TubeGeometry(stemCurve,40,.09,12,false),makeOrganicMaterial(["#438b62","#a9df78"],{roughness:.55}));stem.castShadow=true;group.add(stem);
   const leafGeometry=makePetalGeometry(18,14),leafMaterial=makeOrganicMaterial(["#4dbf9c","#bce878","#f7c0d8"],{roughness:.46});
   [[-.08,.54,.2,.72],[.08,1.06,-.2,.58]].forEach(([x,y,z,scale],index)=>{const leaf=new THREE.Mesh(leafGeometry,leafMaterial);leaf.scale.set(.32,scale,1.05);leaf.position.set(x,y,z);orientAlong(leaf,new THREE.Vector3(index?1:-1,.24,index?-1:1));leaf.castShadow=true;group.add(leaf)});
+  const ovary=new THREE.Mesh(new THREE.SphereGeometry(.2,28,20),makeOrganicMaterial(["#2f8a56","#8fcd67","#f1c56c"],{roughness:.48,clearcoat:.12}));ovary.position.y=1.88;ovary.scale.set(1.25,.72,1.25);ovary.castShadow=true;group.add(ovary);
   const bloom=new THREE.Group();bloom.name="petals";bloom.position.y=1.92;
   const count=Math.round(s.flowerPetals),petalGeometry=makePetalGeometry(24,18);
   const petalMaterial=makeOrganicMaterial(["#55d1c5","#c6eef0","#ef9fca","#ffcfdf"],{roughness:.3,clearcoat:.28});
@@ -195,10 +196,10 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
     const theta=THREE.MathUtils.degToRad(i*s.flowerAngle),progress=i/Math.max(1,count-1);
     const ring=.1+Math.sqrt(i)*.09*s.flowerRatio;
     const tangent=new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta));
-    const radial=new THREE.Vector3(Math.cos(theta),.08+progress*.06,Math.sin(theta)).normalize();
+    const radial=new THREE.Vector3(Math.cos(theta),.3+progress*.18,Math.sin(theta)).normalize();
     const normal=tangent.clone().cross(radial).normalize();
     const alignedRadial=normal.clone().cross(tangent).normalize();
-    const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.38-progress*.065,.62-progress*.14,.34);petal.position.set(Math.cos(theta)*ring,.02+progress*.1,Math.sin(theta)*ring);petal.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tangent,alignedRadial,normal));petal.castShadow=true;bloom.add(petal);
+    const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.38-progress*.065,.62-progress*.14,.34);petal.position.set(Math.cos(theta)*ring,.015+progress*.08+ring*.08,Math.sin(theta)*ring);petal.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tangent,alignedRadial,normal));petal.castShadow=true;bloom.add(petal);
   }
   const seedMaterial=makeOrganicMaterial(["#f8cb5c","#ff8f8a"],{roughness:.4,clearcoat:.16});
   for(let i=0;i<34;i++){const theta=i*2.39996,r=.055*Math.sqrt(i);const seed=new THREE.Mesh(new THREE.IcosahedronGeometry(.038,1),seedMaterial);seed.position.set(Math.cos(theta)*r,.23+Math.max(0,.16-r*.32),Math.sin(theta)*r);seed.castShadow=true;bloom.add(seed)}
@@ -294,9 +295,9 @@ function buildPond(group: THREE.Group, s: GardenSettings) {
 function buildGoldenSpiral(group: THREE.Group, s: GardenSettings) {
   const pedestal=new THREE.Mesh(new THREE.CylinderGeometry(.9,1.05,.18,48),makeOrganicMaterial(["#ffd77e","#f09bbd","#9a83e6"],{roughness:.34,clearcoat:.26}));pedestal.position.y=.09;pedestal.castShadow=true;group.add(pedestal);
   const points:THREE.Vector3[]=[];const maxTheta=s.shellTurns*Math.PI*2;const growth=Math.log(s.shellGrowth)/(Math.PI/2);
-  for(let i=0;i<=220;i++){const theta=i/220*maxTheta;const r=1.12*Math.exp(growth*(theta-maxTheta));points.push(new THREE.Vector3(Math.cos(theta)*r,1.15+Math.sin(theta)*r,.04))}
+  for(let i=0;i<=220;i++){const t=i/220,theta=t*maxTheta,r=1.12*Math.exp(growth*(theta-maxTheta));points.push(new THREE.Vector3(Math.cos(theta)*r,1.15+Math.sin(theta)*r,(t-.5)*.72))}
   const spiral=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),260,s.shellTube,14,false),makeOrganicMaterial(["#fff5a8","#ffb254","#f381b9","#826fe5","#55d8cf"],{roughness:.16,clearcoat:.62,emissive:"#ef8d75",emissiveIntensity:.16}));spiral.castShadow=true;group.add(spiral);
-  const haloPoints=points.map(point=>point.clone().setZ(-.055));const halo=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(haloPoints),260,s.shellTube*1.9,12,false),makeMaterial("#ffe3a0",{transparent:true,opacity:.15,emissive:"#ffad63",emissiveIntensity:.9,roughness:.2}));group.add(halo);
+  const haloPoints=points.map(point=>point.clone().add(new THREE.Vector3(0,0,-.09)));const halo=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(haloPoints),260,s.shellTube*1.9,12,false),makeMaterial("#ffe3a0",{transparent:true,opacity:.15,emissive:"#ffad63",emissiveIntensity:.9,roughness:.2}));group.add(halo);
 }
 
 function buildEuler(group:THREE.Group,s:GardenSettings) {

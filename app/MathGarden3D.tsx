@@ -246,8 +246,8 @@ function buildButterfly(group: THREE.Group, s: GardenSettings) {
   const gap=s.butterflyGap*.12,scale=s.butterflyScale,wingAngle=THREE.MathUtils.degToRad(s.butterflyWing);
   [-1,1].forEach(side=>{const wingRoot=new THREE.Group();wingRoot.name=side<0?"wing-left":"wing-right";wingRoot.position.x=side*gap;wingRoot.rotation.y=side*wingAngle*.35;
     [upperGeometry,lowerGeometry].forEach((geometry,index)=>{const wing=new THREE.Mesh(geometry,wingMaterial);wing.scale.set(side*scale,scale,1);wing.castShadow=true;wingRoot.add(wing);
-      const spot=new THREE.Mesh(new THREE.SphereGeometry(index?.11:.14,18,12),makeOrganicMaterial(index?["#ffe59b","#ef91bd"]:["#6455af","#98e7de"],{roughness:.26}));spot.scale.set(1,.55,.14);spot.position.set(side*(index?.62:.82),index?-.56:.58,.075);wingRoot.add(spot)});
-    const veinMaterial=makeMaterial("#75508e",{roughness:.5,transparent:true,opacity:.55});[[.94,.72],[.84,.18],[.72,-.56]].forEach(([x,y],index)=>{const curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,0,.08),new THREE.Vector3(side*x*.45,y*.55,.09),new THREE.Vector3(side*x,y,.08));const vein=new THREE.Mesh(new THREE.TubeGeometry(curve,16,.012-index*.001,5,false),veinMaterial);wingRoot.add(vein)});group.add(wingRoot)});
+      const spot=new THREE.Mesh(new THREE.SphereGeometry(index?.11:.17,18,12),makeOrganicMaterial(index?["#ffe59b","#ef91bd"]:["#6455af","#98e7de"],{roughness:.26}));spot.scale.set(scale,scale*.55,.14);spot.position.set(side*(index?.62:.82)*scale,(index?-.56:.58)*scale,.075);wingRoot.add(spot)});
+    group.add(wingRoot)});
   group.userData.wingAngle = wingAngle;
 }
 

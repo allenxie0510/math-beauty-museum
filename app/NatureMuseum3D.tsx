@@ -88,7 +88,8 @@ function disposeScene(scene: THREE.Scene) {
 
 function drawEditorialArtwork(ctx: CanvasRenderingContext2D, item: NatureItem, width: number, height: number) {
   ctx.save();
-  ctx.translate(width * .69, height * .58);
+  ctx.translate(width * .5, height * .56);
+  ctx.scale(1.45, 1.45);
   if (item.id === "golden") {
     ctx.strokeStyle = "rgba(203,139,48,.7)";
     ctx.lineWidth = 3;
@@ -137,36 +138,43 @@ function drawEditorialArtwork(ctx: CanvasRenderingContext2D, item: NatureItem, w
 
 function makeBoardTexture(item: NatureItem) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1536;
-  canvas.height = 960;
+  canvas.width = 960;
+  canvas.height = 1440;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = item.id === "fractal" ? "#f0f0ed" : item.id === "golden" ? "#f4f0e9" : "#eff1e8";
+  ctx.fillStyle = item.id === "fractal" ? "#f4f6f1" : item.id === "golden" ? "#f8f3f4" : "#f8f5eb";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#202124";
-  ctx.font = "700 31px Arial, sans-serif";
-  ctx.fillText(`NATURE MATHEMATICS / ${item.index}`, 72, 78);
-  ctx.font = "700 64px Arial, sans-serif";
-  ctx.fillText(item.name, 72, 185);
-  ctx.fillStyle = "#686a6d";
-  ctx.font = "500 26px Arial, sans-serif";
-  ctx.fillText(item.english.toUpperCase(), 72, 227);
-  ctx.strokeStyle = "rgba(32,33,36,.18)"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(72, 275); ctx.lineTo(1464, 275); ctx.stroke();
+  const topGlow = ctx.createLinearGradient(0, 0, canvas.width, canvas.height * .48);
+  topGlow.addColorStop(0, "rgba(255,255,255,.96)");
+  topGlow.addColorStop(1, `${item.color}18`);
+  ctx.fillStyle = topGlow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height * .52);
+  ctx.fillStyle = "#17191c";
+  ctx.font = "700 26px Arial, sans-serif";
+  ctx.fillText(`NATURE / ${item.index}`, 64, 72);
+  ctx.font = "700 58px Arial, sans-serif";
+  ctx.fillText(item.name, 64, 168);
+  ctx.fillStyle = "#585d62";
+  ctx.font = "600 21px Arial, sans-serif";
+  ctx.fillText(item.english.toUpperCase(), 64, 211);
+  ctx.strokeStyle = "rgba(23,25,28,.18)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(64, 254); ctx.lineTo(896, 254); ctx.stroke();
   ctx.fillStyle = item.color;
-  ctx.font = "italic 74px Georgia, serif";
-  ctx.fillText(item.formula, 72, 408);
-  ctx.fillStyle = "#2f3033";
-  ctx.font = "600 31px Arial, sans-serif";
-  ctx.fillText(item.discovery, 72, 510);
-  ctx.fillStyle = "#747579";
-  ctx.font = "500 25px Arial, sans-serif";
-  ctx.fillText("点击展板，打开互动实验与图形预览", 72, 570);
-  ctx.fillStyle = item.color;
-  ctx.fillRect(72, 760, 235, 6);
-  ctx.fillStyle = "#202124";
-  ctx.font = "700 24px Arial, sans-serif";
-  ctx.fillText("EXPLORE  ↗", 72, 840);
+  ctx.font = "italic 58px Georgia, serif";
+  ctx.fillText(item.formula, 64, 350);
   drawEditorialArtwork(ctx, item, canvas.width, canvas.height);
+  ctx.fillStyle = "#25282b";
+  ctx.font = "700 27px Arial, sans-serif";
+  ctx.fillText(item.discovery, 64, 1160);
+  ctx.fillStyle = "#666b70";
+  ctx.font = "500 22px Arial, sans-serif";
+  ctx.fillText("点击展板，打开互动实验与图形预览", 64, 1210);
+  ctx.fillStyle = item.color;
+  ctx.fillRect(64, 1280, 180, 7);
+  ctx.fillStyle = "#17191c";
+  ctx.font = "700 22px Arial, sans-serif";
+  ctx.fillText("EXPLORE", 64, 1350);
+  ctx.font = "700 35px Arial, sans-serif";
+  ctx.fillText("↗", 840, 1354);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
@@ -175,13 +183,13 @@ function makeBoardTexture(item: NatureItem) {
 
 function addBoard(scene: THREE.Scene, item: NatureItem, x: number) {
   const group = new THREE.Group();
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(5.15, 3.34, .13), physical("#111216", { metalness: .35, roughness: .34 }));
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(3.28, 5.12, .12), physical("#22262a", { metalness: .24, roughness: .4 }));
   frame.castShadow = true;
   group.add(frame);
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(4.93, 3.08), new THREE.MeshBasicMaterial({ map: makeBoardTexture(item), toneMapped: false }));
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(3.08, 4.9), new THREE.MeshBasicMaterial({ map: makeBoardTexture(item), toneMapped: false }));
   face.position.z = .071;
   group.add(face);
-  group.position.set(x, 3.25, -6.04);
+  group.position.set(x, 3.55, -6.04);
   group.userData.natureId = item.id;
   group.traverse((child) => { child.userData.natureId = item.id; });
   scene.add(group);
@@ -211,15 +219,15 @@ function NatureMuseumCanvas({ selectedId, onSelect }: { selectedId: NatureId | n
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.02;
+    renderer.toneMappingExposure = 1.14;
     renderer.domElement.setAttribute("role", "img");
     renderer.domElement.setAttribute("aria-label", "可拖动浏览并点击墙面展板的自然数学馆三维空间");
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#111216");
+    scene.background = new THREE.Color("#e7e7e5");
     const camera = new THREE.PerspectiveCamera(48, container.clientWidth / container.clientHeight, .1, 70);
-    camera.position.set(0, 3.7, 11.7);
+    camera.position.set(0, 3.8, 12.3);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = .06;
@@ -230,54 +238,49 @@ function NatureMuseumCanvas({ selectedId, onSelect }: { selectedId: NatureId | n
     controls.maxPolarAngle = 1.48;
     controls.minAzimuthAngle = -.82;
     controls.maxAzimuthAngle = .82;
-    controls.target.set(0, 3.25, -3.2);
+    controls.target.set(0, 3.45, -3.5);
 
-    scene.add(new THREE.HemisphereLight("#f0f0eb", "#29272d", 1.18));
-    scene.add(new THREE.AmbientLight("#d8d8d2", .58));
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 32), physical("#383a3e", { roughness: .82 }));
+    scene.add(new THREE.HemisphereLight("#ffffff", "#a8aaac", 1.42));
+    scene.add(new THREE.AmbientLight("#ffffff", .76));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 32), physical("#e3e1dc", { roughness: .76 }));
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(21, 7.7, .24), physical("#ccccca", { roughness: .88 }));
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(21, 7.7, .24), physical("#d7d7d4", { roughness: .9 }));
     backWall.position.set(0, 3.85, -6.25);
     backWall.receiveShadow = true;
     scene.add(backWall);
     [-10.4, 10.4].forEach((x) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(.25, 7.7, 13), physical("#bdbdba", { roughness: .88 }));
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(.25, 7.7, 13), physical("#dededb", { roughness: .9 }));
       wall.position.set(x, 3.85, 0);
       wall.receiveShadow = true;
       scene.add(wall);
     });
-    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(21, 13), physical("#060709", { roughness: .74 }));
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(21, 13), physical("#dadad7", { roughness: .78 }));
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.set(0, 7.62, 0);
     scene.add(ceiling);
-    const grid = new THREE.GridHelper(21, 18, "#45474c", "#292b2f");
-    grid.position.set(0, 7.54, -.15);
-    scene.add(grid);
-
-    addBoard(scene, NATURE_ITEMS[0], -5.55);
+    addBoard(scene, NATURE_ITEMS[0], -4.15);
     addBoard(scene, NATURE_ITEMS[1], 0);
-    addBoard(scene, NATURE_ITEMS[2], 5.55);
+    addBoard(scene, NATURE_ITEMS[2], 4.15);
 
-    const accentColors = ["#f3bfda", "#ccef9a", "#ffe4a6"];
-    [-5.55, 0, 5.55].forEach((x, index) => {
+    [-4.15, 0, 4.15].forEach((x) => {
       const target = new THREE.Object3D();
-      target.position.set(x, 3.1, -6);
+      target.position.set(x, 3.55, -6);
       scene.add(target);
-      const spot = new THREE.SpotLight(accentColors[index], 82, 17, .34, .55, 1.2);
-      spot.position.set(x, 7.15, -1.8);
+      const spot = new THREE.SpotLight("#fff7e8", 96, 18, .31, .48, 1.15);
+      spot.position.set(x, 7.15, -2.15);
       spot.target = target;
       spot.castShadow = true;
       spot.shadow.mapSize.set(1024, 1024);
       scene.add(spot);
-      const fixture = new THREE.Mesh(new THREE.CylinderGeometry(.13, .19, .42, 18), physical("#08090b", { metalness: .55, roughness: .3 }));
+      const fixture = new THREE.Mesh(new THREE.CylinderGeometry(.11, .16, .34, 18), physical("#44484c", { metalness: .38, roughness: .34 }));
       fixture.position.copy(spot.position);
       fixture.rotation.x = -.5;
       scene.add(fixture);
     });
-    const wallWash = new THREE.PointLight("#8a76b5", 11, 18);
-    wallWash.position.set(0, 1.3, 3);
+    const wallWash = new THREE.PointLight("#ffffff", 8, 18);
+    wallWash.position.set(0, 2.1, 4);
     scene.add(wallWash);
 
     const raycaster = new THREE.Raycaster();
@@ -300,9 +303,9 @@ function NatureMuseumCanvas({ selectedId, onSelect }: { selectedId: NatureId | n
     renderer.domElement.addEventListener("pointerup", pointerUp);
 
     let frame = 0;
-    const defaultTarget = new THREE.Vector3(0, 3.25, -3.2);
+    const defaultTarget = new THREE.Vector3(0, 3.45, -3.5);
     const focusTargets: Record<NatureId, THREE.Vector3> = {
-      golden: new THREE.Vector3(-5.1, 3.1, -5.5), fractal: new THREE.Vector3(0, 3.1, -5.5), fibonacci: new THREE.Vector3(5.1, 3.1, -5.5),
+      golden: new THREE.Vector3(-4.05, 3.5, -5.5), fractal: new THREE.Vector3(0, 3.5, -5.5), fibonacci: new THREE.Vector3(4.05, 3.5, -5.5),
     };
     const animate = () => {
       frame = requestAnimationFrame(animate);
@@ -426,7 +429,7 @@ export function NatureMuseumWorld({ onEnterGarden }: { onEnterGarden: () => void
   };
 
   return (
-    <section className="nature-museum nature-museum-dark" id="hall" aria-label="自然数学馆 WebGL 原型">
+    <section className="nature-museum nature-museum-gallery" id="hall" aria-label="自然数学馆 WebGL 原型">
       <NatureMuseumCanvas selectedId={selectedId} onSelect={select} />
       <div className="nature-museum-shade" aria-hidden="true" />
       <div className="nature-museum-title">

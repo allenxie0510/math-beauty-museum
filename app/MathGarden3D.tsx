@@ -116,7 +116,7 @@ const DEFAULT_SETTINGS: GardenSettings = {
 };
 
 const POSITIONS: Record<GardenId, [number, number, number]> = {
-  flower: [-4.2, 0, 1.3], tree: [-2.1, 0, -3.7], butterfly: [1.7, 1.1, -3.6], vine: [4.5, 0, -1.1],
+  flower: [-4.2, 0, 1.3], tree: [-2.1, 0, -3.7], butterfly: [1.7, 1.85, -3.6], vine: [4.5, 0, -1.1],
   building: [3.6, 0, 3.2], pond: [0.3, 0.05, 4.4], shell: [-3.5, 0.5, 3.7], mobius: [0.2, 1.8, -0.1], euler: [5.3, .15, -4.3],
 };
 
@@ -209,8 +209,11 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
 function buildFibonacciFlower(group:THREE.Group,petalCount:number,seedCount:number,petalColors:string[]) {
   const stemCurve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(.06,.55,.03),new THREE.Vector3(-.04,1.05,0),new THREE.Vector3(0,1.45,0)]);
   const stem=new THREE.Mesh(new THREE.TubeGeometry(stemCurve,32,.055,10,false),makeOrganicMaterial(["#2f8050","#88cb66"],{roughness:.58}));stem.castShadow=true;group.add(stem);
+  const leafGeometry=makeTreeLeafGeometry(),leafMaterial=makeOrganicMaterial(["#258354","#67c56c","#c5e875"],{roughness:.54,clearcoat:.08});
+  [[-.03,.48,-1,.28,.2],[.02,.87,1,.34,-.16]].forEach(([x,y,side,scale,z])=>{const direction=new THREE.Vector3(side,.22,z).normalize(),leaf=new THREE.Mesh(leafGeometry,leafMaterial);leaf.position.set(x,y,0);leaf.scale.set(scale,scale*1.25,scale);orientAlong(leaf,direction);leaf.rotateY(side*.18);leaf.castShadow=true;group.add(leaf)});
+  const ovary=new THREE.Mesh(new THREE.SphereGeometry(.14,20,14),makeOrganicMaterial(["#2f8050","#8dcc68","#e8c75f"],{roughness:.48}));ovary.position.y=1.44;ovary.scale.set(1.25,.72,1.25);ovary.castShadow=true;group.add(ovary);
   const bloom=new THREE.Group();bloom.position.y=1.46;const petalGeometry=makePetalGeometry(18,12),petalMaterial=makeOrganicMaterial(petalColors,{roughness:.36,clearcoat:.2});
-  for(let i=0;i<petalCount;i++){const theta=i*Math.PI*2/petalCount,tangent=new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta)),radial=new THREE.Vector3(Math.cos(theta),.08,Math.sin(theta)).normalize(),normal=tangent.clone().cross(radial).normalize(),aligned=normal.clone().cross(tangent).normalize();const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.32,.58,.28);petal.position.set(Math.cos(theta)*.42,.02,Math.sin(theta)*.42);petal.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tangent,aligned,normal));petal.castShadow=true;bloom.add(petal)}
+  for(let i=0;i<petalCount;i++){const theta=i*Math.PI*2/petalCount,tangent=new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta)),radial=new THREE.Vector3(Math.cos(theta),.42,Math.sin(theta)).normalize(),normal=tangent.clone().cross(radial).normalize(),aligned=normal.clone().cross(tangent).normalize();const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.32,.58,.28);petal.position.set(Math.cos(theta)*.4,.09,Math.sin(theta)*.4);petal.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tangent,aligned,normal));petal.castShadow=true;bloom.add(petal)}
   const seedMaterial=makeOrganicMaterial(["#573b2d","#9a5a29","#f0b63d"],{roughness:.5});for(let i=0;i<seedCount;i++){const theta=i*2.399963,r=.038*Math.sqrt(i);const seed=new THREE.Mesh(new THREE.SphereGeometry(.028,10,8),seedMaterial);seed.position.set(Math.cos(theta)*r,.13+Math.max(0,.08-r*.18),Math.sin(theta)*r);seed.castShadow=true;bloom.add(seed)}group.add(bloom);
 }
 
@@ -296,7 +299,9 @@ function buildGoldenSpiral(group: THREE.Group, s: GardenSettings) {
   const pedestal=new THREE.Mesh(new THREE.CylinderGeometry(.9,1.05,.18,48),makeOrganicMaterial(["#ffd77e","#f09bbd","#9a83e6"],{roughness:.34,clearcoat:.26}));pedestal.position.y=.09;pedestal.castShadow=true;group.add(pedestal);
   const points:THREE.Vector3[]=[];const maxTheta=s.shellTurns*Math.PI*2;const growth=Math.log(s.shellGrowth)/(Math.PI/2);
   for(let i=0;i<=220;i++){const t=i/220,theta=t*maxTheta,r=1.12*Math.exp(growth*(theta-maxTheta));points.push(new THREE.Vector3(Math.cos(theta)*r,1.15+Math.sin(theta)*r,(t-.5)*.72))}
-  const spiral=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),260,s.shellTube,14,false),makeOrganicMaterial(["#fff5a8","#ffb254","#f381b9","#826fe5","#55d8cf"],{roughness:.16,clearcoat:.62,emissive:"#ef8d75",emissiveIntensity:.16}));spiral.castShadow=true;group.add(spiral);
+  const spiralMaterial=makeOrganicMaterial(["#fff5a8","#ffb254","#f381b9","#826fe5","#55d8cf"],{roughness:.16,clearcoat:.62,emissive:"#ef8d75",emissiveIntensity:.16,side:THREE.DoubleSide});
+  const spiral=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),260,s.shellTube,14,false),spiralMaterial);spiral.castShadow=true;group.add(spiral);
+  [points[0],points[points.length-1]].forEach(point=>{const cap=new THREE.Mesh(new THREE.SphereGeometry(s.shellTube*1.025,18,12),spiralMaterial);cap.position.copy(point);cap.castShadow=true;group.add(cap)});
   const haloPoints=points.map(point=>point.clone().add(new THREE.Vector3(0,0,-.09)));const halo=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(haloPoints),260,s.shellTube*1.9,12,false),makeMaterial("#ffe3a0",{transparent:true,opacity:.15,emissive:"#ffad63",emissiveIntensity:.9,roughness:.2}));group.add(halo);
 }
 
@@ -366,7 +371,7 @@ function MathGardenCanvas({ selectedId, onSelect, settings, audioAnalyserRef, po
     const ground=new THREE.Mesh(new THREE.CircleGeometry(12.5,96),makeOrganicMaterial(["#f58ab8","#ffc269","#59d6b7"],{roughness:.68,clearcoat:.05}));ground.rotation.x=-Math.PI/2;ground.position.y=-.04;ground.receiveShadow=true;scene.add(ground);
     [[-7,-3,2.4,"#bca3ff"],[7,-4,3,"#ff9fca"],[-8,4,2.6,"#83e5ed"],[8,5,3.5,"#bde960"]].forEach(([x,z,scale,color],index)=>{const secondary=index%2?"#ffbfda":"#72dfcf";const hill=new THREE.Mesh(new THREE.SphereGeometry(1.8,36,24),makeOrganicMaterial([color as string,secondary],{roughness:.58,clearcoat:.1}));hill.position.set(x as number,-.45,z as number);hill.scale.set(scale as number,1,1.2);hill.receiveShadow=true;scene.add(hill)});
     const pineTrunkGeometry=new THREE.CylinderGeometry(.075,.11,.72,10),pineConeGeometry=new THREE.ConeGeometry(.62,.92,20),pineTrunkMaterial=makeOrganicMaterial(["#6f5845","#b1855f"],{roughness:.66}),pineMaterials=[makeOrganicMaterial(["#0d7042","#39b95b"],{roughness:.58}),makeOrganicMaterial(["#16884a","#75d969"],{roughness:.55})];for(let i=0;i<7;i++){const angle=.35+i*.91,radius=10.2+(i%2)*1.05,scale=.82+(i%3)*.16,pine=new THREE.Group();pine.position.set(Math.cos(angle)*radius,0,Math.sin(angle)*radius);const trunk=new THREE.Mesh(pineTrunkGeometry,pineTrunkMaterial);trunk.position.y=.36*scale;trunk.scale.setScalar(scale);trunk.castShadow=true;pine.add(trunk);for(let tier=0;tier<3;tier++){const crown=new THREE.Mesh(pineConeGeometry,pineMaterials[(i+tier)%2]);crown.position.y=(.72+tier*.48)*scale;crown.scale.set((1-tier*.15)*scale,(1-tier*.08)*scale,(1-tier*.15)*scale);crown.castShadow=true;pine.add(crown)}scene.add(pine)}
-    const fibonacciFlowerA=new THREE.Group();fibonacciFlowerA.position.set(-6.1,0,4.9);fibonacciFlowerA.scale.setScalar(.82);buildFibonacciFlower(fibonacciFlowerA,13,34,["#ffe26d","#ffad46","#e9789f"]);scene.add(fibonacciFlowerA);const fibonacciFlowerB=new THREE.Group();fibonacciFlowerB.position.set(6.15,0,-5.2);fibonacciFlowerB.scale.setScalar(.72);buildFibonacciFlower(fibonacciFlowerB,21,55,["#f598cf","#b983e6","#72ddd1"]);scene.add(fibonacciFlowerB);
+    const fibonacciFlowerA=new THREE.Group();fibonacciFlowerA.position.set(-6.1,0,4.9);fibonacciFlowerA.scale.setScalar(.82);buildFibonacciFlower(fibonacciFlowerA,13,34,["#ffe26d","#ffad46","#e9789f"]);scene.add(fibonacciFlowerA);const fibonacciFlowerB=new THREE.Group();fibonacciFlowerB.position.set(1.75,0,-4.35);fibonacciFlowerB.scale.setScalar(.72);buildFibonacciFlower(fibonacciFlowerB,21,55,["#f598cf","#b983e6","#72ddd1"]);scene.add(fibonacciFlowerB);
     GARDEN_ITEMS.forEach(item=>{const group=new THREE.Group();group.position.set(...POSITIONS[item.id]);group.userData.gardenId=item.id;buildItem(group,item.id,settingsRef.current);scene.add(group);groups.current.set(item.id,group)});
     const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let pointerStart={x:0,y:0};
     const down=(e:PointerEvent)=>{pointerStart={x:e.clientX,y:e.clientY};controls.autoRotate=false};

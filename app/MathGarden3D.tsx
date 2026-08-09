@@ -312,7 +312,7 @@ function buildEuler(group:THREE.Group,s:GardenSettings) {
 
 function buildMobius(group: THREE.Group, s: GardenSettings) {
   const segments=128,widthSegments=16,vertices:number[]=[],indices:number[]=[],colors:number[]=[];
-  const palette=[new THREE.Color("#75e0de"),new THREE.Color("#8b78e3"),new THREE.Color("#ef8fbd"),new THREE.Color("#ffd078")];
+  const palette=[new THREE.Color("#75e0de"),new THREE.Color("#8b78e3"),new THREE.Color("#ef8fbd"),new THREE.Color("#ffd078"),new THREE.Color("#75e0de")];
   for(let i=0;i<=segments;i++){
     const u=i/segments*Math.PI*2;
     for(let j=0;j<=widthSegments;j++){
@@ -324,8 +324,7 @@ function buildMobius(group: THREE.Group, s: GardenSettings) {
   }
   for(let i=0;i<segments;i++)for(let j=0;j<widthSegments;j++){const a=i*(widthSegments+1)+j,b=a+widthSegments+1;indices.push(a,b,a+1,b,b+1,a+1)}
   const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeVertexNormals();
-  const ribbon=new THREE.Mesh(geometry,new THREE.MeshPhysicalMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:.22,metalness:.04,clearcoat:.55,clearcoatRoughness:.2,sheen:.4,sheenColor:new THREE.Color("#e8b7ef")}));ribbon.castShadow=true;group.add(ribbon);
-  [-1,1].forEach(edge=>{const points:THREE.Vector3[]=[];for(let i=0;i<=segments;i++){const u=i/segments*Math.PI*2,v=edge*s.mobiusWidth,twist=s.mobiusTwist*u/2,radius=s.mobiusRadius;points.push(new THREE.Vector3((radius+v*Math.cos(twist))*Math.cos(u),v*Math.sin(twist),(radius+v*Math.cos(twist))*Math.sin(u)))}const trim=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,true),segments,.018,6,true),makeMaterial(edge>0?"#fff2b1":"#c7fbf0",{emissive:edge>0?"#c98044":"#4b9d9d",emissiveIntensity:.35,roughness:.18}));group.add(trim)});
+  const ribbon=new THREE.Mesh(geometry,new THREE.MeshPhysicalMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:.34,metalness:.025,clearcoat:.34,clearcoatRoughness:.32,sheen:.3,sheenColor:new THREE.Color("#e8b7ef")}));ribbon.castShadow=true;group.add(ribbon);
 }
 
 function buildItem(group: THREE.Group, id: GardenId, settings: GardenSettings) {

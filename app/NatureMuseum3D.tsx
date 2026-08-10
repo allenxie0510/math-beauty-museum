@@ -1781,6 +1781,14 @@ export function NatureMuseumWorld() {
       overflow: root.style.overflow,
       overscrollBehavior: root.style.overscrollBehavior,
     };
+    const updateGlobalNavigation = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      if (event.clientY <= 12) body.classList.add("exhibit-nav-visible");
+      else if (event.clientY > 92) body.classList.remove("exhibit-nav-visible");
+    };
+    body.classList.add("exhibit-mode");
+    body.classList.remove("exhibit-nav-visible");
+    window.addEventListener("pointermove", updateGlobalNavigation, { passive: true });
     body.style.position = "fixed";
     body.style.top = `-${scrollPosition}px`;
     body.style.left = "0";
@@ -1791,6 +1799,8 @@ export function NatureMuseumWorld() {
     root.style.overscrollBehavior = "none";
 
     return () => {
+      window.removeEventListener("pointermove", updateGlobalNavigation);
+      body.classList.remove("exhibit-mode", "exhibit-nav-visible");
       body.style.position = previousBody.position;
       body.style.top = previousBody.top;
       body.style.left = previousBody.left;

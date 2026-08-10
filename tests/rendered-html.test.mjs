@@ -98,6 +98,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /id: "cosmos"/);
   assert.match(museum, /signalRef\.current/);
   assert.match(museum, /body\.style\.position = "fixed"/);
+  assert.match(museum, /body\.classList\.add\("exhibit-mode"\)/);
+  assert.match(museum, /event\.clientY <= 12/);
+  assert.match(museum, /body\.classList\.remove\("exhibit-mode", "exhibit-nav-visible"\)/);
   assert.match(museum, /root\.style\.overscrollBehavior = "none"/);
   assert.match(museum, /onWheel=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.match(museum, /className="immersive-lab-header"/);
@@ -108,6 +111,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.immersive-lab-header/);
   assert.match(css, /\.nature-console-grid/);
   assert.match(css, /Full-screen exhibit mode and compact fixed console/);
+  assert.match(css, /\.exhibit-mode \.site-header/);
+  assert.match(css, /\.exhibit-mode\.exhibit-nav-visible \.site-header/);
+  assert.match(css, /\.exhibit-mode\.exhibit-nav-visible \.nature-lab-close/);
   assert.match(css, /\.nature-lab-shell\{width:100%;height:100svh/);
   assert.match(css, /\.nature-lab-controls\{position:fixed/);
   assert.match(css, /\.sound-clip-select select/);

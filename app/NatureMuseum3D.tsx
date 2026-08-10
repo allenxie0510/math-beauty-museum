@@ -501,22 +501,23 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   canvas.width = 960;
   canvas.height = 1440;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#faf8f4";
+  ctx.fillStyle = "#0b0e16";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const topGlow = ctx.createLinearGradient(0, 0, canvas.width, canvas.height * .58);
-  topGlow.addColorStop(0, "rgba(255,255,255,.98)");
-  topGlow.addColorStop(1, item.color + "25");
+  topGlow.addColorStop(0, item.color + "4d");
+  topGlow.addColorStop(.5, "rgba(15,18,28,.74)");
+  topGlow.addColorStop(1, "rgba(6,8,14,.96)");
   ctx.fillStyle = topGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height * .58);
-  ctx.fillStyle = "#17191c";
+  ctx.fillStyle = item.color;
   ctx.font = "700 25px Arial, sans-serif";
   ctx.fillText(hall.english + " / " + item.index, 64, 72);
   ctx.font = "700 58px Arial, sans-serif";
   ctx.fillText(item.name, 64, 168);
-  ctx.fillStyle = "#585d62";
+  ctx.fillStyle = "#aeb7c7";
   ctx.font = "600 21px Arial, sans-serif";
   ctx.fillText(item.english.toUpperCase(), 64, 211);
-  ctx.strokeStyle = "rgba(23,25,28,.16)";
+  ctx.strokeStyle = "rgba(255,255,255,.14)";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(64, 254);
@@ -526,15 +527,15 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   ctx.font = "italic 54px Georgia, serif";
   ctx.fillText(item.formula, 64, 350);
   drawMiniArtwork(ctx, item, canvas.width, canvas.height);
-  ctx.fillStyle = "#25282b";
+  ctx.fillStyle = "#f5f6fb";
   ctx.font = "700 27px Arial, sans-serif";
   ctx.fillText(item.discovery, 64, 1160);
-  ctx.fillStyle = "#666b70";
+  ctx.fillStyle = "#9da7b8";
   ctx.font = "500 22px Arial, sans-serif";
   ctx.fillText("点击展板，打开互动实验与图形预览", 64, 1210);
   ctx.fillStyle = item.color;
   ctx.fillRect(64, 1280, 180, 7);
-  ctx.fillStyle = "#17191c";
+  ctx.fillStyle = "#f5f6fb";
   ctx.font = "700 22px Arial, sans-serif";
   ctx.fillText("EXPLORE", 64, 1350);
   ctx.font = "700 35px Arial, sans-serif";
@@ -545,9 +546,13 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   return texture;
 }
 
-function addBoard(scene: THREE.Scene, item: MuseumItem, hall: HallDefinition, x: number) {
+function addBoard(scene: THREE.Scene, item: MuseumItem, hall: HallDefinition, position: THREE.Vector3, rotationY = 0) {
   const group = new THREE.Group();
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(3.12, 4.94, .2), physical("#f5f0e9", { roughness: .72 }));
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(3.28, 5.08, .24), physical("#171a22", {
+    roughness: .38,
+    metalness: .16,
+    clearcoat: .32,
+  }));
   panel.castShadow = true;
   panel.receiveShadow = true;
   group.add(panel);
@@ -557,18 +562,168 @@ function addBoard(scene: THREE.Scene, item: MuseumItem, hall: HallDefinition, x:
   );
   face.position.z = .106;
   group.add(face);
-  group.position.set(x, 3.55, -6);
+  group.position.copy(position);
+  group.rotation.y = rotationY;
   group.userData.itemId = item.id;
   group.traverse((child) => { child.userData.itemId = item.id; });
   scene.add(group);
 }
 
-function MuseumCanvas({ hall, selectedId, onSelect }: { hall: HallDefinition; selectedId: string | null; onSelect: (id: string) => void }) {
+const MUSEUM_CAMERA_STOPS = [
+  { position: new THREE.Vector3(0, 4.65, 15.8), target: new THREE.Vector3(0, 4.05, .2) },
+  { position: new THREE.Vector3(-2.8, 4.05, -11.5), target: new THREE.Vector3(-2.8, 3.55, -20.8) },
+  { position: new THREE.Vector3(3.6, 4.05, -31.5), target: new THREE.Vector3(3.6, 3.55, -40.8) },
+  { position: new THREE.Vector3(-3.6, 4.05, -51.5), target: new THREE.Vector3(-3.6, 3.55, -60.8) },
+  { position: new THREE.Vector3(2.6, 4.05, -71.5), target: new THREE.Vector3(2.6, 3.55, -80.8) },
+];
+
+const HALL_CENTERS = [
+  new THREE.Vector3(-2.8, 0, -20),
+  new THREE.Vector3(3.6, 0, -40),
+  new THREE.Vector3(-3.6, 0, -60),
+  new THREE.Vector3(2.6, 0, -80),
+];
+
+function glowMaterial(color: string, opacity = 1) {
+  return new THREE.MeshBasicMaterial({
+    color,
+    transparent: opacity < 1,
+    opacity,
+    toneMapped: false,
+    blending: opacity < .8 ? THREE.AdditiveBlending : THREE.NormalBlending,
+    depthWrite: opacity >= .8,
+  });
+}
+
+function makeTextMaterial(text: string, color: string, fontSize = 118) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 28;
+  ctx.fillStyle = color;
+  ctx.font = `700 ${fontSize}px Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  return new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+}
+
+function addTextRing(parent: THREE.Group, text: string, radius: number, y: number, color: string, scale: number, offset = 0) {
+  const characters = Array.from(text);
+  characters.forEach((character, index) => {
+    const angle = offset + index / characters.length * Math.PI * 2;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(scale, scale * .62), makeTextMaterial(character, color, 150));
+    mesh.position.set(Math.sin(angle) * radius, y, Math.cos(angle) * radius);
+    mesh.rotation.y = angle;
+    parent.add(mesh);
+  });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .025, 8, 160), glowMaterial(color, .72));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = y - scale * .35;
+  parent.add(ring);
+}
+
+function addPortal(scene: THREE.Scene, x: number, z: number, color: string, rotationY = 0) {
+  const portal = new THREE.Group();
+  [0, 1, 2].forEach((layer) => {
+    const width = 5.8 + layer * .55;
+    const height = 7.2 + layer * .32;
+    const points: THREE.Vector3[] = [];
+    points.push(new THREE.Vector3(-width / 2, 0, layer * .24));
+    points.push(new THREE.Vector3(-width / 2, height - width / 2, layer * .24));
+    for (let step = 0; step <= 18; step++) {
+      const theta = Math.PI - step / 18 * Math.PI;
+      points.push(new THREE.Vector3(Math.cos(theta) * width / 2, height - width / 2 + Math.sin(theta) * width / 2, layer * .24));
+    }
+    points.push(new THREE.Vector3(width / 2, 0, layer * .24));
+    const curve = new THREE.CatmullRomCurve3(points);
+    const frame = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, .045 + layer * .014, 8, false), glowMaterial(color, .82 - layer * .16));
+    portal.add(frame);
+  });
+  portal.position.set(x, .04, z);
+  portal.rotation.y = rotationY;
+  scene.add(portal);
+  return portal;
+}
+
+function makePointCloud(points: THREE.Vector3[], color: string, size = .08, opacity = .8) {
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  return new THREE.Points(geometry, new THREE.PointsMaterial({
+    color,
+    size,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  }));
+}
+
+function setMaterialOpacity(material: THREE.Material, opacity: number) {
+  material.transparent = true;
+  material.opacity = opacity;
+  material.depthWrite = false;
+}
+
+function addHallSignature(scene: THREE.Scene, hallIndex: number, center: THREE.Vector3) {
+  const group = new THREE.Group();
+  group.userData.signature = hallIndex;
+  const color = HALLS[hallIndex].accent;
+  if (hallIndex === 0) {
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i < 260; i++) {
+      const branch = i % 7;
+      const progress = i / 260;
+      const angle = branch / 7 * Math.PI * 2 + Math.sin(progress * 13) * .18;
+      const radius = .4 + progress * 3.6;
+      points.push(new THREE.Vector3(Math.cos(angle) * radius, progress * 5.8 - 2.4, Math.sin(angle) * radius * .44));
+    }
+    group.add(makePointCloud(points, "#c8ed75", .095, .92));
+  } else if (hallIndex === 1) {
+    for (let row = 0; row < 8; row++) for (let column = 0; column < 8; column++) {
+      const tile = new THREE.Mesh(new THREE.BoxGeometry(.48, .48, .22), physical(row % 2 ? "#b5a38c" : "#d8b26c", { roughness: .3, metalness: .42 }));
+      tile.position.set((column - 3.5) * .56, (row - 3.5) * .56, Math.sin((row + column) * .72) * .45);
+      tile.userData.phase = (row + column) * .42;
+      group.add(tile);
+    }
+  } else if (hallIndex === 2) {
+    [0, 1, 2].forEach((wave) => {
+      const points: THREE.Vector3[] = [];
+      for (let i = 0; i <= 80; i++) {
+        const x = i / 80 * 7 - 3.5;
+        points.push(new THREE.Vector3(x, Math.sin(i / 80 * Math.PI * (3 + wave)) * (.72 - wave * .12) + wave * .8 - .8, wave * .18));
+      }
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 120, .045, 8, false), glowMaterial(wave === 1 ? "#69ddff" : color, .86));
+      group.add(tube);
+    });
+  } else {
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i < 620; i++) {
+      const arm = i % 4;
+      const progress = i / 620;
+      const theta = progress * Math.PI * 10 + arm * Math.PI / 2;
+      const radius = .18 + progress * 4.7;
+      points.push(new THREE.Vector3(Math.cos(theta) * radius, Math.sin(theta) * radius * .58, (progress - .5) * .8));
+    }
+    group.add(makePointCloud(points, "#9dafff", .07, .92));
+  }
+  group.position.set(center.x - 7.1, hallIndex === 0 ? 3.2 : 3.6, center.z - 2.2);
+  scene.add(group);
+  return group;
+}
+
+function MuseumCanvas({ hallIndex, onSelect }: { hallIndex: number; onSelect: (id: string, hallIndex: number) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const onSelectRef = useRef(onSelect);
-  const selectedRef = useRef<string | null>(selectedId);
+  const hallIndexRef = useRef(hallIndex);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
-  useEffect(() => { selectedRef.current = selectedId; }, [selectedId]);
+  useEffect(() => { hallIndexRef.current = hallIndex; }, [hallIndex]);
 
   useEffect(() => {
     const container = host.current;
@@ -581,80 +736,234 @@ function MuseumCanvas({ hall, selectedId, onSelect }: { hall: HallDefinition; se
       console.error("Museum WebGL initialization failed", error);
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !lowPower;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.18;
     renderer.domElement.setAttribute("role", "img");
-    renderer.domElement.setAttribute("aria-label", "可拖动浏览并点击墙面展板的" + hall.name + "三维空间");
+    renderer.domElement.setAttribute("aria-label", "数学美学展连续 WebGL 展馆，可拖动视角并点击展板探索");
     container.appendChild(renderer.domElement);
+    container.dataset.quality = lowPower ? "eco" : "standard";
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#d9d3cb");
-    const camera = new THREE.PerspectiveCamera(48, container.clientWidth / container.clientHeight, .1, 70);
-    camera.position.set(0, 3.8, 12.3);
+    scene.background = new THREE.Color("#070910");
+    scene.fog = new THREE.FogExp2("#080a10", .0135);
+    const camera = new THREE.PerspectiveCamera(49, container.clientWidth / container.clientHeight, .1, 150);
+    camera.position.copy(MUSEUM_CAMERA_STOPS[0].position);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = .06;
     controls.enablePan = false;
-    controls.minDistance = 6.3;
-    controls.maxDistance = 15;
-    controls.minPolarAngle = .75;
-    controls.maxPolarAngle = 1.48;
-    controls.minAzimuthAngle = -.82;
-    controls.maxAzimuthAngle = .82;
-    controls.target.set(0, 3.45, -3.5);
+    controls.minDistance = 4.8;
+    controls.maxDistance = 11.5;
+    controls.minPolarAngle = .76;
+    controls.maxPolarAngle = 1.5;
+    controls.minAzimuthAngle = -.68;
+    controls.maxAzimuthAngle = .68;
+    controls.target.copy(MUSEUM_CAMERA_STOPS[0].target);
 
-    scene.add(new THREE.HemisphereLight("#fffdf8", "#8f8983", .95));
-    scene.add(new THREE.AmbientLight("#fffaf2", .36));
-    const softbox = new THREE.RectAreaLight("#fff8ef", 2.2, 14, 4.5);
-    softbox.position.set(0, 5.8, 3.2);
-    softbox.lookAt(0, 3.7, -6);
-    scene.add(softbox);
-    const keyLight = new THREE.DirectionalLight("#fff7ed", 1.65);
-    keyLight.position.set(4.8, 8.5, 5.5);
-    keyLight.target.position.set(0, 3.4, -5.8);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(2048, 2048);
+    scene.add(new THREE.HemisphereLight("#a7b8d7", "#120f18", .7));
+    scene.add(new THREE.AmbientLight("#d9d5e6", .22));
+    const keyLight = new THREE.DirectionalLight("#fff1da", 1.45);
+    keyLight.position.set(7, 12, 12);
+    keyLight.target.position.set(0, 3.5, -28);
+    keyLight.castShadow = !lowPower;
+    keyLight.shadow.mapSize.set(lowPower ? 512 : 1536, lowPower ? 512 : 1536);
     keyLight.shadow.radius = 5;
-    keyLight.shadow.bias = -.00015;
-    keyLight.shadow.camera.left = -12;
-    keyLight.shadow.camera.right = 12;
-    keyLight.shadow.camera.top = 9;
-    keyLight.shadow.camera.bottom = -3;
     scene.add(keyLight, keyLight.target);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 32), physical("#c7c0b8", { roughness: .82 }));
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(42, 118), physical("#17171b", { roughness: .74, metalness: .12, clearcoat: .08 }));
     floor.rotation.x = -Math.PI / 2;
+    floor.position.z = -38;
     floor.receiveShadow = true;
     scene.add(floor);
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(21, 7.7, .24), physical("#f2eee8", { roughness: .94 }));
-    backWall.position.set(0, 3.85, -6.25);
-    backWall.receiveShadow = true;
-    scene.add(backWall);
-    [-10.4, 10.4].forEach((x) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(.25, 7.7, 13), physical("#e9e3dc", { roughness: .93 }));
-      wall.position.set(x, 3.85, 0);
-      wall.receiveShadow = true;
+
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(42, 118), physical("#090a0f", { roughness: .92 }));
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(0, 9.4, -38);
+    scene.add(ceiling);
+
+    const guidePoints = [
+      new THREE.Vector3(0, .035, 8),
+      new THREE.Vector3(0, .035, 1),
+      ...HALL_CENTERS.map((center, index) => new THREE.Vector3(center.x + (index % 2 ? -1.2 : 1.2), .035, center.z)),
+      new THREE.Vector3(0, .035, -91),
+    ];
+    const guideCurve = new THREE.CatmullRomCurve3(guidePoints);
+    const guide = new THREE.Mesh(new THREE.TubeGeometry(guideCurve, 260, .035, 8, false), glowMaterial("#ffe2b6", .9));
+    scene.add(guide);
+
+    const ambientPoints: THREE.Vector3[] = [];
+    for (let i = 0; i < (lowPower ? 260 : 760); i++) {
+      const z = 8 - i / (lowPower ? 260 : 760) * 102;
+      ambientPoints.push(new THREE.Vector3(Math.sin(i * 7.31) * 14, 1.3 + (Math.sin(i * 3.17) + 1) * 3.7, z));
+    }
+    const ambientParticles = makePointCloud(ambientPoints, "#8fa7ff", lowPower ? .045 : .06, .33);
+    scene.add(ambientParticles);
+
+    const atrium = new THREE.Group();
+    addTextRing(atrium, "MATH BEAUTY MUSEUM", 5.25, 8.15, "#f4f2ff", .76, 0);
+    addTextRing(atrium, "数学美学展", 3.55, 7.28, "#b8c9ff", .9, .18);
+    scene.add(atrium);
+
+    const atriumPortalMaterial = physical("#cfd4df", { roughness: .45, transmission: .15, transparent: true, opacity: .38, thickness: .6 });
+    [-8.8, 8.8].forEach((x) => {
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 8.6, 48, 1, true, -.62, 1.24), atriumPortalMaterial);
+      wall.position.set(x, 4.3, 1.2);
+      wall.rotation.y = x < 0 ? -.5 : .5;
       scene.add(wall);
     });
-    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(21, 13), physical("#cac3bb", { roughness: .84 }));
-    ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.set(0, 7.62, 0);
-    scene.add(ceiling);
-    const boardPositions = [-4.15, 0, 4.15];
-    hall.items.forEach((item, index) => addBoard(scene, item, hall, boardPositions[index]));
 
-    boardPositions.forEach((x) => {
-      const target = new THREE.Object3D();
-      target.position.set(x, 6.52, -6.08);
-      scene.add(target);
-      const spot = new THREE.SpotLight("#fff1dc", 58, 14, .19, .9, 2);
-      spot.position.set(x, 7.28, -.9);
-      spot.target = target;
-      scene.add(spot);
+    const continuum = new THREE.Group();
+    continuum.position.set(0, 3.35, .25);
+    const continuumMaterials = [
+      physical("#d8e6ff", { roughness: .15, metalness: .08, transmission: .62, transparent: true, opacity: .86, thickness: .8, emissive: "#667dcc", emissiveIntensity: .35 }),
+      new THREE.MeshBasicMaterial({ color: "#c4d0ff", wireframe: true, transparent: true, opacity: .42, toneMapped: false }),
+      new THREE.PointsMaterial({ color: "#ee9ed5", size: .055, transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending }),
+    ];
+    const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(1.72, .42, lowPower ? 90 : 180, lowPower ? 14 : 28, 2, 3), continuumMaterials[0]);
+    const wire = new THREE.Mesh(new THREE.IcosahedronGeometry(2.15, lowPower ? 1 : 2), continuumMaterials[1]);
+    const continuumPoints: THREE.Vector3[] = [];
+    for (let i = 0; i < (lowPower ? 220 : 520); i++) {
+      const t = i / (lowPower ? 220 : 520) * Math.PI * 12;
+      const radius = 1.8 + Math.sin(t * .37) * .52;
+      continuumPoints.push(new THREE.Vector3(Math.cos(t) * radius, Math.sin(t * 1.5) * 1.25, Math.sin(t) * radius));
+    }
+    const continuumDust = new THREE.Points(new THREE.BufferGeometry().setFromPoints(continuumPoints), continuumMaterials[2]);
+    continuum.add(knot, wire, continuumDust);
+
+    const continuumStates: THREE.Group[] = [];
+    const registerContinuumState = (state: THREE.Group, materials: THREE.Material[]) => {
+      state.userData.materials = materials;
+      state.userData.baseOpacities = materials.map((material) => material.opacity);
+      continuumStates.push(state);
+      continuum.add(state);
+    };
+
+    const naturalState = new THREE.Group();
+    const naturalPoints: THREE.Vector3[] = [];
+    for (let i = 0; i < (lowPower ? 150 : 360); i++) {
+      const angle = i * THREE.MathUtils.degToRad(137.508);
+      const radius = .075 * Math.sqrt(i);
+      naturalPoints.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, Math.sin(i * .31) * .3));
+    }
+    const naturalCloud = makePointCloud(naturalPoints, "#bce878", .075, .9);
+    naturalState.add(naturalCloud);
+    registerContinuumState(naturalState, [naturalCloud.material]);
+
+    const architectureState = new THREE.Group();
+    const architectureMaterials: THREE.Material[] = [];
+    for (let arch = -2; arch <= 2; arch++) {
+      const points: THREE.Vector3[] = [];
+      for (let step = 0; step <= 46; step++) {
+        const x = step / 46 * 4.5 - 2.25;
+        points.push(new THREE.Vector3(x, 1.15 - Math.cosh(x * .72) * .34, arch * .28));
+      }
+      const material = glowMaterial(arch % 2 ? "#ffc77e" : "#f5e1b7", .72);
+      architectureMaterials.push(material);
+      architectureState.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 80, .026, 7, false), material));
+    }
+    registerContinuumState(architectureState, architectureMaterials);
+
+    const soundState = new THREE.Group();
+    const soundMaterials: THREE.Material[] = [];
+    for (let wave = 0; wave < 3; wave++) {
+      const points: THREE.Vector3[] = [];
+      for (let step = 0; step <= 72; step++) {
+        const x = step / 72 * 4.8 - 2.4;
+        points.push(new THREE.Vector3(x, Math.sin(x * (2.2 + wave * .75)) * (.48 - wave * .07), (wave - 1) * .34));
+      }
+      const material = glowMaterial(wave === 1 ? "#64e7ff" : "#f28acb", .78);
+      soundMaterials.push(material);
+      soundState.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 100, .03, 8, false), material));
+    }
+    registerContinuumState(soundState, soundMaterials);
+
+    const cosmosState = new THREE.Group();
+    const cosmosPoints: THREE.Vector3[] = [];
+    for (let i = 0; i < (lowPower ? 200 : 520); i++) {
+      const arm = i % 3;
+      const progress = i / (lowPower ? 200 : 520);
+      const theta = progress * Math.PI * 9 + arm * Math.PI * 2 / 3;
+      const radius = .12 + progress * 2.55;
+      cosmosPoints.push(new THREE.Vector3(Math.cos(theta) * radius, Math.sin(theta) * radius * .62, Math.sin(progress * Math.PI * 7) * .26));
+    }
+    const cosmosCloud = makePointCloud(cosmosPoints, "#a6b6ff", .065, .88);
+    cosmosState.add(cosmosCloud);
+    registerContinuumState(cosmosState, [cosmosCloud.material]);
+
+    continuumStates.forEach((state, index) => {
+      state.rotation.set(index * .18, index * .26, index * .12);
+      (state.userData.materials as THREE.Material[]).forEach((material) => setMaterialOpacity(material, index === 0 ? material.opacity : 0));
+    });
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 3.15, .28, 80), physical("#181920", { roughness: .24, metalness: .48, clearcoat: .32 }));
+    pedestal.position.y = -2.55;
+    pedestal.receiveShadow = true;
+    continuum.add(pedestal);
+    const pedestalHalo = new THREE.Mesh(new THREE.TorusGeometry(2.82, .04, 8, 120), glowMaterial("#d7b6ff", .92));
+    pedestalHalo.rotation.x = Math.PI / 2;
+    pedestalHalo.position.y = -2.38;
+    continuum.add(pedestalHalo);
+    scene.add(continuum);
+    const atriumLight = new THREE.PointLight("#8ea4ff", 32, 18, 2);
+    atriumLight.position.set(0, 4.4, 1.2);
+    scene.add(atriumLight);
+
+    const signatures: THREE.Group[] = [];
+    const portalGroups: THREE.Group[] = [];
+    HALLS.forEach((hall, index) => {
+      const center = HALL_CENTERS[index];
+      const accent = hall.accent;
+      const wallMaterial = physical(index === 3 ? "#10131d" : "#232229", { roughness: .82, metalness: .06 });
+      const frostMaterial = physical(accent, {
+        roughness: .24,
+        transmission: lowPower ? .08 : .32,
+        transparent: true,
+        opacity: lowPower ? .24 : .32,
+        thickness: .8,
+        side: THREE.DoubleSide,
+      });
+      [-4.15, 0, 4.15].forEach((offset, boardIndex) => {
+        const backing = new THREE.Mesh(new THREE.BoxGeometry(3.72, 7.75, .22), wallMaterial);
+        backing.position.set(center.x + offset, 3.88, center.z - 6.23);
+        backing.receiveShadow = true;
+        scene.add(backing);
+        addBoard(scene, hall.items[boardIndex], hall, new THREE.Vector3(center.x + offset, 3.55, center.z - 6.05));
+        const wash = new THREE.PointLight(accent, lowPower ? 3.6 : 6.5, 7.5, 2);
+        wash.position.set(center.x + offset, 6.8, center.z - 2.7);
+        scene.add(wash);
+      });
+      [-8.55, 8.55].forEach((offset) => {
+        const partition = new THREE.Mesh(new THREE.BoxGeometry(.24, 7.7, 7.4), frostMaterial);
+        partition.position.set(center.x + offset, 3.85, center.z - 1.9);
+        partition.rotation.y = offset < 0 ? -.16 : .16;
+        scene.add(partition);
+        for (let rib = -3; rib <= 3; rib++) {
+          const line = new THREE.Mesh(new THREE.BoxGeometry(.035, 7.15, .055), glowMaterial(accent, .28));
+          line.position.set(center.x + offset + (offset < 0 ? .13 : -.13), 3.85, center.z - 1.9 + rib * .92);
+          scene.add(line);
+        }
+      });
+      const nextCenter = HALL_CENTERS[Math.min(index + 1, HALL_CENTERS.length - 1)];
+      const portalX = index === 3 ? center.x + 7.1 : center.x + (nextCenter.x - center.x > 0 ? 7.1 : -7.1);
+      portalGroups.push(addPortal(scene, portalX, center.z - 7.15, accent));
+      signatures.push(addHallSignature(scene, index, center));
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 1.05), makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74));
+      label.position.set(center.x, 7.78, center.z - 6.08);
+      scene.add(label);
+    });
+
+    const corridorFrames: THREE.Group[] = [];
+    HALL_CENTERS.slice(0, -1).forEach((center, index) => {
+      const next = HALL_CENTERS[index + 1];
+      const x = (center.x + next.x) / 2;
+      const z = (center.z + next.z) / 2;
+      corridorFrames.push(addPortal(scene, x, z, HALLS[index + 1].accent));
     });
 
     const raycaster = new THREE.Raycaster();
@@ -667,25 +976,81 @@ function MuseumCanvas({ hall, selectedId, onSelect }: { hall: HallDefinition; se
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(scene.children, true)[0];
-      let object: THREE.Object3D | null = hit?.object ?? null;
-      while (object && !object.userData.itemId) object = object.parent;
+      const hits = raycaster.intersectObjects(scene.children, true);
+      let object: THREE.Object3D | null = null;
+      for (const hit of hits) {
+        let candidate: THREE.Object3D | null = hit.object;
+        while (candidate && !candidate.userData.itemId) candidate = candidate.parent;
+        if (candidate?.userData.itemId) { object = candidate; break; }
+      }
       const id = object?.userData.itemId as string | undefined;
-      if (id) onSelectRef.current(id);
+      const itemHallIndex = object?.userData.hallIndex as number | undefined;
+      if (id && itemHallIndex !== undefined) onSelectRef.current(id, itemHallIndex);
     };
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
 
+    scene.traverse((object) => {
+      if (!object.userData.itemId) return;
+      const itemId = object.userData.itemId as string;
+      const itemHallIndex = HALLS.findIndex((entry) => entry.items.some((item) => item.id === itemId));
+      object.userData.hallIndex = itemHallIndex;
+    });
+
     let frame = 0;
-    const defaultTarget = new THREE.Vector3(0, 3.45, -3.5);
+    let activeStop = 0;
+    let transitionStarted = 0;
+    const transitionFromPosition = camera.position.clone();
+    const transitionFromTarget = controls.target.clone();
+    const clock = new THREE.Clock();
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      const selectedIndex = hall.items.findIndex((item) => item.id === selectedRef.current);
-      const focus = selectedIndex >= 0
-        ? new THREE.Vector3(boardPositions[selectedIndex], 3.5, -5.5)
-        : defaultTarget;
-      controls.target.lerp(focus, .035);
-      controls.update();
+      const elapsed = clock.getElapsedTime();
+      const desiredStop = Math.max(0, Math.min(MUSEUM_CAMERA_STOPS.length - 1, hallIndexRef.current + 1));
+      if (desiredStop !== activeStop) {
+        activeStop = desiredStop;
+        transitionStarted = elapsed;
+        transitionFromPosition.copy(camera.position);
+        transitionFromTarget.copy(controls.target);
+        controls.enabled = false;
+      }
+      const transitionProgress = transitionStarted > 0 ? Math.min(1, (elapsed - transitionStarted) / (reducedMotion ? .05 : 1.65)) : 1;
+      if (transitionProgress < 1) {
+        const eased = 1 - Math.pow(1 - transitionProgress, 3);
+        camera.position.lerpVectors(transitionFromPosition, MUSEUM_CAMERA_STOPS[activeStop].position, eased);
+        controls.target.lerpVectors(transitionFromTarget, MUSEUM_CAMERA_STOPS[activeStop].target, eased);
+      } else {
+        controls.enabled = true;
+        controls.update();
+      }
+      if (!reducedMotion) {
+        atrium.rotation.y = elapsed * .035;
+        knot.rotation.set(elapsed * .13, elapsed * .19, elapsed * .09);
+        knot.scale.set(1 + Math.sin(elapsed * .55) * .08, 1 + Math.sin(elapsed * .72 + 1) * .1, 1 + Math.sin(elapsed * .48 + 2) * .08);
+        wire.rotation.set(-elapsed * .08, elapsed * .11, elapsed * .06);
+        continuumDust.rotation.y = -elapsed * .07;
+        const continuumPhase = elapsed / 3.5 % continuumStates.length;
+        continuumStates.forEach((state, index) => {
+          const rawDistance = Math.abs(continuumPhase - index);
+          const distance = Math.min(rawDistance, continuumStates.length - rawDistance);
+          const weight = Math.pow(Math.max(0, Math.cos(distance / continuumStates.length * Math.PI * 2)), 2);
+          state.scale.setScalar(.82 + weight * .26);
+          state.rotation.y += .0007 * (index % 2 ? -1 : 1);
+          const materials = state.userData.materials as THREE.Material[];
+          const baseOpacities = state.userData.baseOpacities as number[];
+          materials.forEach((material, materialIndex) => setMaterialOpacity(material, baseOpacities[materialIndex] * weight));
+        });
+        ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
+        signatures.forEach((signature, index) => {
+          signature.rotation.y = Math.sin(elapsed * .16 + index) * .08;
+          if (index === 1) signature.children.forEach((child) => {
+            if (child instanceof THREE.Mesh) child.position.z = Math.sin(elapsed * .85 + Number(child.userData.phase ?? 0)) * .42;
+          });
+        });
+        portalGroups.concat(corridorFrames).forEach((portal, index) => {
+          portal.scale.setScalar(1 + Math.sin(elapsed * .58 + index * .7) * .008);
+        });
+      }
       renderer.render(scene, camera);
       if (container.dataset.webglReady !== "true") container.dataset.webglReady = "true";
     };
@@ -709,15 +1074,15 @@ function MuseumCanvas({ hall, selectedId, onSelect }: { hall: HallDefinition; se
       renderer.domElement.remove();
       delete container.dataset.webglReady;
     };
-  }, [hall]);
+  }, []);
 
   return <div className="nature-museum-webgl museum-canvas-fade" ref={host}>
-    <div className="nature-webgl-fallback"><b>{hall.name}需要 WebGL</b><span>请开启浏览器图形加速后重新进入。</span></div>
+    <div className="nature-webgl-fallback"><b>数学美学展需要 WebGL</b><span>请开启浏览器图形加速后重新进入。</span></div>
   </div>;
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
-  ctx.strokeStyle = "rgba(36,34,35,.065)";
+  ctx.strokeStyle = "rgba(139,166,218,.075)";
   ctx.lineWidth = 1;
   for (let x = 40; x < width; x += 60) {
     ctx.beginPath();
@@ -829,10 +1194,10 @@ function drawPreview(
     beam(ox, oy, ax, oy, "#eea35e");
     beam(ox, oy, ox, by, "#e47ab0");
     beam(ox, by, ax, oy, "#65bdd8");
-    ctx.strokeStyle = "rgba(38,38,40,.28)";
+    ctx.strokeStyle = "rgba(235,239,248,.35)";
     ctx.lineWidth = 2;
     ctx.strokeRect(ox, oy - 34, 34, 34);
-    ctx.fillStyle = "#313238";
+    ctx.fillStyle = "#e9edf6";
     ctx.font = "600 22px Arial";
     ctx.fillText("a = " + a.toFixed(1), (ox + ax) / 2 - 30, oy + 48);
     ctx.fillText("b = " + b.toFixed(1), ox - 85, (oy + by) / 2);
@@ -869,7 +1234,7 @@ function drawPreview(
       ctx.lineTo(x, baseY + 38);
       ctx.stroke();
     }
-    ctx.strokeStyle = "#5d5e64";
+    ctx.strokeStyle = "#c8cdd7";
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(cx - half - 40, baseY + 38);
@@ -901,7 +1266,7 @@ function drawPreview(
     const frequency = value("waveFrequency") * (1 + (live ? signal.mid * .18 : 0));
     const amplitude = value("waveAmplitude") * (1 + (live ? signal.energy * .72 : 0));
     const phase = THREE.MathUtils.degToRad(value("wavePhase")) + (live ? signal.tick * .0016 * (1 + signal.treble) : 0);
-    ctx.strokeStyle = "rgba(44,45,49,.23)";
+    ctx.strokeStyle = "rgba(210,222,241,.24)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(65, cy);
@@ -983,7 +1348,7 @@ function drawPreview(
     const left = 145;
     const top = 75;
     const size = Math.min(width - 290, height - 150);
-    ctx.fillStyle = "#eee8de";
+    ctx.fillStyle = "#080c17";
     ctx.fillRect(left, top, size, size);
     for (let py = 0; py <= size; py += 5) for (let px = 0; px <= size; px += 5) {
       const x = px / size;
@@ -998,7 +1363,7 @@ function drawPreview(
         ctx.fill();
       }
     }
-    ctx.strokeStyle = "#57595f";
+    ctx.strokeStyle = "#b9c4d6";
     ctx.lineWidth = 3;
     ctx.strokeRect(left, top, size, size);
   } else if (item.visual === "orbit") {
@@ -1280,14 +1645,15 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
     const isSoundVisual = item.visual === "sine" || item.visual === "harmonics" || item.visual === "chladni";
     let raf = 0;
     const render = () => {
-      const background = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      background.addColorStop(0, "#fdfbf7");
-      background.addColorStop(1, item.color + "24");
+      const background = ctx.createRadialGradient(canvas.width * .52, canvas.height * .46, 0, canvas.width * .52, canvas.height * .46, canvas.width * .66);
+      background.addColorStop(0, item.color + "2c");
+      background.addColorStop(.42, "#0b1020");
+      background.addColorStop(1, "#03050a");
       ctx.fillStyle = background;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawGrid(ctx, canvas.width, canvas.height);
       drawPreview(ctx, item, settings, canvas.width, canvas.height, signalRef.current);
-      ctx.fillStyle = "rgba(31,32,35,.72)";
+      ctx.fillStyle = "rgba(228,233,244,.72)";
       ctx.font = "600 18px Arial, sans-serif";
       ctx.fillText(item.previewCaption, 44, canvas.height - 34);
       if (isSoundVisual) raf = window.requestAnimationFrame(render);
@@ -1299,7 +1665,7 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
 }
 
 export function NatureMuseumWorld() {
-  const [hallIndex, setHallIndex] = useState(0);
+  const [hallIndex, setHallIndex] = useState(-1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settings, setSettings] = useState<MuseumSettings>({ ...DEFAULT_SETTINGS });
   const [discoveries, setDiscoveries] = useState<Set<string>>(() => new Set());
@@ -1307,26 +1673,32 @@ export function NatureMuseumWorld() {
   const [transitionDirection, setTransitionDirection] = useState<"previous" | "next">("next");
   const transitionTimers = useRef<number[]>([]);
   const soundSignalRef = useRef<SoundSignal>({ ...EMPTY_SOUND_SIGNAL });
-  const hall = HALLS[hallIndex];
-  const selected = useMemo(() => hall.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
-  const currentDiscoveries = hall.items.filter((item) => discoveries.has(item.id)).length;
+  const hall = hallIndex >= 0 ? HALLS[hallIndex] : null;
+  const selected = useMemo(() => hall?.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
+  const currentDiscoveries = hall?.items.filter((item) => discoveries.has(item.id)).length ?? 0;
 
-  const select = useCallback((id: string) => {
+  const select = useCallback((id: string, targetHallIndex: number) => {
+    setHallIndex(targetHallIndex);
     setSelectedId(id);
     setDiscoveries((previous) => new Set(previous).add(id));
   }, []);
 
   const switchHall = (direction: number) => {
     if (transition !== "idle") return;
+    if (direction < 0 && hallIndex <= -1) return;
+    if (direction > 0 && hallIndex >= HALLS.length - 1) {
+      document.getElementById("garden")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     setSelectedId(null);
     setTransitionDirection(direction < 0 ? "previous" : "next");
     setTransition("leaving");
     const swapTimer = window.setTimeout(() => {
-      setHallIndex((previous) => (previous + direction + HALLS.length) % HALLS.length);
+      setHallIndex((previous) => Math.max(-1, Math.min(HALLS.length - 1, previous + direction)));
       setTransition("entering");
-      const enterTimer = window.setTimeout(() => setTransition("idle"), 70);
+      const enterTimer = window.setTimeout(() => setTransition("idle"), 520);
       transitionTimers.current.push(enterTimer);
-    }, 380);
+    }, 180);
     transitionTimers.current.push(swapTimer);
   };
 
@@ -1395,28 +1767,33 @@ export function NatureMuseumWorld() {
     <section
       className={"nature-museum nature-museum-gallery hall-transition-" + transition + " hall-direction-" + transitionDirection}
       id="hall"
-      aria-label={hall.name + " WebGL 展厅"}
-      data-hall={hall.key}
-      style={{ "--hall-accent": hall.accent } as React.CSSProperties}
+      aria-label={(hall?.name ?? "数学美学展序厅") + " WebGL 展厅"}
+      data-hall={hall?.key ?? "atrium"}
+      style={{ "--hall-accent": hall?.accent ?? "#9fb4ff" } as React.CSSProperties}
     >
-      <MuseumCanvas hall={hall} selectedId={selectedId} onSelect={select} />
+      <MuseumCanvas hallIndex={hallIndex} onSelect={select} />
       <div className="nature-museum-shade" aria-hidden="true" />
-      <div className="nature-museum-title">
-        <span>{hall.eyebrow}</span>
-        <h2>{hall.name}</h2>
-        <p>{hall.subtitle} · 拖动浏览并点击展板</p>
+      <div className={"nature-museum-title " + (!hall ? "atrium-title" : "") }>
+        <span>{hall?.eyebrow ?? "THE LANGUAGE BEHIND BEAUTY · PROLOGUE"}</span>
+        <h2>{hall?.name ?? "数学美学展"}</h2>
+        {!hall && <strong>MATH BEAUTY MUSEUM</strong>}
+        <p>{hall?.subtitle ?? "从连续体出发，沿着光的路径进入四个数学世界"} · {hall ? "拖动浏览并点击展板" : "点击右侧箭头开始旅程"}</p>
       </div>
-      <div className="nature-progress" aria-label={"已经发现 " + currentDiscoveries + " 个" + hall.category}>
-        <span>{currentDiscoveries}<small>/ 3</small></span>
-        <p>{hall.category}<br /><b>{currentDiscoveries === 3 ? "全部发现" : "等待探索"}</b></p>
+      <div className="nature-progress" aria-label={hall ? "已经发现 " + currentDiscoveries + " 个" + hall.category : "数学美学展序厅"}>
+        <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
+        <p>{hall?.category ?? "参观序章"}<br /><b>{hall ? currentDiscoveries === 3 ? "全部发现" : "等待探索" : "连续体正在变化"}</b></p>
+      </div>
+
+      <div className="museum-route-indicator" aria-label="展馆参观进度">
+        {["序", "自然", "建筑", "声音", "宇宙"].map((label, index) => <i key={label} className={hallIndex + 1 === index ? "active" : hallIndex + 1 > index ? "passed" : ""}><span>{label}</span></i>)}
       </div>
 
       <div className="museum-hall-arrows" aria-label="切换数学展厅">
-        <button className="hall-arrow-previous" disabled={transition !== "idle"} onClick={() => switchHall(-1)} aria-label={"上一个展厅：" + HALLS[(hallIndex + HALLS.length - 1) % HALLS.length].name}>←</button>
-        <button className="hall-arrow-next" disabled={transition !== "idle"} onClick={() => switchHall(1)} aria-label={"下一个展厅：" + HALLS[(hallIndex + 1) % HALLS.length].name}>→</button>
+        <button className="hall-arrow-previous" disabled={transition !== "idle" || hallIndex <= -1} onClick={() => switchHall(-1)} aria-label={hallIndex === 0 ? "返回数学美学展序厅" : hallIndex > 0 ? "上一个展厅：" + HALLS[hallIndex - 1].name : "已经位于序厅"}>←</button>
+        <button className="hall-arrow-next" disabled={transition !== "idle"} onClick={() => switchHall(1)} aria-label={hallIndex < HALLS.length - 1 ? "下一个展厅：" + HALLS[hallIndex + 1].name : "前往数学花园"}>→</button>
       </div>
 
-      {selected && (
+      {selected && hall && (
         <div
           className="nature-lab-backdrop"
           role="dialog"
@@ -1427,41 +1804,49 @@ export function NatureMuseumWorld() {
         >
           <div className="nature-lab-shell" style={{ "--nature-color": selected.color } as React.CSSProperties}>
             <button className="nature-lab-close" onClick={() => setSelectedId(null)} aria-label="关闭互动实验">×</button>
-            <aside className="nature-lab-controls">
+            <header className="immersive-lab-header">
               <span className="nature-lab-index">{hall.english} / DISCOVERY {selected.index}</span>
               <div className="nature-lab-heading"><i>{selected.icon}</i><div><h3>{selected.name}</h3><p>{selected.english}</p></div></div>
               <div className="nature-lab-formula"><span>隐藏规律</span><strong>{selected.formula}</strong></div>
-              <p className="nature-lab-discovery">{selected.discovery}</p>
-              <p className="nature-lab-copy">{selected.explanation}</p>
-              {hall.key === "sound" && <SoundDrivePanel signalRef={soundSignalRef} />}
-              <div className="nature-lab-try"><span>改变参数，观察规律</span><button onClick={resetSelected}>恢复默认</button></div>
-              {selected.controls.map((control) => {
-                const setting = settings[control.key] ?? control.defaultValue;
-                const decimals = control.step < .1 ? 2 : control.step < 1 ? 1 : 0;
-                const reached = control.target !== undefined && Math.abs(setting - control.target) < control.step / 2 + .001;
-                return (
-                  <label className="nature-lab-control" key={control.key}>
-                    <span>{control.label}<b>{setting.toFixed(decimals)}{control.suffix}</b></span>
-                    <input
-                      aria-label={control.label}
-                      type="range"
-                      min={control.min}
-                      max={control.max}
-                      step={control.step}
-                      value={setting}
-                      onChange={(event) => setSettings((previous) => ({ ...previous, [control.key]: Number(event.target.value) }))}
-                    />
-                    {control.target !== undefined && <small className={reached ? "reached" : ""}>{control.targetLabel} {control.target}{control.suffix} {reached ? "· 已对准" : "· 试着对准它"}</small>}
-                  </label>
-                );
-              })}
-              <div className="nature-lab-reward"><span>🌱 数学种子 +1</span><b>发现已收藏 ✓</b></div>
-            </aside>
+            </header>
             <div className="nature-lab-preview">
               <div className="nature-preview-header"><span>REAL-TIME VISUALIZATION</span><b>参数实时预览</b></div>
               <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />
-              <div className="nature-preview-caption"><span>{selected.formula}</span><p>{selected.previewCaption}。图形会随左侧参数实时变化。</p></div>
+              <div className="nature-preview-caption"><span>{selected.formula}</span><p>{selected.previewCaption}。图形会随底部控制台实时变化。</p></div>
             </div>
+            <aside className="nature-lab-controls">
+              <div className="nature-console-story">
+                <p className="nature-lab-discovery">{selected.discovery}</p>
+                <p className="nature-lab-copy">{selected.explanation}</p>
+                <div className="nature-lab-reward"><span>🌱 数学种子 +1</span><b>发现已收藏 ✓</b></div>
+              </div>
+              {hall.key === "sound" && <SoundDrivePanel signalRef={soundSignalRef} />}
+              <div className="nature-console-parameters">
+                <div className="nature-lab-try"><span>控制台 · 改变参数观察规律</span><button onClick={resetSelected}>恢复默认</button></div>
+                <div className="nature-console-grid">
+                  {selected.controls.map((control) => {
+                    const setting = settings[control.key] ?? control.defaultValue;
+                    const decimals = control.step < .1 ? 2 : control.step < 1 ? 1 : 0;
+                    const reached = control.target !== undefined && Math.abs(setting - control.target) < control.step / 2 + .001;
+                    return (
+                      <label className="nature-lab-control" key={control.key}>
+                        <span>{control.label}<b>{setting.toFixed(decimals)}{control.suffix}</b></span>
+                        <input
+                          aria-label={control.label}
+                          type="range"
+                          min={control.min}
+                          max={control.max}
+                          step={control.step}
+                          value={setting}
+                          onChange={(event) => setSettings((previous) => ({ ...previous, [control.key]: Number(event.target.value) }))}
+                        />
+                        {control.target !== undefined && <small className={reached ? "reached" : ""}>{control.targetLabel} {control.target}{control.suffix} {reached ? "· 已对准" : "· 试着对准它"}</small>}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
       )}

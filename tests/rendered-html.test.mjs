@@ -75,9 +75,13 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /id: "pulse"/);
   assert.match(museum, /id: "cosmos"/);
   assert.match(museum, /signalRef\.current/);
+  assert.match(museum, /body\.style\.position = "fixed"/);
+  assert.match(museum, /root\.style\.overscrollBehavior = "none"/);
+  assert.match(museum, /onWheel=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.doesNotMatch(museum, /className="nature-room-dock"/);
   assert.match(css, /\.museum-hall-arrows/);
   assert.match(css, /\.sound-drive-panel/);
+  assert.match(css, /overscroll-behavior:contain/);
   assert.match(css, /\.hall-transition-leaving/);
   assert.doesNotMatch(css, /\.museum-hall-switcher/);
   assert.match(css, /--hall-accent/);

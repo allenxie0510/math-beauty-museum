@@ -1347,6 +1347,45 @@ export function NatureMuseumWorld() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const scrollPosition = window.scrollY;
+    const body = document.body;
+    const root = document.documentElement;
+    const previousBody = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    const previousRoot = {
+      overflow: root.style.overflow,
+      overscrollBehavior: root.style.overscrollBehavior,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${scrollPosition}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    root.style.overflow = "hidden";
+    root.style.overscrollBehavior = "none";
+
+    return () => {
+      body.style.position = previousBody.position;
+      body.style.top = previousBody.top;
+      body.style.left = previousBody.left;
+      body.style.right = previousBody.right;
+      body.style.width = previousBody.width;
+      body.style.overflow = previousBody.overflow;
+      root.style.overflow = previousRoot.overflow;
+      root.style.overscrollBehavior = previousRoot.overscrollBehavior;
+      window.scrollTo(0, scrollPosition);
+    };
+  }, [selectedId]);
+
   useEffect(() => () => {
     transitionTimers.current.forEach((timer) => window.clearTimeout(timer));
     transitionTimers.current = [];
@@ -1378,7 +1417,14 @@ export function NatureMuseumWorld() {
       </div>
 
       {selected && (
-        <div className="nature-lab-backdrop" role="dialog" aria-modal="true" aria-label={selected.name + "互动实验"}>
+        <div
+          className="nature-lab-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={selected.name + "互动实验"}
+          onWheel={(event) => event.stopPropagation()}
+          onTouchMove={(event) => event.stopPropagation()}
+        >
           <div className="nature-lab-shell" style={{ "--nature-color": selected.color } as React.CSSProperties}>
             <button className="nature-lab-close" onClick={() => setSelectedId(null)} aria-label="关闭互动实验">×</button>
             <aside className="nature-lab-controls">

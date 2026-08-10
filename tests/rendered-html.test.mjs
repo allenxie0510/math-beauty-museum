@@ -70,6 +70,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /HALL_CENTERS/);
   assert.match(museum, /new THREE\.CatmullRomCurve3/);
   assert.match(museum, /addTextRing/);
+  assert.match(museum, /museumAction = "enter-first-hall"/);
+  assert.match(museum, /onEnterRef\.current\(\)/);
+  assert.match(museum, /点击地面指引进入第一展馆/);
   assert.match(museum, /MATH BEAUTY MUSEUM/);
   assert.match(museum, /数学美学展/);
   assert.match(museum, /new THREE\.TorusKnotGeometry/);
@@ -85,6 +88,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /hall-transition-/);
   assert.match(museum, /THREE\.PCFSoftShadowMap/);
   assert.match(museum, /function SoundDrivePanel/);
+  assert.match(museum, /<select/);
+  assert.match(museum, /className="sound-clip-select"/);
+  assert.doesNotMatch(museum, /className="sound-clip-grid"/);
   assert.match(museum, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(museum, /context\.createAnalyser\(\)/);
   assert.match(museum, /id: "crystal"/);
@@ -101,6 +107,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.museum-route-indicator/);
   assert.match(css, /\.immersive-lab-header/);
   assert.match(css, /\.nature-console-grid/);
+  assert.match(css, /Full-screen exhibit mode and compact fixed console/);
+  assert.match(css, /\.nature-lab-shell\{width:100%;height:100svh/);
+  assert.match(css, /\.nature-lab-controls\{position:fixed/);
+  assert.match(css, /\.sound-clip-select select/);
   assert.match(css, /\.sound-drive-panel/);
   assert.match(css, /overscroll-behavior:contain/);
   assert.match(css, /\.hall-transition-leaving/);

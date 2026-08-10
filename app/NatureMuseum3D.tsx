@@ -595,10 +595,10 @@ function glowMaterial(color: string, opacity = 1) {
   });
 }
 
-function makeTextMaterial(text: string, color: string, fontSize = 118) {
+function makeTextMaterial(text: string, color: string, fontSize = 118, square = false) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 256;
+  canvas.width = square ? 384 : 1024;
+  canvas.height = square ? 384 : 256;
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.shadowColor = color;
@@ -618,7 +618,7 @@ function addTextRing(parent: THREE.Group, text: string, radius: number, y: numbe
   const characters = Array.from(text);
   characters.forEach((character, index) => {
     const angle = offset + index / characters.length * Math.PI * 2;
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(scale, scale * .62), makeTextMaterial(character, color, 150));
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(scale, scale), makeTextMaterial(character, color, 178, true));
     mesh.position.set(Math.sin(angle) * radius, y, Math.cos(angle) * radius);
     mesh.rotation.y = angle;
     parent.add(mesh);
@@ -718,11 +718,13 @@ function addHallSignature(scene: THREE.Scene, hallIndex: number, center: THREE.V
   return group;
 }
 
-function MuseumCanvas({ hallIndex, onSelect }: { hallIndex: number; onSelect: (id: string, hallIndex: number) => void }) {
+function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const onSelectRef = useRef(onSelect);
+  const onEnterRef = useRef(onEnter);
   const hallIndexRef = useRef(hallIndex);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { onEnterRef.current = onEnter; }, [onEnter]);
   useEffect(() => { hallIndexRef.current = hallIndex; }, [hallIndex]);
 
   useEffect(() => {
@@ -807,9 +809,42 @@ function MuseumCanvas({ hallIndex, onSelect }: { hallIndex: number; onSelect: (i
     scene.add(ambientParticles);
 
     const atrium = new THREE.Group();
-    addTextRing(atrium, "MATH BEAUTY MUSEUM", 5.25, 8.15, "#f4f2ff", .76, 0);
-    addTextRing(atrium, "数学美学展", 3.55, 7.28, "#b8c9ff", .9, .18);
+    addTextRing(atrium, "MATH BEAUTY MUSEUM", 5.45, 8.15, "#f4f2ff", .96, 0);
+    addTextRing(atrium, "数学美学展", 3.7, 7.25, "#b8c9ff", 1.08, .18);
     scene.add(atrium);
+
+    const entranceGuide = new THREE.Group();
+    entranceGuide.position.set(0, .045, 8.15);
+    entranceGuide.userData.museumAction = "enter-first-hall";
+    const entrancePlate = new THREE.Mesh(
+      new THREE.CircleGeometry(1.42, 64),
+      new THREE.MeshBasicMaterial({ color: "#111724", transparent: true, opacity: .72, side: THREE.DoubleSide }),
+    );
+    entrancePlate.rotation.x = -Math.PI / 2;
+    entranceGuide.add(entrancePlate);
+    const entranceRing = new THREE.Mesh(new THREE.TorusGeometry(1.48, .055, 10, 96), glowMaterial("#ffe1ae", .95));
+    entranceRing.rotation.x = Math.PI / 2;
+    entranceRing.position.y = .035;
+    entranceGuide.add(entranceRing);
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(-.27, -.6);
+    arrowShape.lineTo(.27, -.6);
+    arrowShape.lineTo(.27, .08);
+    arrowShape.lineTo(.68, .08);
+    arrowShape.lineTo(0, .75);
+    arrowShape.lineTo(-.68, .08);
+    arrowShape.lineTo(-.27, .08);
+    arrowShape.closePath();
+    const entranceArrow = new THREE.Mesh(new THREE.ShapeGeometry(arrowShape), glowMaterial("#fff0ca", .98));
+    entranceArrow.rotation.x = -Math.PI / 2;
+    entranceArrow.position.y = .075;
+    entranceGuide.add(entranceArrow);
+    const entranceLabel = new THREE.Mesh(new THREE.PlaneGeometry(3.4, .72), makeTextMaterial("点击进入  ·  ENTER", "#fff0ce", 86));
+    entranceLabel.rotation.x = -Math.PI / 2;
+    entranceLabel.position.set(0, .07, 2.08);
+    entranceGuide.add(entranceLabel);
+    entranceGuide.traverse((object) => { object.userData.museumAction = "enter-first-hall"; });
+    scene.add(entranceGuide);
 
     const atriumPortalMaterial = physical("#cfd4df", { roughness: .45, transmission: .15, transparent: true, opacity: .38, thickness: .6 });
     [-8.8, 8.8].forEach((x) => {
@@ -980,8 +1015,12 @@ function MuseumCanvas({ hallIndex, onSelect }: { hallIndex: number; onSelect: (i
       let object: THREE.Object3D | null = null;
       for (const hit of hits) {
         let candidate: THREE.Object3D | null = hit.object;
-        while (candidate && !candidate.userData.itemId) candidate = candidate.parent;
-        if (candidate?.userData.itemId) { object = candidate; break; }
+        while (candidate && !candidate.userData.itemId && !candidate.userData.museumAction) candidate = candidate.parent;
+        if (candidate?.userData.itemId || candidate?.userData.museumAction) { object = candidate; break; }
+      }
+      if (object?.userData.museumAction === "enter-first-hall") {
+        onEnterRef.current();
+        return;
       }
       const id = object?.userData.itemId as string | undefined;
       const itemHallIndex = object?.userData.hallIndex as number | undefined;
@@ -1025,6 +1064,9 @@ function MuseumCanvas({ hallIndex, onSelect }: { hallIndex: number; onSelect: (i
       }
       if (!reducedMotion) {
         atrium.rotation.y = elapsed * .035;
+        const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
+        entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
+        entranceRing.material.opacity = .78 + Math.sin(elapsed * 2.1) * .17;
         knot.rotation.set(elapsed * .13, elapsed * .19, elapsed * .09);
         knot.scale.set(1 + Math.sin(elapsed * .55) * .08, 1 + Math.sin(elapsed * .72 + 1) * .1, 1 + Math.sin(elapsed * .48 + 2) * .08);
         wire.rotation.set(-elapsed * .08, elapsed * .11, elapsed * .06);
@@ -1604,31 +1646,34 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
         <span><i aria-hidden="true" />声音实时驱动</span>
         <b>{mode === "music" ? "MUSIC" : mode === "microphone" ? "MIC LIVE" : "READY"}</b>
       </div>
-      <div className="sound-clip-grid" aria-label="选择声音片段">
-        {SOUND_CLIPS.map((clip) => (
-          <button
-            key={clip.id}
-            className={clipId === clip.id && mode === "music" ? "active" : ""}
-            onClick={() => void startMusic(clip.id)}
-            type="button"
+      <div className="sound-input-row">
+        <label className="sound-clip-select">
+          <span>音乐片段</span>
+          <select
+            aria-label="选择声音片段"
+            value={clipId}
+            onChange={(event) => {
+              const nextClipId = event.target.value as (typeof SOUND_CLIPS)[number]["id"];
+              setClipId(nextClipId);
+              if (mode === "music") void startMusic(nextClipId);
+            }}
           >
-            <strong>{clip.name}</strong><small>{clip.detail}</small>
+            {SOUND_CLIPS.map((clip) => <option key={clip.id} value={clip.id}>{clip.name} · {clip.detail}</option>)}
+          </select>
+        </label>
+        <div className="sound-source-actions">
+          <button className={mode === "music" ? "active" : ""} type="button" onClick={() => mode === "music" ? pause() : void startMusic(clipId)}>
+            {mode === "music" ? "暂停" : "播放音乐"}
           </button>
-        ))}
-      </div>
-      <div className="sound-source-actions">
-        <button className={mode === "music" ? "active" : ""} type="button" onClick={() => mode === "music" ? pause() : void startMusic(clipId)}>
-          {mode === "music" ? "暂停音乐" : "播放音乐"}
-        </button>
-        <button className={mode === "microphone" ? "active" : ""} type="button" onClick={() => mode === "microphone" ? pause() : void startMicrophone()}>
-          {mode === "microphone" ? "停止麦克风" : "麦克风驱动"}
-        </button>
+          <button className={mode === "microphone" ? "active" : ""} type="button" onClick={() => mode === "microphone" ? pause() : void startMicrophone()}>
+            {mode === "microphone" ? "停止" : "麦克风驱动"}
+          </button>
+        </div>
       </div>
       <div className="sound-level-row">
         <span>输入强度</span><div className="sound-level-track"><i style={{ width: Math.max(3, level * 100) + "%" }} /></div>
       </div>
-      <p className="sound-drive-status">{status}</p>
-      <small className="sound-privacy-note">麦克风声音仅在本机实时分析，不录音、不上传。</small>
+      <div className="sound-status-row"><p className="sound-drive-status">{status}</p><small className="sound-privacy-note">本机分析 · 不录音、不上传</small></div>
     </section>
   );
 }
@@ -1645,10 +1690,10 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
     const isSoundVisual = item.visual === "sine" || item.visual === "harmonics" || item.visual === "chladni";
     let raf = 0;
     const render = () => {
-      const background = ctx.createRadialGradient(canvas.width * .52, canvas.height * .46, 0, canvas.width * .52, canvas.height * .46, canvas.width * .66);
-      background.addColorStop(0, item.color + "2c");
-      background.addColorStop(.42, "#0b1020");
-      background.addColorStop(1, "#03050a");
+      const background = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      background.addColorStop(0, "#07101f");
+      background.addColorStop(.55, "#030915");
+      background.addColorStop(1, "#01040b");
       ctx.fillStyle = background;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawGrid(ctx, canvas.width, canvas.height);
@@ -1771,13 +1816,13 @@ export function NatureMuseumWorld() {
       data-hall={hall?.key ?? "atrium"}
       style={{ "--hall-accent": hall?.accent ?? "#9fb4ff" } as React.CSSProperties}
     >
-      <MuseumCanvas hallIndex={hallIndex} onSelect={select} />
+      <MuseumCanvas hallIndex={hallIndex} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />
       <div className={"nature-museum-title " + (!hall ? "atrium-title" : "") }>
         <span>{hall?.eyebrow ?? "THE LANGUAGE BEHIND BEAUTY · PROLOGUE"}</span>
         <h2>{hall?.name ?? "数学美学展"}</h2>
         {!hall && <strong>MATH BEAUTY MUSEUM</strong>}
-        <p>{hall?.subtitle ?? "从连续体出发，沿着光的路径进入四个数学世界"} · {hall ? "拖动浏览并点击展板" : "点击右侧箭头开始旅程"}</p>
+        <p>{hall?.subtitle ?? "从连续体出发，沿着光的路径进入四个数学世界"} · {hall ? "拖动浏览并点击展板" : "点击地面指引进入第一展馆"}</p>
       </div>
       <div className="nature-progress" aria-label={hall ? "已经发现 " + currentDiscoveries + " 个" + hall.category : "数学美学展序厅"}>
         <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
@@ -1802,8 +1847,8 @@ export function NatureMuseumWorld() {
           onWheel={(event) => event.stopPropagation()}
           onTouchMove={(event) => event.stopPropagation()}
         >
-          <div className="nature-lab-shell" style={{ "--nature-color": selected.color } as React.CSSProperties}>
-            <button className="nature-lab-close" onClick={() => setSelectedId(null)} aria-label="关闭互动实验">×</button>
+          <div className={"nature-lab-shell " + (hall.key === "sound" ? "sound-lab-shell" : "")} style={{ "--nature-color": selected.color } as React.CSSProperties}>
+            <button className="nature-lab-close" onClick={() => setSelectedId(null)} aria-label="关闭并返回当前展馆">×</button>
             <header className="immersive-lab-header">
               <span className="nature-lab-index">{hall.english} / DISCOVERY {selected.index}</span>
               <div className="nature-lab-heading"><i>{selected.icon}</i><div><h3>{selected.name}</h3><p>{selected.english}</p></div></div>
@@ -1814,7 +1859,7 @@ export function NatureMuseumWorld() {
               <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />
               <div className="nature-preview-caption"><span>{selected.formula}</span><p>{selected.previewCaption}。图形会随底部控制台实时变化。</p></div>
             </div>
-            <aside className="nature-lab-controls">
+            <aside className={"nature-lab-controls " + (hall.key === "sound" ? "sound-console" : "")}>
               <div className="nature-console-story">
                 <p className="nature-lab-discovery">{selected.discovery}</p>
                 <p className="nature-lab-copy">{selected.explanation}</p>

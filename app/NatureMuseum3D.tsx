@@ -1418,12 +1418,11 @@ function drawPreview(
     const threshold = value("chladniThreshold") * (live ? .82 + signal.energy * 1.15 : 1);
     const phaseX = live ? Math.sin(signal.tick * .0014) * signal.bass * .7 : 0;
     const phaseY = live ? Math.cos(signal.tick * .0011) * signal.treble * .7 : 0;
-    const left = 145;
-    const top = 75;
-    const size = Math.min(width - 290, height - 150);
-    ctx.fillStyle = "#080c17";
-    ctx.fillRect(left, top, size, size);
-    for (let py = 0; py <= size; py += 5) for (let px = 0; px <= size; px += 5) {
+    const size = Math.min(width * .62, height * .76);
+    const left = (width - size) / 2;
+    const top = (height - size) / 2;
+    const edgeInset = size * .045;
+    for (let py = edgeInset; py <= size - edgeInset; py += 5) for (let px = edgeInset; px <= size - edgeInset; px += 5) {
       const x = px / size;
       const y = py / size;
       const mode = Math.sin(m * Math.PI * x + phaseX) * Math.sin(n * Math.PI * y + phaseY)
@@ -1436,9 +1435,6 @@ function drawPreview(
         ctx.fill();
       }
     }
-    ctx.strokeStyle = "#b9c4d6";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(left, top, size, size);
   } else if (item.visual === "orbit") {
     const eccentricity = value("orbitEccentricity");
     const speed = value("orbitSpeed");

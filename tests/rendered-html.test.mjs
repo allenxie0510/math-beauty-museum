@@ -112,6 +112,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /id: "pulse"/);
   assert.match(museum, /id: "cosmos"/);
   assert.match(museum, /signalRef\.current/);
+  assert.match(museum, /const left = \(width - size\) \/ 2/);
+  assert.match(museum, /const top = \(height - size\) \/ 2/);
+  assert.match(museum, /const edgeInset = size \* \.045/);
+  assert.doesNotMatch(museum, /ctx\.strokeStyle = "#b9c4d6"/);
   assert.match(museum, /body\.style\.position = "fixed"/);
   assert.match(museum, /body\.classList\.add\("exhibit-mode"\)/);
   assert.match(museum, /event\.clientY <= 12/);

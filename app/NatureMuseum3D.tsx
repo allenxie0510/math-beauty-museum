@@ -1678,6 +1678,190 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
   );
 }
 
+function makeGalaxyGlowTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  const glow = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  glow.addColorStop(0, "rgba(255,252,225,1)");
+  glow.addColorStop(.12, "rgba(255,218,166,.96)");
+  glow.addColorStop(.38, "rgba(225,135,207,.58)");
+  glow.addColorStop(1, "rgba(93,105,205,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 256, 256);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
+  const host = useRef<HTMLDivElement>(null);
+  const rebuildRef = useRef<(next: MuseumSettings) => void>(() => undefined);
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+    rebuildRef.current(settings);
+  }, [settings]);
+
+  useEffect(() => {
+    const container = host.current;
+    if (!container) return;
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+    } catch (error) {
+      console.error("Galaxy WebGL initialization failed", error);
+      return;
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.24;
+    renderer.domElement.setAttribute("role", "img");
+    renderer.domElement.setAttribute("aria-label", "可拖动旋转与缩放的三维螺旋星系");
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#01040b");
+    scene.fog = new THREE.FogExp2("#020612", .052);
+    const camera = new THREE.PerspectiveCamera(48, Math.max(1, container.clientWidth) / Math.max(1, container.clientHeight), .05, 60);
+    camera.position.set(0, 4.7, 7.8);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = .055;
+    controls.enablePan = false;
+    controls.minDistance = 3.2;
+    controls.maxDistance = 13;
+    controls.minPolarAngle = .08;
+    controls.maxPolarAngle = Math.PI - .08;
+    controls.target.set(0, 0, 0);
+
+    const galaxy = new THREE.Group();
+    galaxy.rotation.x = -.12;
+    scene.add(galaxy);
+    const glowTexture = makeGalaxyGlowTexture();
+    const coreMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: "#fff4d1", transparent: true, opacity: .92, depthWrite: false, blending: THREE.AdditiveBlending });
+    const core = new THREE.Sprite(coreMaterial);
+    core.scale.set(3.1, 3.1, 1);
+    galaxy.add(core);
+    const innerCore = new THREE.Mesh(
+      new THREE.SphereGeometry(.2, 28, 20),
+      new THREE.MeshBasicMaterial({ color: "#fff7cf", transparent: true, opacity: .92, toneMapped: false }),
+    );
+    galaxy.add(innerCore);
+
+    const starGeometry = new THREE.BufferGeometry();
+    const starMaterial = new THREE.PointsMaterial({ size: .052, vertexColors: true, transparent: true, opacity: .96, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    galaxy.add(stars);
+    const dustGeometry = new THREE.BufferGeometry();
+    const dustMaterial = new THREE.PointsMaterial({ size: .025, vertexColors: true, transparent: true, opacity: .32, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+    const dust = new THREE.Points(dustGeometry, dustMaterial);
+    galaxy.add(dust);
+
+    const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700;
+    const colorA = new THREE.Color("#ffafd8");
+    const colorB = new THREE.Color("#80d6ff");
+    const colorC = new THREE.Color("#ffe6a0");
+    const tempColor = new THREE.Color();
+    const deterministic = (seed: number) => {
+      const value = Math.sin(seed * 91.739 + 17.31) * 43758.5453;
+      return value - Math.floor(value);
+    };
+
+    const rebuild = (next: MuseumSettings) => {
+      const arms = Math.round(next.spiralArms ?? DEFAULT_SETTINGS.spiralArms);
+      const curvature = next.spiralCurvature ?? DEFAULT_SETTINGS.spiralCurvature;
+      const requestedStars = Math.round(next.spiralStars ?? DEFAULT_SETTINGS.spiralStars);
+      const count = requestedStars * (lowPower ? 3 : 7);
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const arm = i % arms;
+        const progress = i / Math.max(1, count - 1);
+        const radius = .08 + Math.pow(progress, .62) * 4.25;
+        const angleNoise = (deterministic(i + 2) - .5) * (.3 + progress * .42);
+        const angle = arm / arms * Math.PI * 2 + progress * Math.PI * (3.7 + curvature * 11) + angleNoise;
+        const radialNoise = (deterministic(i + 4) - .5) * (.2 + progress * .82);
+        const actualRadius = Math.max(.03, radius + radialNoise);
+        const thickness = (deterministic(i + 8) - .5) * (.58 - progress * .42);
+        positions[i * 3] = Math.cos(angle) * actualRadius;
+        positions[i * 3 + 1] = thickness + Math.sin(angle * .45) * .045;
+        positions[i * 3 + 2] = Math.sin(angle) * actualRadius;
+        const palette = i % 3 === 0 ? colorA : i % 3 === 1 ? colorB : colorC;
+        tempColor.copy(palette).lerp(colorC, Math.max(0, .34 - progress) * 1.8).multiplyScalar(.62 + deterministic(i + 12) * .52);
+        colors[i * 3] = tempColor.r;
+        colors[i * 3 + 1] = tempColor.g;
+        colors[i * 3 + 2] = tempColor.b;
+      }
+      starGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      starGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      starGeometry.computeBoundingSphere();
+
+      const dustCount = lowPower ? 850 : 2200;
+      const dustPositions = new Float32Array(dustCount * 3);
+      const dustColors = new Float32Array(dustCount * 3);
+      for (let i = 0; i < dustCount; i++) {
+        const radius = Math.pow(deterministic(i + 31), .58) * 4.7;
+        const angle = deterministic(i + 43) * Math.PI * 2;
+        dustPositions[i * 3] = Math.cos(angle) * radius;
+        dustPositions[i * 3 + 1] = (deterministic(i + 51) - .5) * (.85 - radius * .11);
+        dustPositions[i * 3 + 2] = Math.sin(angle) * radius;
+        tempColor.copy(i % 2 ? colorA : colorB).multiplyScalar(.3 + deterministic(i + 61) * .35);
+        dustColors[i * 3] = tempColor.r;
+        dustColors[i * 3 + 1] = tempColor.g;
+        dustColors[i * 3 + 2] = tempColor.b;
+      }
+      dustGeometry.setAttribute("position", new THREE.BufferAttribute(dustPositions, 3));
+      dustGeometry.setAttribute("color", new THREE.BufferAttribute(dustColors, 3));
+      dustGeometry.computeBoundingSphere();
+    };
+    rebuildRef.current = rebuild;
+    rebuild(settingsRef.current);
+
+    let frame = 0;
+    const clock = new THREE.Clock();
+    const animate = () => {
+      frame = requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+      galaxy.rotation.y = elapsed * .035;
+      coreMaterial.opacity = .84 + Math.sin(elapsed * 1.1) * .08;
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+    const resize = () => {
+      if (!container.clientWidth || !container.clientHeight) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      controls.dispose();
+      starGeometry.dispose();
+      starMaterial.dispose();
+      dustGeometry.dispose();
+      dustMaterial.dispose();
+      innerCore.geometry.dispose();
+      (innerCore.material as THREE.Material).dispose();
+      glowTexture.dispose();
+      coreMaterial.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+      rebuildRef.current = () => undefined;
+    };
+  }, []);
+
+  return <div className="galaxy-3d-preview" ref={host}><span>拖动旋转 · 滚轮或双指缩放</span></div>;
+}
+
 function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settings: MuseumSettings; signalRef: SoundSignalRef }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -1685,26 +1869,51 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = 1000;
-    canvas.height = 680;
     const isSoundVisual = item.visual === "sine" || item.visual === "harmonics" || item.visual === "chladni";
     let raf = 0;
+    let cssWidth = 1000;
+    let cssHeight = 680;
+    let pixelRatio = 1;
     const render = () => {
-      const background = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      ctx.fillStyle = "#01040b";
+      ctx.fillRect(0, 0, cssWidth, cssHeight);
+      const logicalWidth = 1000;
+      const logicalHeight = 680;
+      const scale = Math.min(cssWidth / logicalWidth, cssHeight / logicalHeight);
+      const offsetX = (cssWidth - logicalWidth * scale) / 2;
+      const offsetY = (cssHeight - logicalHeight * scale) / 2;
+      ctx.setTransform(pixelRatio * scale, 0, 0, pixelRatio * scale, pixelRatio * offsetX, pixelRatio * offsetY);
+      const background = ctx.createLinearGradient(0, 0, 0, logicalHeight);
       background.addColorStop(0, "#07101f");
       background.addColorStop(.55, "#030915");
       background.addColorStop(1, "#01040b");
       ctx.fillStyle = background;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      drawGrid(ctx, canvas.width, canvas.height);
-      drawPreview(ctx, item, settings, canvas.width, canvas.height, signalRef.current);
+      ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+      drawGrid(ctx, logicalWidth, logicalHeight);
+      drawPreview(ctx, item, settings, logicalWidth, logicalHeight, signalRef.current);
       ctx.fillStyle = "rgba(228,233,244,.72)";
       ctx.font = "600 18px Arial, sans-serif";
-      ctx.fillText(item.previewCaption, 44, canvas.height - 34);
+      ctx.fillText(item.previewCaption, 44, logicalHeight - 34);
       if (isSoundVisual) raf = window.requestAnimationFrame(render);
     };
-    render();
-    return () => window.cancelAnimationFrame(raf);
+    const resize = () => {
+      const bounds = canvas.getBoundingClientRect();
+      cssWidth = Math.max(320, bounds.width || 1000);
+      cssHeight = Math.max(260, bounds.height || 680);
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 2.5);
+      canvas.width = Math.round(cssWidth * pixelRatio);
+      canvas.height = Math.round(cssHeight * pixelRatio);
+      window.cancelAnimationFrame(raf);
+      render();
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+    resize();
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(raf);
+    };
   }, [item, settings, signalRef]);
   return <canvas ref={canvasRef} aria-label={item.name + "参数图形预览"} />;
 }
@@ -1866,7 +2075,9 @@ export function NatureMuseumWorld() {
             </header>
             <div className="nature-lab-preview">
               <div className="nature-preview-header"><span>REAL-TIME VISUALIZATION</span><b>参数实时预览</b></div>
-              <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />
+              {selected.id === "galaxy"
+                ? <Galaxy3DPreview settings={settings} />
+                : <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />}
               <div className="nature-preview-caption"><span>{selected.formula}</span><p>{selected.previewCaption}。图形会随底部控制台实时变化。</p></div>
             </div>
             <aside className={"nature-lab-controls " + (hall.key === "sound" ? "sound-console" : "")}>

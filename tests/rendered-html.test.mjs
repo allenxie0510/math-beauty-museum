@@ -62,7 +62,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
 
   assert.equal((museum.match(/key: "(nature|architecture|sound|cosmos)"/g) ?? []).length, 4);
   assert.match(museum, /new THREE\.WebGLRenderer/);
-  assert.equal((museum.match(/new THREE\.WebGLRenderer/g) ?? []).length, 1);
+  assert.equal((museum.match(/new THREE\.WebGLRenderer/g) ?? []).length, 2);
   assert.match(museum, /OrbitControls/);
   assert.match(museum, /switchHall\(-1\)/);
   assert.match(museum, /switchHall\(1\)/);
@@ -88,6 +88,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /hall-transition-/);
   assert.match(museum, /THREE\.PCFSoftShadowMap/);
   assert.match(museum, /function SoundDrivePanel/);
+  assert.match(museum, /function Galaxy3DPreview/);
+  assert.match(museum, /可拖动旋转与缩放的三维螺旋星系/);
+  assert.match(museum, /selected\.id === "galaxy"/);
+  assert.match(museum, /pixelRatio = Math\.min\(window\.devicePixelRatio \|\| 1, 2\.5\)/);
   assert.match(museum, /<select/);
   assert.match(museum, /className="sound-clip-select"/);
   assert.doesNotMatch(museum, /className="sound-clip-grid"/);
@@ -117,6 +121,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.nature-lab-shell\{width:100%;height:100svh/);
   assert.match(css, /\.nature-lab-controls\{position:fixed/);
   assert.match(css, /\.sound-clip-select select/);
+  assert.match(css, /\.galaxy-3d-preview/);
   assert.match(css, /\.sound-drive-panel/);
   assert.match(css, /overscroll-behavior:contain/);
   assert.match(css, /\.hall-transition-leaving/);

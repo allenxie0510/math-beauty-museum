@@ -132,6 +132,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.nature-lab-live-vars/);
   assert.match(css, /\.nature-console-actions/);
   assert.match(css, /\.nature-control-name em/);
+  assert.match(css, /nature-formula-expression>strong\{font-size:40px/);
   assert.match(css, /Full-screen exhibit mode and compact fixed console/);
   assert.match(css, /\.exhibit-mode \.site-header/);
   assert.match(css, /\.exhibit-mode\.exhibit-nav-visible \.site-header/);

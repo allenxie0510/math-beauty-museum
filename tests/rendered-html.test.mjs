@@ -41,12 +41,13 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, page, layout, css] = await Promise.all([
+  const [museum, garden, page, layout, css, audio] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/audio.ts", import.meta.url), "utf8"),
   ]);
 
   for (const hall of ["自然数学馆", "建筑数学馆", "声音数学馆", "宇宙数学馆"]) {
@@ -134,6 +135,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /className="sound-clip-select"/);
   assert.doesNotMatch(museum, /className="sound-clip-grid"/);
   assert.match(museum, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(museum, /createCompatibleAudioContext\(\)/);
+  assert.match(museum, /document\.addEventListener\("visibilitychange", pauseWhenHidden\)/);
+  assert.match(garden, /resumeAudioContext\(pondAudioContext\.current\)/);
+  assert.match(garden, /pondAudioContext\.current\?\.suspend\(\)/);
+  assert.match(audio, /webkitAudioContext/);
+  assert.match(audio, /context\.state !== "running"/);
   assert.match(museum, /context\.createAnalyser\(\)/);
   assert.match(museum, /id: "crystal"/);
   assert.match(museum, /id: "pulse"/);

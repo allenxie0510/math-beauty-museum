@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 
 type GardenId = "flower" | "tree" | "butterfly" | "vine" | "building" | "pond" | "shell" | "mobius" | "euler";
 type GardenSettings = Record<string, number>;
@@ -423,9 +424,10 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   const togglePondSound=async()=>{
     if(pondPlaying){if(pondAudio.current){pondAudio.current.pause();pondAudio.current.currentTime=0}setPondPlaying(false);return;}
     if(!pondAudio.current){const audio=new Audio("/audio/mozart-garden.mp3");audio.loop=true;audio.volume=.48;audio.preload="auto";pondAudio.current=audio}
-    if(!pondAudioContext.current){const context=new AudioContext();const analyser=context.createAnalyser();analyser.fftSize=512;analyser.smoothingTimeConstant=.72;const source=context.createMediaElementSource(pondAudio.current);source.connect(analyser);analyser.connect(context.destination);pondAudioContext.current=context;pondAudioSource.current=source;pondAnalyser.current=analyser}
-    try{if(pondAudioContext.current.state==="suspended")await pondAudioContext.current.resume();await pondAudio.current.play();setPondPlaying(true)}catch(error){console.error("Garden music playback failed",error);setPondPlaying(false)}
+    if(!pondAudioContext.current){const context=createCompatibleAudioContext();const analyser=context.createAnalyser();analyser.fftSize=512;analyser.smoothingTimeConstant=.72;const source=context.createMediaElementSource(pondAudio.current);source.connect(analyser);analyser.connect(context.destination);pondAudioContext.current=context;pondAudioSource.current=source;pondAnalyser.current=analyser}
+    try{await resumeAudioContext(pondAudioContext.current);await pondAudio.current.play();setPondPlaying(true)}catch(error){console.error("Garden music playback failed",error);setPondPlaying(false)}
   };
+  useEffect(()=>{const pauseWhenHidden=()=>{if(!document.hidden)return;pondAudio.current?.pause();void pondAudioContext.current?.suspend();setPondPlaying(false)};document.addEventListener("visibilitychange",pauseWhenHidden);return()=>document.removeEventListener("visibilitychange",pauseWhenHidden)},[]);
   useEffect(()=>()=>{if(pondAudio.current){pondAudio.current.pause();pondAudio.current.src=""}pondAudioSource.current?.disconnect();pondAnalyser.current?.disconnect();void pondAudioContext.current?.close()},[]);
 
   return (

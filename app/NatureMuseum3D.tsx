@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 
 type HallKey = "nature" | "architecture" | "sound" | "cosmos";
 type VisualKind =
@@ -1663,9 +1664,9 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
     stopEngine();
     const clip = SOUND_CLIPS.find((entry) => entry.id === nextClipId) ?? SOUND_CLIPS[0];
     try {
-      const context = new window.AudioContext();
+      const context = createCompatibleAudioContext();
       contextRef.current = context;
-      await context.resume();
+      await resumeAudioContext(context);
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = .82;
@@ -1724,9 +1725,9 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
       });
       streamRef.current = stream;
-      const context = new window.AudioContext();
+      const context = createCompatibleAudioContext();
       contextRef.current = context;
-      await context.resume();
+      await resumeAudioContext(context);
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = .72;
@@ -1748,6 +1749,17 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
   };
 
   useEffect(() => () => stopEngine(), [stopEngine]);
+
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (!document.hidden) return;
+      stopEngine();
+      setMode("idle");
+      setStatus("页面进入后台，声音已自动暂停");
+    };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
+    return () => document.removeEventListener("visibilitychange", pauseWhenHidden);
+  }, [stopEngine]);
 
   return (
     <section className="sound-drive-panel" aria-label="声音实时驱动">

@@ -647,9 +647,18 @@ function addBoard(parent: THREE.Object3D, item: MuseumItem, hall: HallDefinition
   group.add(panel);
   const face = new THREE.Mesh(
     new THREE.PlaneGeometry(3.08, 4.9),
-    new THREE.MeshBasicMaterial({ map: makeBoardTexture(item, hall), toneMapped: false, transparent: true, opacity: .88 }),
+    new THREE.MeshBasicMaterial({
+      map: makeBoardTexture(item, hall),
+      toneMapped: false,
+      transparent: true,
+      opacity: .88,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    }),
   );
-  face.position.z = .106;
+  face.position.z = .132;
+  face.renderOrder = 1;
   group.add(face);
   group.position.copy(position);
   group.rotation.y = rotationY;

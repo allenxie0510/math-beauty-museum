@@ -121,7 +121,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /function roundedRectPath/);
   assert.match(museum, /const secondaryColor: Record<HallKey, string>/);
   assert.match(museum, /FORM · NUMBER · PATTERN/);
-  assert.match(museum, /transparent: true, opacity: \.88/);
+  assert.match(museum, /opacity: \.88/);
+  assert.match(museum, /polygonOffsetFactor: -1/);
+  assert.match(museum, /face\.position\.z = \.132/);
+  assert.match(museum, /face\.renderOrder = 1/);
   assert.match(museum, /const pedestal = new THREE\.Mesh/);
   assert.doesNotMatch(museum, /continuumStates|continuumDust|pedestalHalo/);
   assert.doesNotMatch(museum, /new THREE\.IcosahedronGeometry\(2\.15/);

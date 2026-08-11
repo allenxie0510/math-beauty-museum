@@ -628,9 +628,9 @@ function glowMaterial(color: string, opacity = 1) {
   });
 }
 
-function makeTextMaterial(text: string, color: string, fontSize = 118, square = false) {
+function makeTextMaterial(text: string, color: string, fontSize = 118, square = false, canvasWidth = 1024) {
   const canvas = document.createElement("canvas");
-  canvas.width = square ? 384 : 1024;
+  canvas.width = square ? 384 : canvasWidth;
   canvas.height = square ? 384 : 256;
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1089,7 +1089,10 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       const portalX = index === 3 ? center.x + 7.1 : center.x + (nextCenter.x - center.x > 0 ? 7.1 : -7.1);
       portalGroups.push(addPortal(scene, portalX, center.z - 7.15, accent));
       signatures.push(addHallSignature(scene, index, center));
-      const label = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 1.05), makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74));
+      const label = new THREE.Mesh(
+        new THREE.PlaneGeometry(8.4, 1.05),
+        makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74, false, 2048),
+      );
       label.position.set(center.x, 7.78, center.z - 6.08);
       scene.add(label);
     });
@@ -2239,12 +2242,14 @@ export function NatureMuseumWorld() {
     >
       <MuseumCanvas hallIndex={hallIndex} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />
-      <div className={"nature-museum-title " + (!hall ? "atrium-title" : "") }>
-        <span>{hall?.eyebrow ?? "THE LANGUAGE BEHIND BEAUTY · PROLOGUE"}</span>
-        <h2>{hall?.name ?? "数学美学展"}</h2>
-        {!hall && <strong>MATH BEAUTY MUSEUM</strong>}
-        <p>{hall?.subtitle ?? "从连续体出发，沿着光的路径进入四个数学世界"} · {hall ? "拖动浏览并点击展板" : "点击地面指引进入第一展馆"}</p>
-      </div>
+      {!hall && (
+        <div className="nature-museum-title atrium-title">
+          <span>THE LANGUAGE BEHIND BEAUTY · PROLOGUE</span>
+          <h2>数学美学展</h2>
+          <strong>MATH BEAUTY MUSEUM</strong>
+          <p>从连续体出发，沿着光的路径进入四个数学世界 · 点击地面指引进入第一展馆</p>
+        </div>
+      )}
       <div className="nature-progress" aria-label={hall ? "已经发现 " + currentDiscoveries + " 个" + hall.category : "数学美学展序厅"}>
         <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
         <p>{hall?.category ?? "参观序章"}<br /><b>{hall ? currentDiscoveries === 3 ? "全部发现" : "等待探索" : "连续体正在变化"}</b></p>

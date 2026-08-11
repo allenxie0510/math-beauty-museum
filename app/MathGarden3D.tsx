@@ -121,19 +121,24 @@ const POSITIONS: Record<GardenId, [number, number, number]> = {
 };
 
 function disposeObject(object: THREE.Object3D) {
+  const geometries=new Set<THREE.BufferGeometry>();
+  const materials=new Set<THREE.Material>();
+  const textures=new Set<THREE.Texture>();
   object.traverse((child) => {
     if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Points) {
-      child.geometry?.dispose();
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
-      materials.forEach((material) => {
+      if(child.geometry)geometries.add(child.geometry);
+      const childMaterials = Array.isArray(child.material) ? child.material : [child.material];
+      childMaterials.forEach((material) => {
         if(!material)return;
+        materials.add(material);
         const textured=material as THREE.Material&{map?:THREE.Texture|null;bumpMap?:THREE.Texture|null;roughnessMap?:THREE.Texture|null};
-        const textures=new Set([textured.map,textured.bumpMap,textured.roughnessMap].filter(Boolean));
-        textures.forEach(texture=>texture?.dispose());
-        material.dispose();
+        [textured.map,textured.bumpMap,textured.roughnessMap].forEach(texture=>{if(texture)textures.add(texture)});
       });
     }
   });
+  geometries.forEach(geometry=>geometry.dispose());
+  textures.forEach(texture=>texture.dispose());
+  materials.forEach(material=>material.dispose());
   while (object.children.length) object.remove(object.children[0]);
 }
 
@@ -173,10 +178,9 @@ function orientAlong(object:THREE.Object3D,direction:THREE.Vector3) {
   object.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction.clone().normalize());
 }
 
-function cylinderBetween(start: THREE.Vector3, end: THREE.Vector3, radius: number, color: string) {
+function cylinderBetween(start: THREE.Vector3, end: THREE.Vector3, radius: number, material: THREE.Material, radialSegments=12) {
   const direction = new THREE.Vector3().subVectors(end, start);
-  const branchTip=new THREE.Color(color).lerp(new THREE.Color("#d9efb1"),.34).getStyle();
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * .72, radius, direction.length(), 12), makeOrganicMaterial([color,branchTip],{roughness:.58,clearcoat:.04}));
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * .72, radius, direction.length(), radialSegments), material);
   mesh.position.copy(start).add(end).multiplyScalar(.5);
   orientAlong(mesh,direction);
   mesh.castShadow = true;
@@ -201,8 +205,8 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
     const alignedRadial=normal.clone().cross(tangent).normalize();
     const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.38-progress*.065,.62-progress*.14,.34);petal.position.set(Math.cos(theta)*ring,.015+progress*.08+ring*.08,Math.sin(theta)*ring);petal.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tangent,alignedRadial,normal));petal.castShadow=true;bloom.add(petal);
   }
-  const seedMaterial=makeOrganicMaterial(["#f8cb5c","#ff8f8a"],{roughness:.4,clearcoat:.16});
-  for(let i=0;i<34;i++){const theta=i*2.39996,r=.055*Math.sqrt(i);const seed=new THREE.Mesh(new THREE.IcosahedronGeometry(.038,1),seedMaterial);seed.position.set(Math.cos(theta)*r,.23+Math.max(0,.16-r*.32),Math.sin(theta)*r);seed.castShadow=true;bloom.add(seed)}
+  const seedGeometry=new THREE.IcosahedronGeometry(.038,1),seedMaterial=makeOrganicMaterial(["#f8cb5c","#ff8f8a"],{roughness:.4,clearcoat:.16});
+  for(let i=0;i<34;i++){const theta=i*2.39996,r=.055*Math.sqrt(i);const seed=new THREE.Mesh(seedGeometry,seedMaterial);seed.position.set(Math.cos(theta)*r,.23+Math.max(0,.16-r*.32),Math.sin(theta)*r);seed.castShadow=true;bloom.add(seed)}
   group.add(bloom);
 }
 
@@ -214,16 +218,17 @@ function buildFibonacciFlower(group:THREE.Group,petalCount:number,seedCount:numb
   const ovary=new THREE.Mesh(new THREE.SphereGeometry(.14,20,14),makeOrganicMaterial(["#2f8050","#8dcc68","#e8c75f"],{roughness:.48}));ovary.position.y=1.44;ovary.scale.set(1.25,.72,1.25);ovary.castShadow=true;group.add(ovary);
   const bloom=new THREE.Group();bloom.position.y=1.46;const petalGeometry=makePetalGeometry(18,12),petalMaterial=makeOrganicMaterial(petalColors,{roughness:.36,clearcoat:.2});
   for(let i=0;i<petalCount;i++){const theta=i*Math.PI*2/petalCount,tangent=new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta)),radial=new THREE.Vector3(Math.cos(theta),.42,Math.sin(theta)).normalize(),normal=tangent.clone().cross(radial).normalize(),aligned=normal.clone().cross(tangent).normalize();const petal=new THREE.Mesh(petalGeometry,petalMaterial);petal.scale.set(.32,.58,.28);petal.position.set(Math.cos(theta)*.4,.09,Math.sin(theta)*.4);petal.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tangent,aligned,normal));petal.castShadow=true;bloom.add(petal)}
-  const seedMaterial=makeOrganicMaterial(["#573b2d","#9a5a29","#f0b63d"],{roughness:.5});for(let i=0;i<seedCount;i++){const theta=i*2.399963,r=.038*Math.sqrt(i);const seed=new THREE.Mesh(new THREE.SphereGeometry(.028,10,8),seedMaterial);seed.position.set(Math.cos(theta)*r,.13+Math.max(0,.08-r*.18),Math.sin(theta)*r);seed.castShadow=true;bloom.add(seed)}group.add(bloom);
+  const seedGeometry=new THREE.SphereGeometry(.028,10,8),seedMaterial=makeOrganicMaterial(["#573b2d","#9a5a29","#f0b63d"],{roughness:.5});for(let i=0;i<seedCount;i++){const theta=i*2.399963,r=.038*Math.sqrt(i);const seed=new THREE.Mesh(seedGeometry,seedMaterial);seed.position.set(Math.cos(theta)*r,.13+Math.max(0,.08-r*.18),Math.sin(theta)*r);seed.castShadow=true;bloom.add(seed)}group.add(bloom);
 }
 
 function buildTree(group: THREE.Group, s: GardenSettings) {
   const angle = THREE.MathUtils.degToRad(s.treeAngle);
   const maxDepth = Math.round(s.treeDepth);
   const leafGeometry=makeTreeLeafGeometry();const leafMaterials=[makeOrganicMaterial(["#197a3f","#50b95c","#a6db5e"],{roughness:.58,clearcoat:.08}),makeOrganicMaterial(["#246f3f","#6fc466","#c5e879"],{roughness:.56,clearcoat:.08})];
+  const branchMaterials=[makeOrganicMaterial(["#39a95d","#6fc96d","#d9efb1"],{roughness:.58,clearcoat:.04}),makeOrganicMaterial(["#247544","#4aa65c","#b9dd8d"],{roughness:.58,clearcoat:.04})];
   const branch = (start: THREE.Vector3, length: number, theta: number, depth: number, zBias: number) => {
     const end = start.clone().add(new THREE.Vector3(Math.sin(theta)*length,Math.cos(theta)*length,zBias*length));
-    const color=depth<=2?"#39a95d":"#247544";group.add(cylinderBetween(start,end,.035+depth*.02,color));
+    group.add(cylinderBetween(start,end,.035+depth*.02,branchMaterials[depth<=2?0:1]));
     if (depth <= 0) {
       const branchDirection=new THREE.Vector3(Math.sin(theta),Math.cos(theta),zBias).normalize();
       const sideDirection=new THREE.Vector3(Math.cos(theta),0,-Math.sin(theta)).normalize();
@@ -361,6 +366,7 @@ function MathGardenCanvas({ selectedId, onSelect, settings, audioAnalyserRef, po
     const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const lowPower=(navigator.hardwareConcurrency??8)<=4||window.innerWidth<700||window.matchMedia("(pointer: coarse)").matches;
     container.dataset.webglReady="false";
+    container.dataset.quality=lowPower?"eco":"standard";
     let renderer:THREE.WebGLRenderer;
     try{renderer=new THREE.WebGLRenderer({antialias:!lowPower,alpha:false,powerPreference:lowPower?"low-power":"high-performance"});}catch(error){console.error("Math garden WebGL initialization failed",error);return;}
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,lowPower?1:1.8));renderer.setSize(container.clientWidth,container.clientHeight);renderer.shadowMap.enabled=!lowPower;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;renderer.domElement.setAttribute("aria-label","可旋转和缩放的数学花园三维空间");renderer.domElement.setAttribute("role","img");container.appendChild(renderer.domElement);
@@ -368,10 +374,10 @@ function MathGardenCanvas({ selectedId, onSelect, settings, audioAnalyserRef, po
     const camera=new THREE.PerspectiveCamera(45,container.clientWidth/container.clientHeight,.1,80);camera.position.set(0,7.2,12.5);
     const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.055;controls.enablePan=false;controls.minDistance=6.5;controls.maxDistance=17;controls.minPolarAngle=.55;controls.maxPolarAngle=1.36;controls.autoRotate=!reducedMotion;controls.autoRotateSpeed=.22;controls.target.set(0,1,0);
     scene.add(new THREE.HemisphereLight("#fffaf0","#d46ca7",1.42));const sun=new THREE.DirectionalLight("#fff0cc",2.65);sun.position.set(-6,11,8);sun.castShadow=!lowPower;sun.shadow.mapSize.set(lowPower?512:2048,lowPower?512:2048);sun.shadow.camera.left=-11;sun.shadow.camera.right=11;sun.shadow.camera.top=11;sun.shadow.camera.bottom=-11;scene.add(sun);const fill=new THREE.PointLight("#9c75ec",10,18);fill.position.set(4,5,-3);scene.add(fill);const rimLight=new THREE.PointLight("#36e0c1",8,16);rimLight.position.set(-6,3,3);scene.add(rimLight);
-    const ground=new THREE.Mesh(new THREE.CircleGeometry(30,128),makeOrganicMaterial(["#f58ab8","#ffc269","#59d6b7"],{roughness:.68,clearcoat:.05}));ground.rotation.x=-Math.PI/2;ground.position.y=-.04;ground.receiveShadow=true;scene.add(ground);
-    [[-7,-3,2.4,"#bca3ff"],[7,-4,3,"#ff9fca"],[-8,4,2.6,"#83e5ed"],[8,5,3.5,"#bde960"]].forEach(([x,z,scale,color],index)=>{const secondary=index%2?"#ffbfda":"#72dfcf";const hill=new THREE.Mesh(new THREE.SphereGeometry(1.8,36,24),makeOrganicMaterial([color as string,secondary],{roughness:.58,clearcoat:.1}));hill.position.set(x as number,-.45,z as number);hill.scale.set(scale as number,1,1.2);hill.receiveShadow=true;scene.add(hill)});
-    const pineTrunkGeometry=new THREE.CylinderGeometry(.075,.11,.72,10),pineConeGeometry=new THREE.ConeGeometry(.62,.92,20),pineTrunkMaterial=makeOrganicMaterial(["#6f5845","#b1855f"],{roughness:.66}),pineMaterials=[makeOrganicMaterial(["#0d7042","#39b95b"],{roughness:.58}),makeOrganicMaterial(["#16884a","#75d969"],{roughness:.55})],pinePositions:[number,number][]=[[-8.3,.4],[-5.7,7.2],[-.8,9],[.8,-9],[6.2,.3],[8.4,1.3],[-5.6,-6.8]];pinePositions.forEach(([x,z],i)=>{const scale=.82+(i%3)*.16,pine=new THREE.Group();pine.position.set(x,0,z);const trunk=new THREE.Mesh(pineTrunkGeometry,pineTrunkMaterial);trunk.position.y=.36*scale;trunk.scale.setScalar(scale);trunk.castShadow=true;pine.add(trunk);for(let tier=0;tier<3;tier++){const crown=new THREE.Mesh(pineConeGeometry,pineMaterials[(i+tier)%2]);crown.position.y=(.72+tier*.48)*scale;crown.scale.set((1-tier*.15)*scale,(1-tier*.08)*scale,(1-tier*.15)*scale);crown.castShadow=true;pine.add(crown)}scene.add(pine)});
-    const fibonacciFlowerA=new THREE.Group();fibonacciFlowerA.position.set(-6.1,0,4.9);fibonacciFlowerA.scale.setScalar(.82);buildFibonacciFlower(fibonacciFlowerA,13,34,["#ffe26d","#ffad46","#e9789f"]);scene.add(fibonacciFlowerA);const fibonacciFlowerB=new THREE.Group();fibonacciFlowerB.position.set(1.75,0,-4.35);fibonacciFlowerB.scale.setScalar(.72);buildFibonacciFlower(fibonacciFlowerB,21,55,["#f598cf","#b983e6","#72ddd1"]);scene.add(fibonacciFlowerB);
+    const ground=new THREE.Mesh(new THREE.CircleGeometry(30,lowPower?64:128),makeOrganicMaterial(["#f58ab8","#ffc269","#59d6b7"],{roughness:.68,clearcoat:.05}));ground.rotation.x=-Math.PI/2;ground.position.y=-.04;ground.receiveShadow=true;scene.add(ground);
+    [[-7,-3,2.4,"#bca3ff"],[7,-4,3,"#ff9fca"],[-8,4,2.6,"#83e5ed"],[8,5,3.5,"#bde960"]].forEach(([x,z,scale,color],index)=>{const secondary=index%2?"#ffbfda":"#72dfcf";const hill=new THREE.Mesh(new THREE.SphereGeometry(1.8,lowPower?22:36,lowPower?14:24),makeOrganicMaterial([color as string,secondary],{roughness:.58,clearcoat:.1}));hill.position.set(x as number,-.45,z as number);hill.scale.set(scale as number,1,1.2);hill.receiveShadow=true;scene.add(hill)});
+    const pineTrunkGeometry=new THREE.CylinderGeometry(.075,.11,.72,lowPower?8:10),pineConeGeometry=new THREE.ConeGeometry(.62,.92,lowPower?12:20),pineTrunkMaterial=makeOrganicMaterial(["#6f5845","#b1855f"],{roughness:.66}),pineMaterials=[makeOrganicMaterial(["#0d7042","#39b95b"],{roughness:.58}),makeOrganicMaterial(["#16884a","#75d969"],{roughness:.55})],allPinePositions:[number,number][]=[[-8.3,.4],[-5.7,7.2],[-.8,9],[.8,-9],[6.2,.3],[8.4,1.3],[-5.6,-6.8]],pinePositions=lowPower?allPinePositions.filter((_,index)=>index%2===0):allPinePositions;pinePositions.forEach(([x,z],i)=>{const scale=.82+(i%3)*.16,pine=new THREE.Group();pine.position.set(x,0,z);const trunk=new THREE.Mesh(pineTrunkGeometry,pineTrunkMaterial);trunk.position.y=.36*scale;trunk.scale.setScalar(scale);trunk.castShadow=true;pine.add(trunk);for(let tier=0;tier<3;tier++){const crown=new THREE.Mesh(pineConeGeometry,pineMaterials[(i+tier)%2]);crown.position.y=(.72+tier*.48)*scale;crown.scale.set((1-tier*.15)*scale,(1-tier*.08)*scale,(1-tier*.15)*scale);crown.castShadow=true;pine.add(crown)}scene.add(pine)});
+    const fibonacciFlowerA=new THREE.Group();fibonacciFlowerA.position.set(-6.1,0,4.9);fibonacciFlowerA.scale.setScalar(.82);buildFibonacciFlower(fibonacciFlowerA,lowPower?9:13,lowPower?21:34,["#ffe26d","#ffad46","#e9789f"]);scene.add(fibonacciFlowerA);const fibonacciFlowerB=new THREE.Group();fibonacciFlowerB.position.set(1.75,0,-4.35);fibonacciFlowerB.scale.setScalar(.72);buildFibonacciFlower(fibonacciFlowerB,lowPower?13:21,lowPower?34:55,["#f598cf","#b983e6","#72ddd1"]);scene.add(fibonacciFlowerB);
     GARDEN_ITEMS.forEach(item=>{const group=new THREE.Group();group.position.set(...POSITIONS[item.id]);group.userData.gardenId=item.id;buildItem(group,item.id,settingsRef.current);scene.add(group);groups.current.set(item.id,group)});
     const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let pointerStart={x:0,y:0};
     const down=(e:PointerEvent)=>{pointerStart={x:e.clientX,y:e.clientY};controls.autoRotate=false};
@@ -383,7 +389,7 @@ function MathGardenCanvas({ selectedId, onSelect, settings, audioAnalyserRef, po
     let isSceneVisible=true;const visibilityObserver=new IntersectionObserver(([entry])=>{isSceneVisible=entry.isIntersecting&&entry.intersectionRatio>0},{threshold:.01});visibilityObserver.observe(container);
     const animate=(timestamp?:number)=>{frame=requestAnimationFrame(animate);if(!isSceneVisible||document.hidden)return;timer.update(timestamp);const t=timer.getElapsed();const analyser=audioAnalyserRef.current;if(analyser&&pondPlayingRef.current){analyser.getByteFrequencyData(spectrum);smoothLow=THREE.MathUtils.lerp(smoothLow,bandAverage(2,24),.24);smoothMid=THREE.MathUtils.lerp(smoothMid,bandAverage(24,78),.2);smoothHigh=THREE.MathUtils.lerp(smoothHigh,bandAverage(78,150),.18);smoothOverall=THREE.MathUtils.lerp(smoothOverall,bandAverage(2,150),.2)}else{smoothLow*=.92;smoothMid*=.92;smoothHigh*=.92;smoothOverall*=.92}controls.target.lerp(focus.current,.035);controls.update();const vine=groups.current.get("vine");if(vine)vine.rotation.y=Math.sin(t*.35)*.18;const butterfly=groups.current.get("butterfly");if(butterfly){const base=butterfly.userData.wingAngle??.6;const pulse=Math.sin(t*3)*.12;const left=butterfly.getObjectByName("wing-left"),right=butterfly.getObjectByName("wing-right");if(left)left.rotation.y=base*.35+pulse;if(right)right.rotation.y=-base*.35-pulse;butterfly.position.y=POSITIONS.butterfly[1]+Math.sin(t*1.15)*.07;butterfly.rotation.z=-.16+Math.sin(t*.82)*.05}const pond=groups.current.get("pond");if(pond){const speed=pond.userData.pondSpeed??1;pond.children.forEach(child=>{if(child.userData.ringIndex!==undefined){const phase=Math.sin(t*speed*3.2-child.userData.ringIndex*.72);const scale=child.userData.baseScale*(.86+smoothOverall*.9+phase*(.018+smoothOverall*.12));child.scale.setScalar(scale)}if(child.userData.fountainJet!==undefined){const band=child.userData.fountainJet===0?smoothLow:child.userData.fountainJet<3?smoothMid:smoothHigh;const height=Math.max(.2,child.userData.baseHeight*(.28+band*2.25));child.scale.y=height;child.position.y=.16+height*.5}if(child.userData.fountainRing!==undefined){const ringBand=child.userData.fountainRing,energy=ringBand===0?smoothLow:ringBand<3?smoothMid:smoothHigh,delayedEnergy=Math.max(0,energy+Math.sin(t*speed*2.4-ringBand*.42)*(.025+energy*.08)),targetHeight=Math.max(.2,child.userData.baseHeight*(.28+delayedEnergy*2.25)),lag=.075+ringBand*.012;child.position.y=THREE.MathUtils.lerp(child.position.y,.2+targetHeight,lag);const ringScale=.72+delayedEnergy*1.3;child.scale.lerp(new THREE.Vector3(ringScale,ringScale,ringScale),lag*.9);child.rotation.x=Math.PI/2+Math.sin(t*1.2-ringBand*.35)*.08;child.rotation.z=Math.cos(t*.9-ringBand*.27)*.12}})}const shell=groups.current.get("shell");if(shell)shell.rotation.y=Math.sin(t*.34)*.2;const mobius=groups.current.get("mobius");if(mobius)mobius.rotation.y=t*.16;renderer.render(scene,camera);if(container.dataset.webglReady!=="true")container.dataset.webglReady="true"};animate();
     const resize=()=>{if(!container.clientWidth||!container.clientHeight)return;camera.aspect=container.clientWidth/container.clientHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(window.devicePixelRatio,lowPower?1:1.8));renderer.setSize(container.clientWidth,container.clientHeight)};const observer=new ResizeObserver(resize);observer.observe(container);
-    return()=>{cancelAnimationFrame(frame);timer.dispose();observer.disconnect();visibilityObserver.disconnect();renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",up);renderer.domElement.removeEventListener("webglcontextlost",contextLost);renderer.domElement.removeEventListener("webglcontextrestored",contextRestored);controls.dispose();disposeObject(scene);renderer.dispose();renderer.domElement.remove();delete container.dataset.webglReady;sceneGroups.clear()};
+    return()=>{cancelAnimationFrame(frame);timer.dispose();observer.disconnect();visibilityObserver.disconnect();renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",up);renderer.domElement.removeEventListener("webglcontextlost",contextLost);renderer.domElement.removeEventListener("webglcontextrestored",contextRestored);controls.dispose();disposeObject(scene);renderer.dispose();renderer.domElement.remove();delete container.dataset.webglReady;delete container.dataset.quality;sceneGroups.clear()};
   },[audioAnalyserRef,pondPlayingRef]);
 
   useEffect(()=>{if(!selectedId)return;const group=groups.current.get(selectedId);if(!group)return;buildItem(group,selectedId,settings);focus.current.copy(group.position).setY(Math.max(1,group.position.y+.7));},[settings,selectedId]);

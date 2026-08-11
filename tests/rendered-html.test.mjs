@@ -121,6 +121,11 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(garden, /renderer\.shadowMap\.enabled=!lowPower/);
   assert.match(garden, /tapTolerance=e\.pointerType==="touch"\?18:7/);
   assert.match(garden, /webglcontextlost/);
+  assert.match(garden, /container\.dataset\.quality=lowPower\?"eco":"standard"/);
+  assert.match(garden, /new THREE\.CircleGeometry\(30,lowPower\?64:128\)/);
+  assert.match(garden, /const seedGeometry=new THREE\.SphereGeometry\(\.028,10,8\)/);
+  assert.match(garden, /const branchMaterials=/);
+  assert.match(garden, /const geometries=new Set<THREE\.BufferGeometry>/);
   assert.match(garden, /gardenCanvasReady/);
   assert.match(garden, /intersectionRatio>=\.01/);
   assert.match(garden, /visibilityObserver\.disconnect\(\)/);

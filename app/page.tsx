@@ -1,7 +1,11 @@
 "use client";
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { NatureMuseumWorld } from "./NatureMuseum3D";
+
+const LazyNatureMuseumWorld = lazy(async () => {
+  const museumModule = await import("./NatureMuseum3D");
+  return { default: museumModule.NatureMuseumWorld };
+});
 
 const LazyMathGardenWorld = lazy(async () => {
   const gardenModule = await import("./MathGarden3D");
@@ -14,6 +18,21 @@ function scrollToId(id: string) {
 
 function Mark({ children }: { children: React.ReactNode }) {
   return <span className="eyebrow">{children}</span>;
+}
+
+function MuseumLoading() {
+  return (
+    <section className="nature-museum nature-museum-gallery museum-loading" id="hall" aria-busy="true" aria-label="数学美学展厅正在开启" style={{ "--hall-accent": "#9fb4ff" } as React.CSSProperties}>
+      <div className="nature-webgl-fallback" role="status"><i aria-hidden="true" /><span>正在开启沉浸式展馆 · ENTERING MATH BEAUTY MUSEUM</span></div>
+      <div className="nature-museum-shade" aria-hidden="true" />
+      <div className="nature-museum-title atrium-title">
+        <span>THE LANGUAGE BEHIND BEAUTY · PROLOGUE</span>
+        <h2>数学美学展</h2>
+        <strong>MATH BEAUTY MUSEUM</strong>
+        <p>展馆正在开启，公式背后的世界即将出现</p>
+      </div>
+    </section>
+  );
 }
 
 function GardenLoading() {
@@ -130,7 +149,7 @@ export default function Home() {
         </button>
       </header>
 
-      <NatureMuseumWorld />
+      <Suspense fallback={<MuseumLoading />}><LazyNatureMuseumWorld /></Suspense>
       <DeferredMathGarden onProgress={updateGardenProgress} />
 
       {unlockNotice && (

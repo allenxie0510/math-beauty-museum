@@ -202,4 +202,7 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
 
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
+/* Lightweight first frame while the WebGL museum engine arrives */
+.museum-loading .nature-webgl-fallback{display:grid;place-content:center;justify-items:center;gap:18px}.museum-loading .nature-webgl-fallback i{width:86px;height:86px;border:1px solid rgba(159,180,255,.34);border-radius:50%;box-shadow:0 0 46px rgba(159,180,255,.2),inset 0 0 28px rgba(159,180,255,.12);animation:museumLoadingOrbit 1.8s ease-in-out infinite}.museum-loading .nature-webgl-fallback i:after{content:"";display:block;width:10px;height:10px;margin:7px 0 0 38px;border-radius:50%;background:#dfe6ff;box-shadow:0 0 18px #9fb4ff}.museum-loading .nature-webgl-fallback>span{color:#aeb7cb;font-size:8px;letter-spacing:.16em}@keyframes museumLoadingOrbit{50%{transform:rotate(180deg) scale(.92)}}
+
 @media print{body>*{display:none!important}.modal-backdrop{display:block!important;position:static;background:white;padding:0}.certificate-modal{width:100%;margin:0}.certificate-inner{box-shadow:none;min-height:95vh}.modal-close,.print-button{display:none}}

@@ -2195,10 +2195,7 @@ export function NatureMuseumWorld() {
     document.body.classList.remove("site-nav-visible", "exhibit-nav-visible");
     if (transition !== "idle") return;
     if (direction < 0 && hallIndex <= -1) return;
-    if (direction > 0 && hallIndex >= HALLS.length - 1) {
-      document.getElementById("garden")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
+    if (direction > 0 && hallIndex >= HALLS.length - 1) return;
     setSelectedId(null);
     setIsAutoPlaying(false);
     setTransitionDirection(direction < 0 ? "previous" : "next");
@@ -2378,7 +2375,7 @@ export function NatureMuseumWorld() {
 
       <div className="museum-hall-arrows" aria-label="切换数学展厅">
         <button className="hall-arrow-previous" disabled={transition !== "idle" || hallIndex <= -1} onClick={() => switchHall(-1)} aria-label={hallIndex === 0 ? "返回数学美学展序厅" : hallIndex > 0 ? "上一个展厅：" + HALLS[hallIndex - 1].name : "已经位于序厅"}>←</button>
-        <button className="hall-arrow-next" disabled={transition !== "idle"} onClick={() => switchHall(1)} aria-label={hallIndex < HALLS.length - 1 ? "下一个展厅：" + HALLS[hallIndex + 1].name : "前往数学花园"}>→</button>
+        <button className="hall-arrow-next" disabled={transition !== "idle" || hallIndex >= HALLS.length - 1} onClick={() => switchHall(1)} aria-label={hallIndex < HALLS.length - 1 ? "下一个展厅：" + HALLS[hallIndex + 1].name : "已经位于最后一个展厅"}>→</button>
       </div>
 
       {hall && (

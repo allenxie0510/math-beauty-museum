@@ -817,6 +817,7 @@ function addHallSignature(scene: THREE.Scene, hallIndex: number, center: THREE.V
 
 function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
   const host = useRef<HTMLDivElement>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const onSelectRef = useRef(onSelect);
   const onEnterRef = useRef(onEnter);
   const hallIndexRef = useRef(hallIndex);
@@ -828,6 +829,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const container = host.current;
     if (!container) return;
     container.dataset.webglReady = "false";
+    container.dataset.webglError = "false";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700 || window.matchMedia("(pointer: coarse)").matches;
     let renderer: THREE.WebGLRenderer;
@@ -835,6 +837,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       renderer = new THREE.WebGLRenderer({ antialias: !lowPower, powerPreference: lowPower ? "low-power" : "high-performance" });
     } catch (error) {
       console.error("Museum WebGL initialization failed", error);
+      container.dataset.webglError = "true";
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
@@ -1127,8 +1130,9 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const contextLost = (event: Event) => {
       event.preventDefault();
       container.dataset.webglReady = "false";
+      container.dataset.webglError = "true";
     };
-    const contextRestored = () => { container.dataset.webglReady = "true"; };
+    const contextRestored = () => { container.dataset.webglReady = "true"; container.dataset.webglError = "false"; };
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
     renderer.domElement.addEventListener("webglcontextlost", contextLost);
@@ -1201,7 +1205,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
         });
       }
       renderer.render(scene, camera);
-      if (container.dataset.webglReady !== "true") container.dataset.webglReady = "true";
+      if (container.dataset.webglReady !== "true") { container.dataset.webglReady = "true"; container.dataset.webglError = "false"; }
     };
     animate();
     const resize = () => {
@@ -1225,11 +1229,16 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       renderer.dispose();
       renderer.domElement.remove();
       delete container.dataset.webglReady;
+      delete container.dataset.webglError;
     };
-  }, []);
+  }, [retryKey]);
 
   return <div className="nature-museum-webgl museum-canvas-fade" ref={host}>
-    <div className="nature-webgl-fallback"><b>数学美学展需要 WebGL</b><span>请开启浏览器图形加速后重新进入。</span></div>
+    <div className="nature-webgl-fallback" role="status" aria-live="polite">
+      <b className="webgl-loading-copy">正在开启 3D 数学展馆</b><span className="webgl-loading-copy">沉浸式空间正在准备</span>
+      <b className="webgl-error-copy">3D 展馆暂时没有开启</b><span className="webgl-error-copy">请开启图形加速，或点击下方按钮再次尝试。</span>
+      <button className="webgl-retry" type="button" onClick={() => setRetryKey((key) => key + 1)}>重新开启 3D</button>
+    </div>
   </div>;
 }
 
@@ -1815,6 +1824,7 @@ function makeGalaxyGlowTexture() {
 
 function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
   const host = useRef<HTMLDivElement>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const rebuildRef = useRef<(next: MuseumSettings) => void>(() => undefined);
   const settingsRef = useRef(settings);
   useEffect(() => {
@@ -1825,6 +1835,8 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
   useEffect(() => {
     const container = host.current;
     if (!container) return;
+    container.dataset.webglReady = "false";
+    container.dataset.webglError = "false";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700 || window.matchMedia("(pointer: coarse)").matches;
     let renderer: THREE.WebGLRenderer;
@@ -1832,6 +1844,7 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
       renderer = new THREE.WebGLRenderer({ antialias: !lowPower, alpha: false, powerPreference: lowPower ? "low-power" : "high-performance" });
     } catch (error) {
       console.error("Galaxy WebGL initialization failed", error);
+      container.dataset.webglError = "true";
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.25 : 2));
@@ -1941,6 +1954,18 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
     rebuildRef.current = rebuild;
     rebuild(settingsRef.current);
 
+    const contextLost = (event: Event) => {
+      event.preventDefault();
+      container.dataset.webglReady = "false";
+      container.dataset.webglError = "true";
+    };
+    const contextRestored = () => {
+      container.dataset.webglReady = "true";
+      container.dataset.webglError = "false";
+    };
+    renderer.domElement.addEventListener("webglcontextlost", contextLost);
+    renderer.domElement.addEventListener("webglcontextrestored", contextRestored);
+
     let frame = 0;
     const clock = new THREE.Clock();
     const animate = () => {
@@ -1951,6 +1976,7 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
       coreMaterial.opacity = .84 + Math.sin(elapsed * 1.1) * .08;
       controls.update();
       renderer.render(scene, camera);
+      if (container.dataset.webglReady !== "true") { container.dataset.webglReady = "true"; container.dataset.webglError = "false"; }
     };
     animate();
     const resize = () => {
@@ -1964,6 +1990,8 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
     return () => {
       cancelAnimationFrame(frame);
       stopObservingResize();
+      renderer.domElement.removeEventListener("webglcontextlost", contextLost);
+      renderer.domElement.removeEventListener("webglcontextrestored", contextRestored);
       controls.dispose();
       starGeometry.dispose();
       starMaterial.dispose();
@@ -1976,10 +2004,15 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
       renderer.dispose();
       renderer.domElement.remove();
       rebuildRef.current = () => undefined;
+      delete container.dataset.webglReady;
+      delete container.dataset.webglError;
     };
-  }, []);
+  }, [retryKey]);
 
-  return <div className="galaxy-3d-preview" ref={host}><span>拖动旋转 · 滚轮或双指缩放</span></div>;
+  return <div className="galaxy-3d-preview" ref={host}>
+    <div className="webgl-recovery" role="status" aria-live="polite"><b>三维星系暂时没有开启</b><span>请开启图形加速后再次尝试。</span><button className="webgl-retry" type="button" onClick={() => setRetryKey((key) => key + 1)}>重新开启 3D</button></div>
+    <span>拖动旋转 · 滚轮或双指缩放</span>
+  </div>;
 }
 
 function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settings: MuseumSettings; signalRef: SoundSignalRef }) {

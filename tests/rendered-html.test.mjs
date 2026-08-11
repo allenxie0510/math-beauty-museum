@@ -69,6 +69,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /window\.matchMedia\("\(pointer: coarse\)"\)/);
   assert.match(museum, /tapTolerance = event\.pointerType === "touch" \? 18 : 7/);
   assert.match(museum, /webglcontextlost/);
+  assert.match(museum, /setRetryKey\(\(key\) => key \+ 1\)/);
+  assert.match(museum, /container\.dataset\.webglError = "true"/);
   assert.match(museum, /OrbitControls/);
   assert.match(museum, /switchHall\(-1\)/);
   assert.match(museum, /switchHall\(1\)/);
@@ -123,6 +125,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(garden, /renderer\.shadowMap\.enabled=!lowPower/);
   assert.match(garden, /tapTolerance=e\.pointerType==="touch"\?18:7/);
   assert.match(garden, /webglcontextlost/);
+  assert.match(garden, /setRetryKey\(key=>key\+1\)/);
+  assert.match(garden, /container\.dataset\.webglError="true"/);
   assert.match(garden, /container\.dataset\.quality=lowPower\?"eco":"standard"/);
   assert.match(garden, /new THREE\.CircleGeometry\(30,lowPower\?64:128\)/);
   assert.match(garden, /const seedGeometry=new THREE\.SphereGeometry\(\.028,10,8\)/);
@@ -189,6 +193,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.nature-lab-control>span\{font-size:10px\}/);
   assert.match(css, /input\[type=range\]::-moz-range-thumb\{width:20px;height:20px\}/);
   assert.match(css, /data-webgl-ready="false"\] canvas\{opacity:0\}/);
+  assert.match(css, /Recoverable WebGL fallback/);
+  assert.match(css, /\[data-webgl-error="true"\] \.webgl-retry\{display:inline-flex\}/);
   assert.match(css, /\.sound-drive-panel/);
   assert.match(css, /overscroll-behavior:contain/);
   assert.match(css, /\.hall-transition-leaving/);

@@ -78,7 +78,13 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /OrbitControls/);
   assert.match(museum, /switchHall\(-1\)/);
   assert.match(museum, /switchHall\(1\)/);
+  assert.match(museum, /const handleHallWheel/);
+  assert.match(museum, /wheelAccumulator\.current \+= delta/);
+  assert.match(museum, /onWheel=\{handleHallWheel\}/);
+  assert.match(museum, /museum-navigation-busy/);
   assert.match(museum, /MUSEUM_CAMERA_STOPS/);
+  assert.match(museum, /new THREE\.Vector3\(0, 4\.8, 18\.8\)/);
+  assert.match(museum, /controls\.enableZoom = false/);
   assert.match(museum, /HALL_CENTERS/);
   assert.match(museum, /new THREE\.CatmullRomCurve3/);
   assert.match(museum, /addTextRing/);
@@ -196,6 +202,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /nature-formula-expression>strong\{font-size:40px/);
   assert.match(css, /Full-screen exhibit mode and compact fixed console/);
   assert.match(css, /\.exhibit-mode \.site-header/);
+  assert.match(css, /\.site-nav-visible \.site-header/);
+  assert.match(css, /\.museum-navigation-busy \.site-header/);
   assert.match(css, /\.exhibit-mode\.exhibit-nav-visible \.site-header/);
   assert.match(css, /\.exhibit-mode\.exhibit-nav-visible \.nature-lab-close/);
   assert.match(css, /\.nature-lab-shell\{width:100%;height:100svh/);
@@ -226,6 +234,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(page, /<MuseumLoading \/>/);
   assert.match(page, /<DeferredMathGarden/);
   assert.match(page, /rootMargin: "240px 0px"/);
+  assert.match(page, /body\.classList\.add\("site-nav-visible"\)/);
+  assert.match(page, /window\.addEventListener\("pointermove", updateNavigation/);
   assert.doesNotMatch(page, /GoldenFlower|FractalForest|GeometryBuilder|FourierSound|SpiralUniverse|journey-intro/);
   assert.match(layout, /Math Beauty Museum/);
   assert.match(layout, /viewportFit: "cover"/);

@@ -607,7 +607,7 @@ function addBoard(parent: THREE.Object3D, item: MuseumItem, hall: HallDefinition
 }
 
 const MUSEUM_CAMERA_STOPS = [
-  { position: new THREE.Vector3(0, 4.65, 15.8), target: new THREE.Vector3(0, 4.05, .2) },
+  { position: new THREE.Vector3(0, 4.8, 18.8), target: new THREE.Vector3(0, 4.2, .2) },
   { position: new THREE.Vector3(-2.8, 4.05, -11.5), target: new THREE.Vector3(-2.8, 3.55, -20.8) },
   { position: new THREE.Vector3(3.6, 4.05, -31.5), target: new THREE.Vector3(3.6, 3.55, -40.8) },
   { position: new THREE.Vector3(-3.6, 4.05, -51.5), target: new THREE.Vector3(-3.6, 3.55, -60.8) },
@@ -1023,8 +1023,9 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     controls.enableDamping = true;
     controls.dampingFactor = .06;
     controls.enablePan = false;
-    controls.minDistance = 4.8;
-    controls.maxDistance = 11.5;
+    controls.enableZoom = false;
+    controls.minDistance = 7.5;
+    controls.maxDistance = 20;
     controls.minPolarAngle = .76;
     controls.maxPolarAngle = 1.5;
     controls.minAzimuthAngle = -.68;
@@ -1223,6 +1224,8 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       const requestedHallIndex = Math.max(-1, Math.min(HALLS.length - 1, hallIndexRef.current));
       loadOnlyHall(requestedHallIndex);
       const desiredStop = Math.max(0, Math.min(MUSEUM_CAMERA_STOPS.length - 1, hallIndexRef.current + 1));
+      controls.minDistance = desiredStop === 0 ? 7.5 : 4.8;
+      controls.maxDistance = desiredStop === 0 ? 20 : 11.5;
       if (desiredStop !== activeStop) {
         activeStop = desiredStop;
         transitionStarted = elapsed;
@@ -2172,6 +2175,8 @@ export function NatureMuseumWorld() {
   const [transition, setTransition] = useState<"idle" | "leaving" | "entering">("idle");
   const [transitionDirection, setTransitionDirection] = useState<"previous" | "next">("next");
   const transitionTimers = useRef<number[]>([]);
+  const wheelAccumulator = useRef(0);
+  const wheelCooldownUntil = useRef(0);
   const soundSignalRef = useRef<SoundSignal>({ ...EMPTY_SOUND_SIGNAL });
   const hall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const selected = useMemo(() => hall?.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
@@ -2187,6 +2192,7 @@ export function NatureMuseumWorld() {
   }, []);
 
   const switchHall = (direction: number) => {
+    document.body.classList.remove("site-nav-visible", "exhibit-nav-visible");
     if (transition !== "idle") return;
     if (direction < 0 && hallIndex <= -1) return;
     if (direction > 0 && hallIndex >= HALLS.length - 1) {
@@ -2205,6 +2211,36 @@ export function NatureMuseumWorld() {
     }, 180);
     transitionTimers.current.push(swapTimer);
   };
+
+  const handleHallWheel = (event: React.WheelEvent<HTMLElement>) => {
+    if (selectedId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    document.body.classList.remove("site-nav-visible", "exhibit-nav-visible");
+    if (transition !== "idle") return;
+    const now = performance.now();
+    if (now < wheelCooldownUntil.current) return;
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+    const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
+    if (!delta) return;
+    if (Math.sign(delta) !== Math.sign(wheelAccumulator.current)) wheelAccumulator.current = 0;
+    wheelAccumulator.current += delta;
+    if (Math.abs(wheelAccumulator.current) < 48) return;
+    const direction = wheelAccumulator.current > 0 ? 1 : -1;
+    wheelAccumulator.current = 0;
+    wheelCooldownUntil.current = now + 900;
+    switchHall(direction);
+  };
+
+  useEffect(() => {
+    const body = document.body;
+    if (transition === "idle") {
+      body.classList.remove("museum-navigation-busy");
+      return;
+    }
+    body.classList.add("museum-navigation-busy");
+    body.classList.remove("site-nav-visible", "exhibit-nav-visible");
+  }, [transition]);
 
   const resetSelected = () => {
     if (!selected) return;
@@ -2280,7 +2316,7 @@ export function NatureMuseumWorld() {
       else if (event.clientY > 92) body.classList.remove("exhibit-nav-visible");
     };
     body.classList.add("exhibit-mode");
-    body.classList.remove("exhibit-nav-visible");
+    body.classList.remove("exhibit-nav-visible", "site-nav-visible");
     window.addEventListener("pointermove", updateGlobalNavigation, { passive: true });
     body.style.position = "fixed";
     body.style.top = `-${scrollPosition}px`;
@@ -2309,6 +2345,7 @@ export function NatureMuseumWorld() {
   useEffect(() => () => {
     transitionTimers.current.forEach((timer) => window.clearTimeout(timer));
     transitionTimers.current = [];
+    document.body.classList.remove("museum-navigation-busy");
   }, []);
 
   return (
@@ -2318,6 +2355,7 @@ export function NatureMuseumWorld() {
       aria-label={(hall?.name ?? "数学美学展序厅") + " WebGL 展厅"}
       data-hall={hall?.key ?? "atrium"}
       style={{ "--hall-accent": hall?.accent ?? "#9fb4ff" } as React.CSSProperties}
+      onWheel={handleHallWheel}
     >
       <MuseumCanvas hallIndex={hallIndex} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />

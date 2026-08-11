@@ -128,6 +128,37 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [unlockNotice]);
 
+  useEffect(() => {
+    const body = document.body;
+    const hideNavigation = () => body.classList.remove("site-nav-visible");
+    const updateNavigation = (event: PointerEvent) => {
+      if (body.classList.contains("museum-navigation-busy")) {
+        hideNavigation();
+        return;
+      }
+      if (event.pointerType === "touch") {
+        if (event.type === "pointerdown" && event.clientY <= 24) body.classList.toggle("site-nav-visible");
+        return;
+      }
+      if (event.clientY <= 14) {
+        body.classList.add("site-nav-visible");
+        return;
+      }
+      const target = event.target instanceof Element ? event.target : null;
+      if (event.clientY > 96 && !target?.closest(".site-header")) hideNavigation();
+    };
+    body.classList.remove("site-nav-visible");
+    window.addEventListener("pointermove", updateNavigation, { passive: true });
+    window.addEventListener("pointerdown", updateNavigation, { passive: true });
+    window.addEventListener("scroll", hideNavigation, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", updateNavigation);
+      window.removeEventListener("pointerdown", updateNavigation);
+      window.removeEventListener("scroll", hideNavigation);
+      body.classList.remove("site-nav-visible", "museum-navigation-busy");
+    };
+  }, []);
+
   return (
     <main className="immersive-main">
       <header className="site-header">

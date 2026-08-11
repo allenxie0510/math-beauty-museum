@@ -823,21 +823,42 @@ function addTextRing(
   parent.add(reflection);
 }
 
+class PortalArchCurve extends THREE.Curve<THREE.Vector3> {
+  constructor(
+    private readonly width: number,
+    private readonly height: number,
+    private readonly depth: number,
+  ) {
+    super();
+  }
+
+  getPoint(t: number, target = new THREE.Vector3()) {
+    const radius = this.width / 2;
+    const legHeight = Math.max(.01, this.height - radius);
+    const arcLength = Math.PI * radius;
+    const distance = THREE.MathUtils.clamp(t, 0, 1) * (legHeight * 2 + arcLength);
+
+    if (distance <= legHeight) {
+      return target.set(-radius, distance, this.depth);
+    }
+    if (distance <= legHeight + arcLength) {
+      const theta = Math.PI - (distance - legHeight) / radius;
+      return target.set(Math.cos(theta) * radius, legHeight + Math.sin(theta) * radius, this.depth);
+    }
+    return target.set(radius, legHeight - (distance - legHeight - arcLength), this.depth);
+  }
+}
+
 function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, rotationY = 0) {
   const portal = new THREE.Group();
   [0, 1, 2].forEach((layer) => {
     const width = 5.8 + layer * .55;
     const height = 7.2 + layer * .32;
-    const points: THREE.Vector3[] = [];
-    points.push(new THREE.Vector3(-width / 2, 0, layer * .24));
-    points.push(new THREE.Vector3(-width / 2, height - width / 2, layer * .24));
-    for (let step = 0; step <= 18; step++) {
-      const theta = Math.PI - step / 18 * Math.PI;
-      points.push(new THREE.Vector3(Math.cos(theta) * width / 2, height - width / 2 + Math.sin(theta) * width / 2, layer * .24));
-    }
-    points.push(new THREE.Vector3(width / 2, 0, layer * .24));
-    const curve = new THREE.CatmullRomCurve3(points);
-    const frame = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, .045 + layer * .014, 8, false), glowMaterial(color, .82 - layer * .16));
+    const curve = new PortalArchCurve(width, height, layer * .24);
+    const frame = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 96, .045 + layer * .014, 12, false),
+      glowMaterial(color, .48 - layer * .1),
+    );
     portal.add(frame);
   });
   portal.position.set(x, .04, z);

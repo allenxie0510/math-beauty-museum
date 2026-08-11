@@ -95,7 +95,11 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /new THREE\.Vector3\(0, 4\.8, 18\.8\)/);
   assert.match(museum, /controls\.enableZoom = false/);
   assert.match(museum, /HALL_CENTERS/);
-  assert.match(museum, /new THREE\.CatmullRomCurve3/);
+  assert.doesNotMatch(museum, /new THREE\.CatmullRomCurve3/);
+  assert.match(museum, /class PortalArchCurve extends THREE\.Curve<THREE\.Vector3>/);
+  assert.match(museum, /const arcLength = Math\.PI \* radius/);
+  assert.match(museum, /new THREE\.TubeGeometry\(curve, 96, \.045 \+ layer \* \.014, 12, false\)/);
+  assert.match(museum, /glowMaterial\(color, \.48 - layer \* \.1\)/);
   assert.match(museum, /addTextRing/);
   assert.match(museum, /let cursor = offset - phraseArc \/ 2/);
   assert.doesNotMatch(museum, /repeatCount|repeatGap/);

@@ -1145,8 +1145,14 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const transitionFromPosition = camera.position.clone();
     const transitionFromTarget = controls.target.clone();
     const clock = new THREE.Clock();
+    let isSceneVisible = true;
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+      isSceneVisible = entry.isIntersecting && entry.intersectionRatio > 0;
+    }, { threshold: .01 });
+    visibilityObserver.observe(container);
     const animate = () => {
       frame = requestAnimationFrame(animate);
+      if (!isSceneVisible || document.hidden || document.body.classList.contains("exhibit-mode")) return;
       const elapsed = clock.getElapsedTime();
       const desiredStop = Math.max(0, Math.min(MUSEUM_CAMERA_STOPS.length - 1, hallIndexRef.current + 1));
       if (desiredStop !== activeStop) {
@@ -1211,6 +1217,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
+      visibilityObserver.disconnect();
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
@@ -1929,6 +1936,7 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
     const clock = new THREE.Clock();
     const animate = () => {
       frame = requestAnimationFrame(animate);
+      if (document.hidden) return;
       const elapsed = clock.getElapsedTime();
       if (!reducedMotion) galaxy.rotation.y = elapsed * .035;
       coreMaterial.opacity = .84 + Math.sin(elapsed * 1.1) * .08;

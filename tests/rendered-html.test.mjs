@@ -121,6 +121,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(garden, /renderer\.shadowMap\.enabled=!lowPower/);
   assert.match(garden, /tapTolerance=e\.pointerType==="touch"\?18:7/);
   assert.match(garden, /webglcontextlost/);
+  assert.match(garden, /gardenCanvasReady/);
+  assert.match(garden, /intersectionRatio>=\.01/);
+  assert.match(garden, /visibilityObserver\.disconnect\(\)/);
+  assert.match(museum, /document\.body\.classList\.contains\("exhibit-mode"\)/);
   assert.match(museum, /<select/);
   assert.match(museum, /className="sound-clip-select"/);
   assert.doesNotMatch(museum, /className="sound-clip-grid"/);

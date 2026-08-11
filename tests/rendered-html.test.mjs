@@ -242,6 +242,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.immersive-lab-header/);
   assert.match(css, /\.nature-console-grid/);
   assert.match(css, /\.nature-lab-live-vars/);
+  assert.match(css, /\.nature-lab-live-vars\{display:flex!important;flex-wrap:wrap/);
+  assert.match(css, /color:#a9b0bc;font-size:14px;line-height:1\.2/);
+  assert.match(css, /\.nature-lab-live-vars span i\{color:#dbe0e9;font-family:Georgia,serif;font-size:18px/);
   assert.match(css, /\.nature-console-actions/);
   assert.match(css, /\.nature-control-name em/);
   assert.match(css, /nature-formula-expression>strong\{font-size:40px/);

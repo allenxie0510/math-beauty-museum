@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_SC, Playfair_Display } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
 const sans = Noto_Sans_SC({ variable: "--font-sans", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 const display = Playfair_Display({ variable: "--font-display", subsets: ["latin"], weight: ["500", "600"] });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#070710",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

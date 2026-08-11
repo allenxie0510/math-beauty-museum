@@ -826,15 +826,15 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const container = host.current;
     if (!container) return;
     container.dataset.webglReady = "false";
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700 || window.matchMedia("(pointer: coarse)").matches;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: !lowPower, powerPreference: lowPower ? "low-power" : "high-performance" });
     } catch (error) {
       console.error("Museum WebGL initialization failed", error);
       return;
     }
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = !lowPower;
@@ -1101,7 +1101,8 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     let pointerStart = { x: 0, y: 0 };
     const pointerDown = (event: PointerEvent) => { pointerStart = { x: event.clientX, y: event.clientY }; };
     const pointerUp = (event: PointerEvent) => {
-      if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 7) return;
+      const tapTolerance = event.pointerType === "touch" ? 18 : 7;
+      if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > tapTolerance) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1121,8 +1122,15 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       const itemHallIndex = object?.userData.hallIndex as number | undefined;
       if (id && itemHallIndex !== undefined) onSelectRef.current(id, itemHallIndex);
     };
+    const contextLost = (event: Event) => {
+      event.preventDefault();
+      container.dataset.webglReady = "false";
+    };
+    const contextRestored = () => { container.dataset.webglReady = "true"; };
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
+    renderer.domElement.addEventListener("webglcontextlost", contextLost);
+    renderer.domElement.addEventListener("webglcontextrestored", contextRestored);
 
     scene.traverse((object) => {
       if (!object.userData.itemId) return;
@@ -1195,6 +1203,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       if (!container.clientWidth || !container.clientHeight) return;
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
       renderer.setSize(container.clientWidth, container.clientHeight);
     };
     const observer = new ResizeObserver(resize);
@@ -1204,6 +1213,8 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
+      renderer.domElement.removeEventListener("webglcontextlost", contextLost);
+      renderer.domElement.removeEventListener("webglcontextrestored", contextRestored);
       controls.dispose();
       disposeScene(scene);
       renderer.dispose();
@@ -1798,14 +1809,16 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
   useEffect(() => {
     const container = host.current;
     if (!container) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700 || window.matchMedia("(pointer: coarse)").matches;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: !lowPower, alpha: false, powerPreference: lowPower ? "low-power" : "high-performance" });
     } catch (error) {
       console.error("Galaxy WebGL initialization failed", error);
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.25 : 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1852,7 +1865,6 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
     const dust = new THREE.Points(dustGeometry, dustMaterial);
     galaxy.add(dust);
 
-    const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700;
     const colorA = new THREE.Color("#ffafd8");
     const colorB = new THREE.Color("#80d6ff");
     const colorC = new THREE.Color("#ffe6a0");
@@ -1918,7 +1930,7 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
     const animate = () => {
       frame = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
-      galaxy.rotation.y = elapsed * .035;
+      if (!reducedMotion) galaxy.rotation.y = elapsed * .035;
       coreMaterial.opacity = .84 + Math.sin(elapsed * 1.1) * .08;
       controls.update();
       renderer.render(scene, camera);
@@ -1928,7 +1940,7 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
       if (!container.clientWidth || !container.clientHeight) return;
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.25 : 2));
       renderer.setSize(container.clientWidth, container.clientHeight);
     };
     const observer = new ResizeObserver(resize);
@@ -1993,7 +2005,8 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
       const bounds = canvas.getBoundingClientRect();
       cssWidth = Math.max(320, bounds.width || 1000);
       cssHeight = Math.max(260, bounds.height || 680);
-      pixelRatio = Math.min(window.devicePixelRatio || 1, 2.5);
+      const mobileCanvas = window.innerWidth < 700 || window.matchMedia("(pointer: coarse)").matches;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, mobileCanvas ? 1.5 : 2.5);
       canvas.width = Math.round(cssWidth * pixelRatio);
       canvas.height = Math.round(cssHeight * pixelRatio);
       window.cancelAnimationFrame(raf);

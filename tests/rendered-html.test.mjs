@@ -41,8 +41,9 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, page, layout, css] = await Promise.all([
+  const [museum, garden, page, layout, css] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -63,6 +64,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.equal((museum.match(/key: "(nature|architecture|sound|cosmos)"/g) ?? []).length, 4);
   assert.match(museum, /new THREE\.WebGLRenderer/);
   assert.equal((museum.match(/new THREE\.WebGLRenderer/g) ?? []).length, 2);
+  assert.match(museum, /window\.matchMedia\("\(pointer: coarse\)"\)/);
+  assert.match(museum, /tapTolerance = event\.pointerType === "touch" \? 18 : 7/);
+  assert.match(museum, /webglcontextlost/);
   assert.match(museum, /OrbitControls/);
   assert.match(museum, /switchHall\(-1\)/);
   assert.match(museum, /switchHall\(1\)/);
@@ -111,7 +115,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /function Galaxy3DPreview/);
   assert.match(museum, /可拖动旋转与缩放的三维螺旋星系/);
   assert.match(museum, /selected\.id === "galaxy"/);
-  assert.match(museum, /pixelRatio = Math\.min\(window\.devicePixelRatio \|\| 1, 2\.5\)/);
+  assert.match(museum, /mobileCanvas \? 1\.5 : 2\.5/);
+  assert.match(museum, /lowPower \? 1\.25 : 2/);
+  assert.match(garden, /controls\.autoRotate=!reducedMotion/);
+  assert.match(garden, /renderer\.shadowMap\.enabled=!lowPower/);
+  assert.match(garden, /tapTolerance=e\.pointerType==="touch"\?18:7/);
+  assert.match(garden, /webglcontextlost/);
   assert.match(museum, /<select/);
   assert.match(museum, /className="sound-clip-select"/);
   assert.doesNotMatch(museum, /className="sound-clip-grid"/);
@@ -150,6 +159,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.nature-lab-controls\{position:fixed/);
   assert.match(css, /\.sound-clip-select select/);
   assert.match(css, /\.galaxy-3d-preview/);
+  assert.match(css, /safe-area-inset-top/);
+  assert.match(css, /height:100dvh/);
+  assert.match(css, /data-webgl-ready="false"\] canvas\{opacity:0\}/);
   assert.match(css, /\.sound-drive-panel/);
   assert.match(css, /overscroll-behavior:contain/);
   assert.match(css, /\.hall-transition-leaving/);
@@ -160,5 +172,6 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(page, /<MathGardenWorld/);
   assert.doesNotMatch(page, /GoldenFlower|FractalForest|GeometryBuilder|FourierSound|SpiralUniverse|journey-intro/);
   assert.match(layout, /Math Beauty Museum/);
+  assert.match(layout, /viewportFit: "cover"/);
   assert.doesNotMatch(layout, /codex-preview|Starter Project/);
 });

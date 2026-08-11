@@ -818,6 +818,7 @@ function addHallSignature(scene: THREE.Scene, hallIndex: number, center: THREE.V
 function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const fallbackHall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const onSelectRef = useRef(onSelect);
   const onEnterRef = useRef(onEnter);
   const hallIndexRef = useRef(hallIndex);
@@ -1238,6 +1239,15 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       <b className="webgl-loading-copy">正在开启 3D 数学展馆</b><span className="webgl-loading-copy">沉浸式空间正在准备</span>
       <b className="webgl-error-copy">3D 展馆暂时没有开启</b><span className="webgl-error-copy">请开启图形加速，或点击下方按钮再次尝试。</span>
       <button className="webgl-retry" type="button" onClick={() => setRetryKey((key) => key + 1)}>重新开启 3D</button>
+      <div className="webgl-fallback-actions" aria-label={fallbackHall ? `直接探索${fallbackHall.name}` : "不使用 3D 继续参观"}>
+        {fallbackHall ? fallbackHall.items.map((item) => (
+          <button key={item.id} type="button" onClick={() => onSelect(item.id, hallIndex)}>
+            <span aria-hidden="true">{item.icon}</span>{item.name}
+          </button>
+        )) : (
+          <button type="button" onClick={onEnter}>进入自然数学馆</button>
+        )}
+      </div>
     </div>
   </div>;
 }
@@ -2248,6 +2258,17 @@ export function NatureMuseumWorld() {
         <button className="hall-arrow-previous" disabled={transition !== "idle" || hallIndex <= -1} onClick={() => switchHall(-1)} aria-label={hallIndex === 0 ? "返回数学美学展序厅" : hallIndex > 0 ? "上一个展厅：" + HALLS[hallIndex - 1].name : "已经位于序厅"}>←</button>
         <button className="hall-arrow-next" disabled={transition !== "idle"} onClick={() => switchHall(1)} aria-label={hallIndex < HALLS.length - 1 ? "下一个展厅：" + HALLS[hallIndex + 1].name : "前往数学花园"}>→</button>
       </div>
+
+      {hall && (
+        <nav className="museum-keyboard-exhibits" aria-label={`键盘访问${hall.name}展板`}>
+          <span>展板快捷导航</span>
+          {hall.items.map((item) => (
+            <button key={item.id} type="button" onClick={() => select(item.id, hallIndex)}>
+              <i aria-hidden="true">{item.icon}</i>{item.name}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {selected && hall && (
         <div

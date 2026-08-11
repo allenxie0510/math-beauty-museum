@@ -71,6 +71,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /webglcontextlost/);
   assert.match(museum, /setRetryKey\(\(key\) => key \+ 1\)/);
   assert.match(museum, /container\.dataset\.webglError = "true"/);
+  assert.match(museum, /className="webgl-fallback-actions"/);
+  assert.match(museum, /进入自然数学馆/);
+  assert.match(museum, /className="museum-keyboard-exhibits"/);
+  assert.match(museum, /键盘访问/);
   assert.match(museum, /OrbitControls/);
   assert.match(museum, /switchHall\(-1\)/);
   assert.match(museum, /switchHall\(1\)/);
@@ -195,6 +199,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /data-webgl-ready="false"\] canvas\{opacity:0\}/);
   assert.match(css, /Recoverable WebGL fallback/);
   assert.match(css, /\[data-webgl-error="true"\] \.webgl-retry\{display:inline-flex\}/);
+  assert.match(css, /\[data-webgl-error="true"\] \.webgl-fallback-actions\{display:flex\}/);
+  assert.match(css, /\.museum-keyboard-exhibits:focus-within/);
   assert.match(css, /\.sound-drive-panel/);
   assert.match(css, /overscroll-behavior:contain/);
   assert.match(css, /\.hall-transition-leaving/);

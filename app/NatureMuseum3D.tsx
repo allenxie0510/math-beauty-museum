@@ -432,15 +432,34 @@ function polygonPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, radi
   ctx.closePath();
 }
 
-function drawMiniArtwork(ctx: CanvasRenderingContext2D, item: MuseumItem, width: number, height: number) {
+function roundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const corner = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + corner, y);
+  ctx.lineTo(x + width - corner, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + corner);
+  ctx.lineTo(x + width, y + height - corner);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - corner, y + height);
+  ctx.lineTo(x + corner, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - corner);
+  ctx.lineTo(x, y + corner);
+  ctx.quadraticCurveTo(x, y, x + corner, y);
+  ctx.closePath();
+}
+
+function drawMiniArtwork(ctx: CanvasRenderingContext2D, item: MuseumItem, width: number, height: number, centerY = height * .57, artworkScale = 1) {
   const cx = width * .5;
-  const cy = height * .57;
   ctx.save();
-  ctx.translate(cx, cy);
+  ctx.translate(cx, centerY);
+  ctx.scale(artworkScale, artworkScale);
   ctx.strokeStyle = item.color;
   ctx.fillStyle = item.color;
-  ctx.lineWidth = 5;
-  ctx.globalAlpha = .82;
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.globalAlpha = .62;
+  ctx.shadowColor = item.color;
+  ctx.shadowBlur = 18;
   if (item.visual === "golden" || item.visual === "phyllotaxis" || item.visual === "spiral") {
     ctx.beginPath();
     for (let t = 0; t < Math.PI * 8; t += .06) {
@@ -534,45 +553,82 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   canvas.width = 960;
   canvas.height = 1440;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#0b0e16";
+  const secondaryColor: Record<HallKey, string> = {
+    nature: "#6f8de8",
+    architecture: "#bd6fd8",
+    sound: "#55d5dd",
+    cosmos: "#ad7bde",
+  };
+  const baseGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  baseGradient.addColorStop(0, "#0d111b");
+  baseGradient.addColorStop(.62, "#080b13");
+  baseGradient.addColorStop(1, "#05070c");
+  ctx.fillStyle = baseGradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const topGlow = ctx.createLinearGradient(0, 0, canvas.width, canvas.height * .58);
-  topGlow.addColorStop(0, item.color + "4d");
-  topGlow.addColorStop(.5, "rgba(15,18,28,.74)");
-  topGlow.addColorStop(1, "rgba(6,8,14,.96)");
-  ctx.fillStyle = topGlow;
-  ctx.fillRect(0, 0, canvas.width, canvas.height * .58);
-  ctx.fillStyle = item.color;
-  ctx.font = "700 25px Arial, sans-serif";
-  ctx.fillText(hall.english + " / " + item.index, 64, 72);
-  ctx.font = "700 58px Arial, sans-serif";
-  ctx.fillText(item.name, 64, 168);
-  ctx.fillStyle = "#aeb7c7";
-  ctx.font = "600 21px Arial, sans-serif";
-  ctx.fillText(item.english.toUpperCase(), 64, 211);
-  ctx.strokeStyle = "rgba(255,255,255,.14)";
+
+  const posterX = 38;
+  const posterY = 36;
+  const posterWidth = canvas.width - posterX * 2;
+  const posterHeight = 970;
+  ctx.save();
+  roundedRectPath(ctx, posterX, posterY, posterWidth, posterHeight, 34);
+  ctx.clip();
+  const posterGradient = ctx.createLinearGradient(posterX, posterY, posterX + posterWidth, posterY + posterHeight);
+  posterGradient.addColorStop(0, item.color + "70");
+  posterGradient.addColorStop(.42, secondaryColor[hall.key] + "38");
+  posterGradient.addColorStop(.76, "rgba(16,20,31,.78)");
+  posterGradient.addColorStop(1, "rgba(7,10,17,.96)");
+  ctx.fillStyle = posterGradient;
+  ctx.fillRect(posterX, posterY, posterWidth, posterHeight);
+  const halo = ctx.createRadialGradient(canvas.width * .62, 530, 16, canvas.width * .62, 530, 520);
+  halo.addColorStop(0, "rgba(255,255,255,.16)");
+  halo.addColorStop(.42, item.color + "22");
+  halo.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(posterX, posterY, posterWidth, posterHeight);
+  ctx.strokeStyle = "rgba(255,255,255,.08)";
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(64, 254);
-  ctx.lineTo(896, 254);
+  for (let index = 0; index < 4; index++) {
+    ctx.beginPath();
+    ctx.arc(790, 250, 118 + index * 72, Math.PI * .62, Math.PI * 1.62);
+    ctx.stroke();
+  }
+  ctx.restore();
+  roundedRectPath(ctx, posterX, posterY, posterWidth, posterHeight, 34);
+  ctx.strokeStyle = "rgba(255,255,255,.11)";
+  ctx.lineWidth = 2;
   ctx.stroke();
+
   ctx.fillStyle = item.color;
-  ctx.font = "italic 54px Georgia, serif";
-  ctx.fillText(item.formula, 64, 350);
-  drawMiniArtwork(ctx, item, canvas.width, canvas.height);
-  ctx.fillStyle = "#f5f6fb";
-  ctx.font = "700 27px Arial, sans-serif";
-  ctx.fillText(item.discovery, 64, 1160);
-  ctx.fillStyle = "#9da7b8";
-  ctx.font = "500 22px Arial, sans-serif";
-  ctx.fillText("点击展板，打开互动实验与图形预览", 64, 1210);
+  ctx.font = "700 20px Arial, sans-serif";
+  ctx.fillText("MATHEMATICAL BEAUTY  ·  " + hall.index + "." + item.index, 76, 100);
+  ctx.fillStyle = "rgba(255,255,255,.94)";
+  ctx.font = "700 62px Arial, sans-serif";
+  ctx.fillText(item.name, 76, 194);
+  ctx.fillStyle = "rgba(255,255,255,.62)";
+  ctx.font = "600 23px Arial, sans-serif";
+  ctx.fillText(item.english.toUpperCase(), 76, 239);
   ctx.fillStyle = item.color;
-  ctx.fillRect(64, 1280, 180, 7);
+  ctx.font = "italic 46px Georgia, serif";
+  ctx.fillText(item.formula, 76, 326);
+  drawMiniArtwork(ctx, item, canvas.width, canvas.height, 670, 1.22);
+  ctx.fillStyle = "rgba(255,255,255,.38)";
+  ctx.font = "600 17px Arial, sans-serif";
+  ctx.fillText("FORM · NUMBER · PATTERN", 76, 952);
+
   ctx.fillStyle = "#f5f6fb";
-  ctx.font = "700 22px Arial, sans-serif";
-  ctx.fillText("EXPLORE", 64, 1350);
-  ctx.font = "700 35px Arial, sans-serif";
-  ctx.fillText("↗", 840, 1354);
+  ctx.font = "700 29px Arial, sans-serif";
+  ctx.fillText(item.discovery, 64, 1102);
+  ctx.fillStyle = "rgba(190,199,215,.72)";
+  ctx.font = "500 21px Arial, sans-serif";
+  ctx.fillText("点击展板，打开互动实验与图形预览", 64, 1152);
+  ctx.fillStyle = item.color;
+  ctx.fillRect(64, 1258, 128, 4);
+  ctx.fillStyle = "rgba(245,246,251,.86)";
+  ctx.font = "700 20px Arial, sans-serif";
+  ctx.fillText("EXPLORE", 64, 1338);
+  ctx.font = "400 34px Arial, sans-serif";
+  ctx.fillText("→", 842, 1340);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
@@ -591,7 +647,7 @@ function addBoard(parent: THREE.Object3D, item: MuseumItem, hall: HallDefinition
   group.add(panel);
   const face = new THREE.Mesh(
     new THREE.PlaneGeometry(3.08, 4.9),
-    new THREE.MeshBasicMaterial({ map: makeBoardTexture(item, hall), toneMapped: false }),
+    new THREE.MeshBasicMaterial({ map: makeBoardTexture(item, hall), toneMapped: false, transparent: true, opacity: .88 }),
   );
   face.position.z = .106;
   group.add(face);
@@ -661,6 +717,34 @@ function makeTextMaterial(text: string, color: string, fontSize = 118, square = 
     side: THREE.DoubleSide,
     roughness: .35,
     metalness: .08,
+  });
+}
+
+function makeChevronMaterial(color: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = .78;
+  ctx.lineWidth = 42;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(92, 344);
+  ctx.lineTo(256, 190);
+  ctx.lineTo(420, 344);
+  ctx.stroke();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  return new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: .72,
+    depthWrite: false,
+    toneMapped: false,
   });
 }
 
@@ -1060,7 +1144,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       new THREE.Vector3(0, .035, -91),
     ];
     const guideCurve = new THREE.CatmullRomCurve3(guidePoints);
-    const guide = new THREE.Mesh(new THREE.TubeGeometry(guideCurve, 260, .035, 8, false), glowMaterial("#ffe2b6", .9));
+    const guide = new THREE.Mesh(new THREE.TubeGeometry(guideCurve, 260, .022, 7, false), glowMaterial("#ffe2b6", .16));
     scene.add(guide);
 
     const ambientPoints: THREE.Vector3[] = [];
@@ -1079,28 +1163,15 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const entranceGuide = new THREE.Group();
     entranceGuide.position.set(0, .045, 8.15);
     entranceGuide.userData.museumAction = "enter-first-hall";
-    const entrancePlate = new THREE.Mesh(
-      new THREE.CircleGeometry(1.42, 64),
-      new THREE.MeshBasicMaterial({ color: "#111724", transparent: true, opacity: .72, side: THREE.DoubleSide }),
+    const entranceHitArea = new THREE.Mesh(
+      new THREE.CircleGeometry(1.55, 32),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
     );
-    entrancePlate.rotation.x = -Math.PI / 2;
-    entranceGuide.add(entrancePlate);
-    const entranceRing = new THREE.Mesh(new THREE.TorusGeometry(1.48, .055, 10, 96), glowMaterial("#ffe1ae", .95));
-    entranceRing.rotation.x = Math.PI / 2;
-    entranceRing.position.y = .035;
-    entranceGuide.add(entranceRing);
-    const arrowShape = new THREE.Shape();
-    arrowShape.moveTo(-.27, -.6);
-    arrowShape.lineTo(.27, -.6);
-    arrowShape.lineTo(.27, .08);
-    arrowShape.lineTo(.68, .08);
-    arrowShape.lineTo(0, .75);
-    arrowShape.lineTo(-.68, .08);
-    arrowShape.lineTo(-.27, .08);
-    arrowShape.closePath();
-    const entranceArrow = new THREE.Mesh(new THREE.ShapeGeometry(arrowShape), glowMaterial("#fff0ca", .98));
+    entranceHitArea.rotation.x = -Math.PI / 2;
+    entranceGuide.add(entranceHitArea);
+    const entranceArrow = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), makeChevronMaterial("#fff0ca"));
     entranceArrow.rotation.x = -Math.PI / 2;
-    entranceArrow.position.y = .075;
+    entranceArrow.position.y = .065;
     entranceGuide.add(entranceArrow);
     const entranceLabel = new THREE.Mesh(new THREE.PlaneGeometry(3.4, .72), makeTextMaterial("点击进入  ·  ENTER", "#fff0ce", 86));
     entranceLabel.rotation.x = -Math.PI / 2;
@@ -1246,7 +1317,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
         if (loadedHallIndex < 0) {
           const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
           entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
-          entranceRing.material.opacity = .78 + Math.sin(elapsed * 2.1) * .17;
+          entranceArrow.material.opacity = .62 + Math.sin(elapsed * 2.1) * .1;
           knot.rotation.set(elapsed * .13, elapsed * .19, elapsed * .09);
           knot.scale.set(1 + Math.sin(elapsed * .55) * .08, 1 + Math.sin(elapsed * .72 + 1) * .1, 1 + Math.sin(elapsed * .48 + 2) * .08);
         }

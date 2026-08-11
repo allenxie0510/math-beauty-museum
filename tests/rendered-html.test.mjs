@@ -105,6 +105,14 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /cosmosState/);
   assert.match(museum, /makePointCloud/);
   assert.match(museum, /function addHallHologram/);
+  assert.match(museum, /function buildHallScene/);
+  assert.match(museum, /let activeHallScene: HallSceneBundle \| null = null/);
+  assert.match(museum, /disposeObject\(activeHallScene\.root\)/);
+  assert.match(museum, /loadOnlyHall\(requestedHallIndex\)/);
+  assert.match(museum, /container\.dataset\.loadedHall/);
+  assert.match(museum, /container\.dataset\.targetFps = lowPower \? "30" : "60"/);
+  assert.match(museum, /const minimumFrameInterval = lowPower \? 1000 \/ 30 : 0/);
+  assert.match(museum, /if \(loadedHallIndex < 0\)/);
   assert.match(museum, /\["fibonacci", "architecture", "fourier", "galaxy"\]/);
   assert.match(museum, /new THREE\.SphereGeometry\(1\.78/);
   assert.match(museum, /transmission: lowPower \? \.18 : \.72/);

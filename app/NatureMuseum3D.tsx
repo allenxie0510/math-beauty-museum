@@ -407,8 +407,8 @@ function physical(color: string, options: Partial<THREE.MeshPhysicalMaterialPara
   return new THREE.MeshPhysicalMaterial({ color, roughness: .58, metalness: .02, clearcoat: .04, ...options });
 }
 
-function disposeScene(scene: THREE.Scene) {
-  scene.traverse((child) => {
+function disposeObject(root: THREE.Object3D) {
+  root.traverse((child) => {
     if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Line) && !(child instanceof THREE.Points)) return;
     child.geometry?.dispose();
     const materials = Array.isArray(child.material) ? child.material : [child.material];
@@ -579,7 +579,7 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   return texture;
 }
 
-function addBoard(scene: THREE.Scene, item: MuseumItem, hall: HallDefinition, position: THREE.Vector3, rotationY = 0) {
+function addBoard(parent: THREE.Object3D, item: MuseumItem, hall: HallDefinition, position: THREE.Vector3, rotationY = 0) {
   const group = new THREE.Group();
   const panel = new THREE.Mesh(new THREE.BoxGeometry(3.28, 5.08, .24), physical("#171a22", {
     roughness: .38,
@@ -598,8 +598,12 @@ function addBoard(scene: THREE.Scene, item: MuseumItem, hall: HallDefinition, po
   group.position.copy(position);
   group.rotation.y = rotationY;
   group.userData.itemId = item.id;
-  group.traverse((child) => { child.userData.itemId = item.id; });
-  scene.add(group);
+  const hallIndex = HALLS.indexOf(hall);
+  group.traverse((child) => {
+    child.userData.itemId = item.id;
+    child.userData.hallIndex = hallIndex;
+  });
+  parent.add(group);
 }
 
 const MUSEUM_CAMERA_STOPS = [
@@ -726,7 +730,7 @@ function addTextRing(
   parent.add(reflection);
 }
 
-function addPortal(scene: THREE.Scene, x: number, z: number, color: string, rotationY = 0) {
+function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, rotationY = 0) {
   const portal = new THREE.Group();
   [0, 1, 2].forEach((layer) => {
     const width = 5.8 + layer * .55;
@@ -745,7 +749,7 @@ function addPortal(scene: THREE.Scene, x: number, z: number, color: string, rota
   });
   portal.position.set(x, .04, z);
   portal.rotation.y = rotationY;
-  scene.add(portal);
+  parent.add(portal);
   return portal;
 }
 
@@ -772,7 +776,7 @@ function addParticleSegment(points: THREE.Vector3[], start: THREE.Vector3, end: 
   for (let step = 0; step <= steps; step++) points.push(start.clone().lerp(end, step / steps));
 }
 
-function addHallHologram(scene: THREE.Scene, hallIndex: number, center: THREE.Vector3, lowPower: boolean) {
+function addHallHologram(parent: THREE.Object3D, hallIndex: number, center: THREE.Vector3, lowPower: boolean) {
   const group = new THREE.Group();
   group.userData.hologram = hallIndex;
   group.userData.hologramMode = ["fibonacci", "architecture", "fourier", "galaxy"][hallIndex];
@@ -910,8 +914,71 @@ function addHallHologram(scene: THREE.Scene, hallIndex: number, center: THREE.Ve
   group.userData.particles = particles;
   group.add(particles);
   group.position.set(center.x - 6.2, 4.62, center.z - 2.15);
-  scene.add(group);
+  parent.add(group);
   return group;
+}
+
+type HallSceneBundle = {
+  root: THREE.Group;
+  hologram: THREE.Group;
+  portals: THREE.Group[];
+};
+
+function buildHallScene(hallIndex: number, lowPower: boolean): HallSceneBundle {
+  const hall = HALLS[hallIndex];
+  const center = HALL_CENTERS[hallIndex];
+  const accent = hall.accent;
+  const root = new THREE.Group();
+  root.userData.hallIndex = hallIndex;
+  root.name = `hall-${hall.key}`;
+
+  const wallMaterial = physical(hallIndex === 3 ? "#10131d" : "#232229", { roughness: .82, metalness: .06 });
+  const frostMaterial = physical(accent, {
+    roughness: .24,
+    transmission: lowPower ? .08 : .32,
+    transparent: true,
+    opacity: lowPower ? .24 : .32,
+    thickness: .8,
+    side: THREE.DoubleSide,
+  });
+
+  [-4.15, 0, 4.15].forEach((offset, boardIndex) => {
+    const backing = new THREE.Mesh(new THREE.BoxGeometry(3.72, 7.75, .22), wallMaterial.clone());
+    backing.position.set(center.x + offset, 3.88, center.z - 6.23);
+    backing.receiveShadow = true;
+    root.add(backing);
+    addBoard(root, hall.items[boardIndex], hall, new THREE.Vector3(center.x + offset, 3.55, center.z - 6.05));
+    const wash = new THREE.PointLight(accent, lowPower ? 2.4 : 4.8, 7.5, 2);
+    wash.position.set(center.x + offset, 6.8, center.z - 2.7);
+    root.add(wash);
+  });
+
+  [-8.55, 8.55].forEach((offset) => {
+    const partition = new THREE.Mesh(new THREE.BoxGeometry(.24, 7.7, 7.4), frostMaterial.clone());
+    partition.position.set(center.x + offset, 3.85, center.z - 1.9);
+    partition.rotation.y = offset < 0 ? -.16 : .16;
+    root.add(partition);
+    for (let rib = -3; rib <= 3; rib++) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(.035, 7.15, .055), glowMaterial(accent, .28));
+      line.position.set(center.x + offset + (offset < 0 ? .13 : -.13), 3.85, center.z - 1.9 + rib * .92);
+      root.add(line);
+    }
+  });
+
+  const nextCenter = HALL_CENTERS[Math.min(hallIndex + 1, HALL_CENTERS.length - 1)];
+  const portalX = hallIndex === 3 ? center.x + 7.1 : center.x + (nextCenter.x - center.x > 0 ? 7.1 : -7.1);
+  const portals = [addPortal(root, portalX, center.z - 7.15, accent)];
+  const hologram = addHallHologram(root, hallIndex, center, lowPower);
+  const label = new THREE.Mesh(
+    new THREE.PlaneGeometry(12.6, 1.575),
+    makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74, false, 2048),
+  );
+  label.position.set(center.x, 7.78, center.z - 6.08);
+  root.add(label);
+
+  wallMaterial.dispose();
+  frostMaterial.dispose();
+  return { root, hologram, portals };
 }
 
 function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
@@ -951,6 +1018,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     renderer.domElement.setAttribute("aria-label", "数学美学展连续 WebGL 展馆，可拖动视角并点击展板探索");
     container.appendChild(renderer.domElement);
     container.dataset.quality = lowPower ? "eco" : "standard";
+    container.dataset.targetFps = lowPower ? "30" : "60";
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#070910");
@@ -1149,60 +1217,38 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     atriumLight.position.set(0, 4.4, 1.2);
     scene.add(atriumLight);
 
-    const holograms: THREE.Group[] = [];
-    const portalGroups: THREE.Group[] = [];
-    HALLS.forEach((hall, index) => {
-      const center = HALL_CENTERS[index];
-      const accent = hall.accent;
-      const wallMaterial = physical(index === 3 ? "#10131d" : "#232229", { roughness: .82, metalness: .06 });
-      const frostMaterial = physical(accent, {
-        roughness: .24,
-        transmission: lowPower ? .08 : .32,
-        transparent: true,
-        opacity: lowPower ? .24 : .32,
-        thickness: .8,
-        side: THREE.DoubleSide,
-      });
-      [-4.15, 0, 4.15].forEach((offset, boardIndex) => {
-        const backing = new THREE.Mesh(new THREE.BoxGeometry(3.72, 7.75, .22), wallMaterial);
-        backing.position.set(center.x + offset, 3.88, center.z - 6.23);
-        backing.receiveShadow = true;
-        scene.add(backing);
-        addBoard(scene, hall.items[boardIndex], hall, new THREE.Vector3(center.x + offset, 3.55, center.z - 6.05));
-        const wash = new THREE.PointLight(accent, lowPower ? 3.6 : 6.5, 7.5, 2);
-        wash.position.set(center.x + offset, 6.8, center.z - 2.7);
-        scene.add(wash);
-      });
-      [-8.55, 8.55].forEach((offset) => {
-        const partition = new THREE.Mesh(new THREE.BoxGeometry(.24, 7.7, 7.4), frostMaterial);
-        partition.position.set(center.x + offset, 3.85, center.z - 1.9);
-        partition.rotation.y = offset < 0 ? -.16 : .16;
-        scene.add(partition);
-        for (let rib = -3; rib <= 3; rib++) {
-          const line = new THREE.Mesh(new THREE.BoxGeometry(.035, 7.15, .055), glowMaterial(accent, .28));
-          line.position.set(center.x + offset + (offset < 0 ? .13 : -.13), 3.85, center.z - 1.9 + rib * .92);
-          scene.add(line);
-        }
-      });
-      const nextCenter = HALL_CENTERS[Math.min(index + 1, HALL_CENTERS.length - 1)];
-      const portalX = index === 3 ? center.x + 7.1 : center.x + (nextCenter.x - center.x > 0 ? 7.1 : -7.1);
-      portalGroups.push(addPortal(scene, portalX, center.z - 7.15, accent));
-      holograms.push(addHallHologram(scene, index, center, lowPower));
-      const label = new THREE.Mesh(
-        new THREE.PlaneGeometry(12.6, 1.575),
-        makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74, false, 2048),
-      );
-      label.position.set(center.x, 7.78, center.z - 6.08);
-      scene.add(label);
-    });
-
-    const corridorFrames: THREE.Group[] = [];
     HALL_CENTERS.slice(0, -1).forEach((center, index) => {
       const next = HALL_CENTERS[index + 1];
       const x = (center.x + next.x) / 2;
       const z = (center.z + next.z) / 2;
-      corridorFrames.push(addPortal(scene, x, z, HALLS[index + 1].accent));
+      addPortal(scene, x, z, HALLS[index + 1].accent);
     });
+
+    let loadedHallIndex = Number.NaN;
+    let activeHallScene: HallSceneBundle | null = null;
+    const loadOnlyHall = (nextHallIndex: number) => {
+      if (nextHallIndex === loadedHallIndex) return;
+      if (activeHallScene) {
+        scene.remove(activeHallScene.root);
+        disposeObject(activeHallScene.root);
+        activeHallScene = null;
+      }
+
+      loadedHallIndex = nextHallIndex;
+      const atriumIsActive = nextHallIndex < 0;
+      atrium.visible = atriumIsActive;
+      continuum.visible = atriumIsActive;
+      entranceGuide.visible = atriumIsActive;
+      atriumLight.visible = atriumIsActive;
+
+      if (nextHallIndex >= 0 && nextHallIndex < HALLS.length) {
+        activeHallScene = buildHallScene(nextHallIndex, lowPower);
+        scene.add(activeHallScene.root);
+      }
+      container.dataset.loadedHall = atriumIsActive ? "atrium" : HALLS[nextHallIndex].key;
+      container.dataset.activeHallEffects = activeHallScene ? "1" : "0";
+    };
+    loadOnlyHall(hallIndexRef.current);
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -1241,14 +1287,10 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     renderer.domElement.addEventListener("webglcontextlost", contextLost);
     renderer.domElement.addEventListener("webglcontextrestored", contextRestored);
 
-    scene.traverse((object) => {
-      if (!object.userData.itemId) return;
-      const itemId = object.userData.itemId as string;
-      const itemHallIndex = HALLS.findIndex((entry) => entry.items.some((item) => item.id === itemId));
-      object.userData.hallIndex = itemHallIndex;
-    });
-
     let frame = 0;
+    let metricsFrame = 0;
+    let lastFrameAt = 0;
+    const minimumFrameInterval = lowPower ? 1000 / 30 : 0;
     let activeStop = 0;
     let transitionStarted = 0;
     const transitionFromPosition = camera.position.clone();
@@ -1256,10 +1298,14 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const clock = new THREE.Clock();
     let isSceneVisible = true;
     const stopObservingVisibility = observeElementVisibility(container, (visible) => { isSceneVisible = visible; });
-    const animate = () => {
+    const animate = (now = 0) => {
       frame = requestAnimationFrame(animate);
+      if (minimumFrameInterval && now - lastFrameAt < minimumFrameInterval) return;
+      lastFrameAt = now;
       if (!isSceneVisible || document.hidden || document.body.classList.contains("exhibit-mode")) return;
       const elapsed = clock.getElapsedTime();
+      const requestedHallIndex = Math.max(-1, Math.min(HALLS.length - 1, hallIndexRef.current));
+      loadOnlyHall(requestedHallIndex);
       const desiredStop = Math.max(0, Math.min(MUSEUM_CAMERA_STOPS.length - 1, hallIndexRef.current + 1));
       if (desiredStop !== activeStop) {
         activeStop = desiredStop;
@@ -1278,26 +1324,30 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
         controls.update();
       }
       if (!reducedMotion) {
-        const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
-        entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
-        entranceRing.material.opacity = .78 + Math.sin(elapsed * 2.1) * .17;
-        knot.rotation.set(elapsed * .13, elapsed * .19, elapsed * .09);
-        knot.scale.set(1 + Math.sin(elapsed * .55) * .08, 1 + Math.sin(elapsed * .72 + 1) * .1, 1 + Math.sin(elapsed * .48 + 2) * .08);
-        wire.rotation.set(-elapsed * .08, elapsed * .11, elapsed * .06);
-        continuumDust.rotation.y = -elapsed * .07;
-        const continuumPhase = elapsed / 3.5 % continuumStates.length;
-        continuumStates.forEach((state, index) => {
-          const rawDistance = Math.abs(continuumPhase - index);
-          const distance = Math.min(rawDistance, continuumStates.length - rawDistance);
-          const weight = Math.pow(Math.max(0, Math.cos(distance / continuumStates.length * Math.PI * 2)), 2);
-          state.scale.setScalar(.82 + weight * .26);
-          state.rotation.y += .0007 * (index % 2 ? -1 : 1);
-          const materials = state.userData.materials as THREE.Material[];
-          const baseOpacities = state.userData.baseOpacities as number[];
-          materials.forEach((material, materialIndex) => setMaterialOpacity(material, baseOpacities[materialIndex] * weight));
-        });
+        if (loadedHallIndex < 0) {
+          const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
+          entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
+          entranceRing.material.opacity = .78 + Math.sin(elapsed * 2.1) * .17;
+          knot.rotation.set(elapsed * .13, elapsed * .19, elapsed * .09);
+          knot.scale.set(1 + Math.sin(elapsed * .55) * .08, 1 + Math.sin(elapsed * .72 + 1) * .1, 1 + Math.sin(elapsed * .48 + 2) * .08);
+          wire.rotation.set(-elapsed * .08, elapsed * .11, elapsed * .06);
+          continuumDust.rotation.y = -elapsed * .07;
+          const continuumPhase = elapsed / 3.5 % continuumStates.length;
+          continuumStates.forEach((state, index) => {
+            const rawDistance = Math.abs(continuumPhase - index);
+            const distance = Math.min(rawDistance, continuumStates.length - rawDistance);
+            const weight = Math.pow(Math.max(0, Math.cos(distance / continuumStates.length * Math.PI * 2)), 2);
+            state.scale.setScalar(.82 + weight * .26);
+            state.rotation.y += .0007 * (index % 2 ? -1 : 1);
+            const materials = state.userData.materials as THREE.Material[];
+            const baseOpacities = state.userData.baseOpacities as number[];
+            materials.forEach((material, materialIndex) => setMaterialOpacity(material, baseOpacities[materialIndex] * weight));
+          });
+        }
         ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
-        holograms.forEach((hologram, index) => {
+        if (activeHallScene) {
+          const hologram = activeHallScene.hologram;
+          const index = loadedHallIndex;
           const particles = hologram.userData.particles as THREE.Points;
           const rings = hologram.userData.rings as THREE.Mesh[];
           const glass = hologram.userData.glass as THREE.Mesh;
@@ -1323,12 +1373,18 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
             }
             positions.needsUpdate = true;
           }
-        });
-        portalGroups.concat(corridorFrames).forEach((portal, index) => {
-          portal.scale.setScalar(1 + Math.sin(elapsed * .58 + index * .7) * .008);
-        });
+          activeHallScene.portals.forEach((portal, portalIndex) => {
+            portal.scale.setScalar(1 + Math.sin(elapsed * .58 + portalIndex * .7) * .008);
+          });
+        }
       }
       renderer.render(scene, camera);
+      metricsFrame++;
+      if (metricsFrame % 30 === 0) {
+        container.dataset.renderCalls = String(renderer.info.render.calls);
+        container.dataset.gpuGeometries = String(renderer.info.memory.geometries);
+        container.dataset.gpuTextures = String(renderer.info.memory.textures);
+      }
       if (container.dataset.webglReady !== "true") { container.dataset.webglReady = "true"; container.dataset.webglError = "false"; }
     };
     animate();
@@ -1349,7 +1405,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       renderer.domElement.removeEventListener("webglcontextrestored", contextRestored);
       controls.dispose();
-      disposeScene(scene);
+      disposeObject(scene);
       renderer.dispose();
       renderer.domElement.remove();
       delete container.dataset.webglReady;

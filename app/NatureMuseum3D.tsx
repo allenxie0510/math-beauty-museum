@@ -2177,6 +2177,7 @@ export function NatureMuseumWorld() {
   const transitionTimers = useRef<number[]>([]);
   const wheelAccumulator = useRef(0);
   const wheelCooldownUntil = useRef(0);
+  const galleryRef = useRef<HTMLElement>(null);
   const soundSignalRef = useRef<SoundSignal>({ ...EMPTY_SOUND_SIGNAL });
   const hall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const selected = useMemo(() => hall?.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
@@ -2191,7 +2192,7 @@ export function NatureMuseumWorld() {
     setDiscoveries((previous) => new Set(previous).add(id));
   }, []);
 
-  const switchHall = (direction: number) => {
+  const switchHall = useCallback((direction: number) => {
     document.body.classList.remove("site-nav-visible", "exhibit-nav-visible");
     if (transition !== "idle") return;
     if (direction < 0 && hallIndex <= -1) return;
@@ -2207,9 +2208,9 @@ export function NatureMuseumWorld() {
       transitionTimers.current.push(enterTimer);
     }, 180);
     transitionTimers.current.push(swapTimer);
-  };
+  }, [hallIndex, transition]);
 
-  const handleHallWheel = (event: React.WheelEvent<HTMLElement>) => {
+  const handleHallWheel = useCallback((event: WheelEvent) => {
     if (selectedId) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2223,11 +2224,23 @@ export function NatureMuseumWorld() {
     if (Math.sign(delta) !== Math.sign(wheelAccumulator.current)) wheelAccumulator.current = 0;
     wheelAccumulator.current += delta;
     if (Math.abs(wheelAccumulator.current) < 48) return;
-    const direction = wheelAccumulator.current > 0 ? 1 : -1;
+    const direction = wheelAccumulator.current > 0 ? -1 : 1;
     wheelAccumulator.current = 0;
     wheelCooldownUntil.current = now + 900;
     switchHall(direction);
-  };
+  }, [selectedId, switchHall, transition]);
+
+  useEffect(() => {
+    const gallery = galleryRef.current;
+    if (!gallery) return;
+    const handleMuseumWheel = (event: WheelEvent) => {
+      const bounds = gallery.getBoundingClientRect();
+      if (bounds.bottom <= 0 || bounds.top >= window.innerHeight) return;
+      handleHallWheel(event);
+    };
+    window.addEventListener("wheel", handleMuseumWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleMuseumWheel);
+  }, [handleHallWheel]);
 
   useEffect(() => {
     const body = document.body;
@@ -2347,12 +2360,12 @@ export function NatureMuseumWorld() {
 
   return (
     <section
+      ref={galleryRef}
       className={"nature-museum nature-museum-gallery hall-transition-" + transition + " hall-direction-" + transitionDirection}
       id="hall"
       aria-label={(hall?.name ?? "数学美学展序厅") + " WebGL 展厅"}
       data-hall={hall?.key ?? "atrium"}
       style={{ "--hall-accent": hall?.accent ?? "#9fb4ff" } as React.CSSProperties}
-      onWheel={handleHallWheel}
     >
       <MuseumCanvas hallIndex={hallIndex} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />

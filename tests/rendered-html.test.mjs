@@ -80,7 +80,13 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /switchHall\(1\)/);
   assert.match(museum, /const handleHallWheel/);
   assert.match(museum, /wheelAccumulator\.current \+= delta/);
-  assert.match(museum, /onWheel=\{handleHallWheel\}/);
+  assert.match(museum, /wheelAccumulator\.current > 0 \? -1 : 1/);
+  assert.match(museum, /const handleMuseumWheel/);
+  assert.match(museum, /bounds\.bottom <= 0 \|\| bounds\.top >= window\.innerHeight/);
+  assert.match(museum, /window\.addEventListener\("wheel", handleMuseumWheel, \{ passive: false \}\)/);
+  assert.match(museum, /window\.removeEventListener\("wheel", handleMuseumWheel\)/);
+  assert.match(museum, /ref=\{galleryRef\}/);
+  assert.doesNotMatch(museum, /onWheel=\{handleHallWheel\}/);
   assert.match(museum, /direction > 0 && hallIndex >= HALLS\.length - 1\) return/);
   assert.doesNotMatch(museum, /getElementById\("garden"\)\?\.scrollIntoView/);
   assert.match(museum, /已经位于最后一个展厅/);

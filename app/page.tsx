@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { MathGardenWorld } from "./MathGarden3D";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { NatureMuseumWorld } from "./NatureMuseum3D";
+
+const LazyMathGardenWorld = lazy(async () => {
+  const gardenModule = await import("./MathGarden3D");
+  return { default: gardenModule.MathGardenWorld };
+});
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -10,6 +14,47 @@ function scrollToId(id: string) {
 
 function Mark({ children }: { children: React.ReactNode }) {
   return <span className="eyebrow">{children}</span>;
+}
+
+function GardenLoading() {
+  return (
+    <section className="garden-world" id="garden" aria-busy="true" aria-label="数学探索花园正在准备">
+      <div className="garden-webgl garden-webgl-loading"><div className="webgl-fallback">正在准备数学花园 · MATHEMATICAL GARDEN</div></div>
+      <div className="garden-sky-title"><span>THE MATHEMATICAL GARDEN</span><h2>数学探索花园</h2><p>抵达这里时，3D 花园将自动开启</p></div>
+    </section>
+  );
+}
+
+function DeferredMathGarden({ onProgress }: { onProgress: (count: number) => void }) {
+  const trigger = useRef<HTMLElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    const section = trigger.current;
+    if (shouldLoad || !section) return;
+    if (!("IntersectionObserver" in window)) {
+      const timer = window.setTimeout(() => setShouldLoad(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setShouldLoad(true);
+      observer.disconnect();
+    }, { rootMargin: "240px 0px", threshold: 0 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  if (!shouldLoad) {
+    return (
+      <section className="garden-world" id="garden" ref={trigger} aria-busy="true" aria-label="数学探索花园尚未载入">
+        <div className="garden-webgl garden-webgl-loading"><div className="webgl-fallback">向下探索，数学花园将在抵达前开启</div></div>
+        <div className="garden-sky-title"><span>THE MATHEMATICAL GARDEN</span><h2>数学探索花园</h2><p>八件数学生命体正在等待被发现</p></div>
+      </section>
+    );
+  }
+
+  return <Suspense fallback={<GardenLoading />}><LazyMathGardenWorld onProgress={onProgress} /></Suspense>;
 }
 
 function Certificate({ name, setName, close }: { name: string; setName: (name: string) => void; close: () => void }) {
@@ -86,7 +131,7 @@ export default function Home() {
       </header>
 
       <NatureMuseumWorld />
-      <MathGardenWorld onProgress={updateGardenProgress} />
+      <DeferredMathGarden onProgress={updateGardenProgress} />
 
       {unlockNotice && (
         <div className="certificate-unlock-toast" role="status">

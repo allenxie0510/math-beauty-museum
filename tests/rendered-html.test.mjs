@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -173,9 +173,23 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /--hall-accent/);
   assert.match(page, />四展馆</);
   assert.match(page, /<NatureMuseumWorld \/>/);
-  assert.match(page, /<MathGardenWorld/);
+  assert.match(page, /lazy\(async \(\) =>/);
+  assert.match(page, /import\("\.\/MathGarden3D"\)/);
+  assert.match(page, /<DeferredMathGarden/);
+  assert.match(page, /rootMargin: "240px 0px"/);
   assert.doesNotMatch(page, /GoldenFlower|FractalForest|GeometryBuilder|FourierSound|SpiralUniverse|journey-intro/);
   assert.match(layout, /Math Beauty Museum/);
   assert.match(layout, /viewportFit: "cover"/);
   assert.doesNotMatch(layout, /codex-preview|Starter Project/);
+});
+
+test("defers the mathematical garden bundle until the visitor approaches it", async () => {
+  const chunkDirectory = new URL("../dist/client/_next/static/chunks/", import.meta.url);
+  const files = await readdir(chunkDirectory);
+  const gardenChunk = files.find((file) => file.startsWith("MathGarden3D-") && file.endsWith(".js"));
+  const pageChunk = files.find((file) => file.startsWith("page-") && file.endsWith(".js"));
+  assert.ok(gardenChunk, "the garden should be emitted as its own lazy chunk");
+  assert.ok(pageChunk, "the page entry chunk should exist");
+  const pageSize = (await stat(new URL(pageChunk, chunkDirectory))).size;
+  assert.ok(pageSize < 200 * 1024, `the initial page chunk should stay compact; received ${pageSize} bytes`);
 });

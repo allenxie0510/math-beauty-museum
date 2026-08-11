@@ -645,19 +645,75 @@ function makeTextMaterial(text: string, color: string, fontSize = 118, square = 
   return new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
 }
 
-function addTextRing(parent: THREE.Group, text: string, radius: number, y: number, color: string, scale: number, offset = 0) {
+function addTextRing(
+  parent: THREE.Group,
+  text: string,
+  radius: number,
+  y: number,
+  color: string,
+  scale: number,
+  offset = 0,
+  repeatCount = 2,
+  phraseArc = Math.PI * .72,
+) {
   const characters = Array.from(text);
-  characters.forEach((character, index) => {
-    const angle = offset + index / characters.length * Math.PI * 2;
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(scale, scale), makeTextMaterial(character, color, 178, true));
-    mesh.position.set(Math.sin(angle) * radius, y, Math.cos(angle) * radius);
-    mesh.rotation.y = angle;
-    parent.add(mesh);
+  const weights = characters.map((character) => character === " " ? .48 : 1);
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+  const repeatGap = (Math.PI * 2 - phraseArc * repeatCount) / repeatCount;
+  let cursor = offset;
+
+  for (let repeat = 0; repeat < repeatCount; repeat++) {
+    characters.forEach((character, index) => {
+      const characterArc = phraseArc * weights[index] / weightTotal;
+      if (character !== " ") {
+        const angle = cursor + characterArc / 2;
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(scale, scale), makeTextMaterial(character, color, 178, true));
+        mesh.position.set(Math.sin(angle) * (radius + .055), y, Math.cos(angle) * (radius + .055));
+        mesh.rotation.y = angle;
+        parent.add(mesh);
+      }
+      cursor += characterArc;
+    });
+    cursor += repeatGap;
+  }
+
+  const bandHeight = scale * 1.16;
+  const glass = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, bandHeight, 160, 1, true),
+    physical(color, {
+      roughness: .08,
+      metalness: .08,
+      transmission: .78,
+      transparent: true,
+      opacity: .24,
+      thickness: .6,
+      ior: 1.42,
+      clearcoat: 1,
+      clearcoatRoughness: .07,
+      emissive: color,
+      emissiveIntensity: .055,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
+  glass.position.y = y;
+  glass.renderOrder = -1;
+  parent.add(glass);
+
+  [-1, 1].forEach((edge) => {
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(radius, .032, 8, 160), glowMaterial(color, .66));
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = y + edge * bandHeight * .5;
+    parent.add(rim);
   });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .025, 8, 160), glowMaterial(color, .72));
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = y - scale * .35;
-  parent.add(ring);
+
+  const reflection = new THREE.Mesh(
+    new THREE.TorusGeometry(radius + .018, .012, 6, 160),
+    glowMaterial("#ffffff", .44),
+  );
+  reflection.rotation.x = Math.PI / 2;
+  reflection.position.y = y + bandHeight * .28;
+  parent.add(reflection);
 }
 
 function addPortal(scene: THREE.Scene, x: number, z: number, color: string, rotationY = 0) {
@@ -840,8 +896,8 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     scene.add(ambientParticles);
 
     const atrium = new THREE.Group();
-    addTextRing(atrium, "MATH BEAUTY MUSEUM", 5.45, 8.15, "#f4f2ff", .96, 0);
-    addTextRing(atrium, "数学美学展", 3.7, 7.25, "#b8c9ff", 1.08, .18);
+    addTextRing(atrium, "MATH BEAUTY MUSEUM", 5.45, 8.15, "#f4f2ff", .96, 0, 2, 2.36);
+    addTextRing(atrium, "数学美学展", 3.7, 7.25, "#b8c9ff", 1.08, .18, 2, 1.52);
     scene.add(atrium);
 
     const entranceGuide = new THREE.Group();

@@ -766,12 +766,6 @@ function makePointCloud(points: THREE.Vector3[], color: string, size = .08, opac
   }));
 }
 
-function setMaterialOpacity(material: THREE.Material, opacity: number) {
-  material.transparent = true;
-  material.opacity = opacity;
-  material.depthWrite = false;
-}
-
 function addParticleSegment(points: THREE.Vector3[], start: THREE.Vector3, end: THREE.Vector3, steps = 18) {
   for (let step = 0; step <= steps; step++) points.push(start.clone().lerp(end, step / steps));
 }
@@ -1124,94 +1118,16 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
 
     const continuum = new THREE.Group();
     continuum.position.set(0, 3.35, .25);
-    const continuumMaterials = [
+    const knot = new THREE.Mesh(
+      new THREE.TorusKnotGeometry(1.72, .42, lowPower ? 90 : 180, lowPower ? 14 : 28, 2, 3),
       physical("#d8e6ff", { roughness: .15, metalness: .08, transmission: .62, transparent: true, opacity: .86, thickness: .8, emissive: "#667dcc", emissiveIntensity: .35 }),
-      new THREE.MeshBasicMaterial({ color: "#c4d0ff", wireframe: true, transparent: true, opacity: .42, toneMapped: false }),
-      new THREE.PointsMaterial({ color: "#ee9ed5", size: .055, transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending }),
-    ];
-    const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(1.72, .42, lowPower ? 90 : 180, lowPower ? 14 : 28, 2, 3), continuumMaterials[0]);
-    const wire = new THREE.Mesh(new THREE.IcosahedronGeometry(2.15, lowPower ? 1 : 2), continuumMaterials[1]);
-    const continuumPoints: THREE.Vector3[] = [];
-    for (let i = 0; i < (lowPower ? 220 : 520); i++) {
-      const t = i / (lowPower ? 220 : 520) * Math.PI * 12;
-      const radius = 1.8 + Math.sin(t * .37) * .52;
-      continuumPoints.push(new THREE.Vector3(Math.cos(t) * radius, Math.sin(t * 1.5) * 1.25, Math.sin(t) * radius));
-    }
-    const continuumDust = new THREE.Points(new THREE.BufferGeometry().setFromPoints(continuumPoints), continuumMaterials[2]);
-    continuum.add(knot, wire, continuumDust);
-
-    const continuumStates: THREE.Group[] = [];
-    const registerContinuumState = (state: THREE.Group, materials: THREE.Material[]) => {
-      state.userData.materials = materials;
-      state.userData.baseOpacities = materials.map((material) => material.opacity);
-      continuumStates.push(state);
-      continuum.add(state);
-    };
-
-    const naturalState = new THREE.Group();
-    const naturalPoints: THREE.Vector3[] = [];
-    for (let i = 0; i < (lowPower ? 150 : 360); i++) {
-      const angle = i * THREE.MathUtils.degToRad(137.508);
-      const radius = .075 * Math.sqrt(i);
-      naturalPoints.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, Math.sin(i * .31) * .3));
-    }
-    const naturalCloud = makePointCloud(naturalPoints, "#bce878", .075, .9);
-    naturalState.add(naturalCloud);
-    registerContinuumState(naturalState, [naturalCloud.material]);
-
-    const architectureState = new THREE.Group();
-    const architectureMaterials: THREE.Material[] = [];
-    for (let arch = -2; arch <= 2; arch++) {
-      const points: THREE.Vector3[] = [];
-      for (let step = 0; step <= 46; step++) {
-        const x = step / 46 * 4.5 - 2.25;
-        points.push(new THREE.Vector3(x, 1.15 - Math.cosh(x * .72) * .34, arch * .28));
-      }
-      const material = glowMaterial(arch % 2 ? "#ffc77e" : "#f5e1b7", .72);
-      architectureMaterials.push(material);
-      architectureState.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 80, .026, 7, false), material));
-    }
-    registerContinuumState(architectureState, architectureMaterials);
-
-    const soundState = new THREE.Group();
-    const soundMaterials: THREE.Material[] = [];
-    for (let wave = 0; wave < 3; wave++) {
-      const points: THREE.Vector3[] = [];
-      for (let step = 0; step <= 72; step++) {
-        const x = step / 72 * 4.8 - 2.4;
-        points.push(new THREE.Vector3(x, Math.sin(x * (2.2 + wave * .75)) * (.48 - wave * .07), (wave - 1) * .34));
-      }
-      const material = glowMaterial(wave === 1 ? "#64e7ff" : "#f28acb", .78);
-      soundMaterials.push(material);
-      soundState.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 100, .03, 8, false), material));
-    }
-    registerContinuumState(soundState, soundMaterials);
-
-    const cosmosState = new THREE.Group();
-    const cosmosPoints: THREE.Vector3[] = [];
-    for (let i = 0; i < (lowPower ? 200 : 520); i++) {
-      const arm = i % 3;
-      const progress = i / (lowPower ? 200 : 520);
-      const theta = progress * Math.PI * 9 + arm * Math.PI * 2 / 3;
-      const radius = .12 + progress * 2.55;
-      cosmosPoints.push(new THREE.Vector3(Math.cos(theta) * radius, Math.sin(theta) * radius * .62, Math.sin(progress * Math.PI * 7) * .26));
-    }
-    const cosmosCloud = makePointCloud(cosmosPoints, "#a6b6ff", .065, .88);
-    cosmosState.add(cosmosCloud);
-    registerContinuumState(cosmosState, [cosmosCloud.material]);
-
-    continuumStates.forEach((state, index) => {
-      state.rotation.set(index * .18, index * .26, index * .12);
-      (state.userData.materials as THREE.Material[]).forEach((material) => setMaterialOpacity(material, index === 0 ? material.opacity : 0));
-    });
+    );
+    knot.castShadow = !lowPower;
+    continuum.add(knot);
     const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 3.15, .28, 80), physical("#181920", { roughness: .24, metalness: .48, clearcoat: .32 }));
     pedestal.position.y = -2.55;
     pedestal.receiveShadow = true;
     continuum.add(pedestal);
-    const pedestalHalo = new THREE.Mesh(new THREE.TorusGeometry(2.82, .04, 8, 120), glowMaterial("#d7b6ff", .92));
-    pedestalHalo.rotation.x = Math.PI / 2;
-    pedestalHalo.position.y = -2.38;
-    continuum.add(pedestalHalo);
     scene.add(continuum);
     const atriumLight = new THREE.PointLight("#8ea4ff", 32, 18, 2);
     atriumLight.position.set(0, 4.4, 1.2);
@@ -1330,19 +1246,6 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
           entranceRing.material.opacity = .78 + Math.sin(elapsed * 2.1) * .17;
           knot.rotation.set(elapsed * .13, elapsed * .19, elapsed * .09);
           knot.scale.set(1 + Math.sin(elapsed * .55) * .08, 1 + Math.sin(elapsed * .72 + 1) * .1, 1 + Math.sin(elapsed * .48 + 2) * .08);
-          wire.rotation.set(-elapsed * .08, elapsed * .11, elapsed * .06);
-          continuumDust.rotation.y = -elapsed * .07;
-          const continuumPhase = elapsed / 3.5 % continuumStates.length;
-          continuumStates.forEach((state, index) => {
-            const rawDistance = Math.abs(continuumPhase - index);
-            const distance = Math.min(rawDistance, continuumStates.length - rawDistance);
-            const weight = Math.pow(Math.max(0, Math.cos(distance / continuumStates.length * Math.PI * 2)), 2);
-            state.scale.setScalar(.82 + weight * .26);
-            state.rotation.y += .0007 * (index % 2 ? -1 : 1);
-            const materials = state.userData.materials as THREE.Material[];
-            const baseOpacities = state.userData.baseOpacities as number[];
-            materials.forEach((material, materialIndex) => setMaterialOpacity(material, baseOpacities[materialIndex] * weight));
-          });
         }
         ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
         if (activeHallScene) {

@@ -97,12 +97,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /MATH BEAUTY MUSEUM/);
   assert.match(museum, /数学美学展/);
   assert.match(museum, /new THREE\.TorusKnotGeometry/);
-  assert.match(museum, /continuumStates/);
-  assert.match(museum, /continuumPhase = elapsed \/ 3\.5/);
-  assert.match(museum, /naturalState/);
-  assert.match(museum, /architectureState/);
-  assert.match(museum, /soundState/);
-  assert.match(museum, /cosmosState/);
+  assert.match(museum, /const pedestal = new THREE\.Mesh/);
+  assert.doesNotMatch(museum, /continuumStates|continuumDust|pedestalHalo/);
+  assert.doesNotMatch(museum, /new THREE\.IcosahedronGeometry\(2\.15/);
   assert.match(museum, /makePointCloud/);
   assert.match(museum, /function addHallHologram/);
   assert.match(museum, /function buildHallScene/);

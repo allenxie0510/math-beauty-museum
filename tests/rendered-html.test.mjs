@@ -41,13 +41,14 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, page, layout, css, audio] = await Promise.all([
+  const [museum, garden, page, layout, css, audio, viewport] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/audio.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/viewport.ts", import.meta.url), "utf8"),
   ]);
 
   for (const hall of ["自然数学馆", "建筑数学馆", "声音数学馆", "宇宙数学馆"]) {
@@ -129,7 +130,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(garden, /const geometries=new Set<THREE\.BufferGeometry>/);
   assert.match(garden, /gardenCanvasReady/);
   assert.match(garden, /intersectionRatio>=\.01/);
-  assert.match(garden, /visibilityObserver\.disconnect\(\)/);
+  assert.match(garden, /stopObservingVisibility\(\)/);
   assert.match(museum, /document\.body\.classList\.contains\("exhibit-mode"\)/);
   assert.match(museum, /<select/);
   assert.match(museum, /className="sound-clip-select"/);
@@ -141,6 +142,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(garden, /pondAudioContext\.current\?\.suspend\(\)/);
   assert.match(audio, /webkitAudioContext/);
   assert.match(audio, /context\.state !== "running"/);
+  assert.match(museum, /observeElementSize\(container, resize\)/);
+  assert.match(museum, /observeElementSize\(canvas, resize\)/);
+  assert.match(viewport, /"ResizeObserver" in window/);
+  assert.match(viewport, /orientationchange/);
+  assert.match(viewport, /window\.visualViewport\?\.addEventListener\("resize"/);
+  assert.match(viewport, /if \(!\("IntersectionObserver" in window\)\)/);
   assert.match(museum, /context\.createAnalyser\(\)/);
   assert.match(museum, /id: "crystal"/);
   assert.match(museum, /id: "pulse"/);

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
+import { observeElementSize, observeElementVisibility } from "./viewport";
 
 type HallKey = "nature" | "architecture" | "sound" | "cosmos";
 type VisualKind =
@@ -1147,10 +1148,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const transitionFromTarget = controls.target.clone();
     const clock = new THREE.Clock();
     let isSceneVisible = true;
-    const visibilityObserver = new IntersectionObserver(([entry]) => {
-      isSceneVisible = entry.isIntersecting && entry.intersectionRatio > 0;
-    }, { threshold: .01 });
-    visibilityObserver.observe(container);
+    const stopObservingVisibility = observeElementVisibility(container, (visible) => { isSceneVisible = visible; });
     const animate = () => {
       frame = requestAnimationFrame(animate);
       if (!isSceneVisible || document.hidden || document.body.classList.contains("exhibit-mode")) return;
@@ -1213,12 +1211,11 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
       renderer.setSize(container.clientWidth, container.clientHeight);
     };
-    const observer = new ResizeObserver(resize);
-    observer.observe(container);
+    const stopObservingResize = observeElementSize(container, resize);
     return () => {
       cancelAnimationFrame(frame);
-      observer.disconnect();
-      visibilityObserver.disconnect();
+      stopObservingResize();
+      stopObservingVisibility();
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
@@ -1963,11 +1960,10 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.25 : 2));
       renderer.setSize(container.clientWidth, container.clientHeight);
     };
-    const observer = new ResizeObserver(resize);
-    observer.observe(container);
+    const stopObservingResize = observeElementSize(container, resize);
     return () => {
       cancelAnimationFrame(frame);
-      observer.disconnect();
+      stopObservingResize();
       controls.dispose();
       starGeometry.dispose();
       starMaterial.dispose();
@@ -2032,11 +2028,9 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
       window.cancelAnimationFrame(raf);
       render();
     };
-    const observer = new ResizeObserver(resize);
-    observer.observe(canvas);
-    resize();
+    const stopObservingResize = observeElementSize(canvas, resize);
     return () => {
-      observer.disconnect();
+      stopObservingResize();
       window.cancelAnimationFrame(raf);
     };
   }, [item, settings, signalRef]);

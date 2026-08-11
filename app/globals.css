@@ -200,6 +200,44 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
   input[type=range]::-webkit-slider-thumb{width:28px;height:28px}
 }
 
+/* Mobile child-friendly readability and cross-browser touch targets */
+@media(max-width:700px){
+  .brand{min-height:44px}
+  .nature-museum-gallery .nature-museum-title>span{font-size:9px;letter-spacing:.14em}
+  .nature-museum-gallery .nature-museum-title>strong{font-size:9px;letter-spacing:.14em}
+  .nature-museum-gallery .nature-museum-title p{font-size:10px}
+  .nature-museum-gallery .nature-progress p{font-size:9px}
+  .museum-route-indicator span{font-size:8px}
+  .immersive-lab-header .nature-lab-heading p{font-size:8px}
+  .immersive-lab-header .nature-lab-formula .nature-lab-live-vars>span{font-size:9px;padding:4px 6px}
+  .nature-lab-live-vars span i{font-size:11px}
+  .nature-lab-try>span{font-size:9px}
+  .nature-lab-try .nature-console-actions button{font-size:9px}
+  .nature-lab-control>span{font-size:10px}
+  .nature-lab-control b{font-size:11px}
+  .nature-lab-control small{font-size:9px}
+  .nature-control-name em{font-size:12px}
+  .sound-drive-heading span{font-size:10px}
+  .sound-drive-heading>b{font-size:8px}
+  .sound-clip-select>span,.sound-level-row{font-size:9px}
+  .sound-clip-select select,.sound-source-actions button{font-size:10px}
+  .sound-drive-status{font-size:9px;white-space:normal}
+  .sound-privacy-note{font-size:8px}
+  .garden-sky-title>span{font-size:8px;letter-spacing:.15em}
+  .garden-dock button>span{font-size:10px}
+  .garden-panel-index{font-size:9px}
+  .garden-object-name small,.garden-formula span{font-size:9px}
+  .garden-explanation{font-size:12px}
+  .garden-control>span{font-size:11px}
+  .garden-control b{font-size:12px}
+  .golden-ratio-target,.golden-ratio-target strong{font-size:9px}
+  .garden-reward span{font-size:10px}
+  .pond-sound-button span{font-size:10px}
+  .pond-sound-button small{font-size:9px}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px}
+  .nature-lab-control input::-moz-range-thumb{width:20px;height:20px}
+}
+
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
 /* Lightweight first frame while the WebGL museum engine arrives */

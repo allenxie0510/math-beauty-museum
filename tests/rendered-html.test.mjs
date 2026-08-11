@@ -177,6 +177,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.galaxy-3d-preview/);
   assert.match(css, /safe-area-inset-top/);
   assert.match(css, /height:100dvh/);
+  assert.match(css, /Mobile child-friendly readability and cross-browser touch targets/);
+  assert.match(css, /\.brand\{min-height:44px\}/);
+  assert.match(css, /\.nature-lab-control>span\{font-size:10px\}/);
+  assert.match(css, /input\[type=range\]::-moz-range-thumb\{width:20px;height:20px\}/);
   assert.match(css, /data-webgl-ready="false"\] canvas\{opacity:0\}/);
   assert.match(css, /\.sound-drive-panel/);
   assert.match(css, /overscroll-behavior:contain/);

@@ -1000,6 +1000,7 @@ function addHallHologram(parent: THREE.Object3D, hallIndex: number, center: THRE
   particles.userData.hologramParticles = true;
   group.userData.particles = particles;
   group.add(particles);
+  group.scale.setScalar(.8);
   group.position.set(center.x - 6.2, 4.62, center.z - 2.15);
   parent.add(group);
   return group;
@@ -1205,10 +1206,66 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     );
     knot.castShadow = !lowPower;
     continuum.add(knot);
-    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 3.15, .28, 80), physical("#181920", { roughness: .24, metalness: .48, clearcoat: .32 }));
-    pedestal.position.y = -2.55;
-    pedestal.receiveShadow = true;
-    continuum.add(pedestal);
+
+    const displayRing = new THREE.Mesh(
+      new THREE.TorusGeometry(2.72, .045, 8, lowPower ? 72 : 128),
+      glowMaterial("#66c8ff", .72),
+    );
+    displayRing.rotation.x = Math.PI / 2;
+    displayRing.position.y = -3.27;
+    continuum.add(displayRing);
+    const displayRingGlow = new THREE.Mesh(
+      new THREE.TorusGeometry(2.72, .14, 8, lowPower ? 72 : 128),
+      glowMaterial("#3d79ff", .1),
+    );
+    displayRingGlow.rotation.x = Math.PI / 2;
+    displayRingGlow.position.y = -3.285;
+    continuum.add(displayRingGlow);
+
+    const beamSource = new THREE.Vector3(-4.6, 7.2, 3.4);
+    const beamTarget = new THREE.Vector3(0, .05, 0);
+    const beamAxis = beamSource.clone().sub(beamTarget);
+    const beamLength = beamAxis.length();
+    const beamRig = new THREE.Group();
+    beamRig.position.copy(beamSource).add(beamTarget).multiplyScalar(.5);
+    beamRig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), beamAxis.clone().normalize());
+    const beamMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
+      color: "#79cfff",
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    });
+    const outerBeam = new THREE.Mesh(
+      new THREE.CylinderGeometry(.12, 2.4, beamLength, lowPower ? 20 : 40, 1, true),
+      beamMaterial(lowPower ? .022 : .032),
+    );
+    const innerBeam = new THREE.Mesh(
+      new THREE.CylinderGeometry(.06, 1.18, beamLength, lowPower ? 16 : 32, 1, true),
+      beamMaterial(lowPower ? .035 : .055),
+    );
+    beamRig.add(outerBeam, innerBeam);
+    const beamDustPoints: THREE.Vector3[] = [];
+    const beamDustCount = lowPower ? 28 : 68;
+    for (let index = 0; index < beamDustCount; index++) {
+      const progress = (index + .5) / beamDustCount;
+      const radius = (1 - progress) * 1.9 + .04;
+      const angle = index * 2.399963;
+      const drift = (Math.sin(index * 17.13) * .5 + .5) * radius;
+      beamDustPoints.push(new THREE.Vector3(
+        Math.cos(angle) * drift,
+        -beamLength / 2 + progress * beamLength,
+        Math.sin(angle) * drift,
+      ));
+    }
+    beamRig.add(makePointCloud(beamDustPoints, "#d6f3ff", lowPower ? .025 : .032, .28));
+    continuum.add(beamRig);
+    const beamSpot = new THREE.SpotLight("#7dcfff", lowPower ? 28 : 54, 16, Math.PI * .16, .72, 1.35);
+    beamSpot.position.copy(beamSource);
+    beamSpot.target.position.copy(beamTarget);
+    continuum.add(beamSpot, beamSpot.target);
     scene.add(continuum);
     const atriumLight = new THREE.PointLight("#8ea4ff", 32, 18, 2);
     atriumLight.position.set(0, 4.4, 1.2);
@@ -2449,14 +2506,6 @@ export function NatureMuseumWorld() {
     >
       <MuseumCanvas hallIndex={hallIndex} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />
-      {!hall && (
-        <div className="nature-museum-title atrium-title">
-          <span>THE LANGUAGE BEHIND BEAUTY · PROLOGUE</span>
-          <h2>数学美学展</h2>
-          <strong>MATH BEAUTY MUSEUM</strong>
-          <p>从连续体出发，沿着光的路径进入四个数学世界 · 点击地面指引进入第一展馆</p>
-        </div>
-      )}
       <div className="nature-progress" aria-label={hall ? "已经发现 " + currentDiscoveries + " 个" + hall.category : "数学美学展序厅"}>
         <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
         <p>{hall?.category ?? "参观序章"}<br /><b>{hall ? currentDiscoveries === 3 ? "全部发现" : "等待探索" : "连续体正在变化"}</b></p>

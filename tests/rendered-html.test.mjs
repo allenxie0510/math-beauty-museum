@@ -104,6 +104,13 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /soundState/);
   assert.match(museum, /cosmosState/);
   assert.match(museum, /makePointCloud/);
+  assert.match(museum, /function addHallHologram/);
+  assert.match(museum, /\["fibonacci", "architecture", "fourier", "galaxy"\]/);
+  assert.match(museum, /new THREE\.SphereGeometry\(1\.78/);
+  assert.match(museum, /transmission: lowPower \? \.18 : \.72/);
+  assert.match(museum, /particles\.userData\.waveSamples/);
+  assert.match(museum, /positions\.needsUpdate = true/);
+  assert.doesNotMatch(museum, /addHallSignature/);
   assert.match(museum, /transmission:/);
   assert.match(museum, /type="range"/);
   assert.equal((museum.match(/symbol: "/g) ?? []).length, 37);

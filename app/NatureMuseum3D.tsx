@@ -409,7 +409,7 @@ function physical(color: string, options: Partial<THREE.MeshPhysicalMaterialPara
 
 function disposeScene(scene: THREE.Scene) {
   scene.traverse((child) => {
-    if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.LineSegments)) return;
+    if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Line) && !(child instanceof THREE.Points)) return;
     child.geometry?.dispose();
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((entry) => {
@@ -768,49 +768,148 @@ function setMaterialOpacity(material: THREE.Material, opacity: number) {
   material.depthWrite = false;
 }
 
-function addHallSignature(scene: THREE.Scene, hallIndex: number, center: THREE.Vector3) {
+function addParticleSegment(points: THREE.Vector3[], start: THREE.Vector3, end: THREE.Vector3, steps = 18) {
+  for (let step = 0; step <= steps; step++) points.push(start.clone().lerp(end, step / steps));
+}
+
+function addHallHologram(scene: THREE.Scene, hallIndex: number, center: THREE.Vector3, lowPower: boolean) {
   const group = new THREE.Group();
-  group.userData.signature = hallIndex;
+  group.userData.hologram = hallIndex;
+  group.userData.hologramMode = ["fibonacci", "architecture", "fourier", "galaxy"][hallIndex];
   const color = HALLS[hallIndex].accent;
+
+  const glass = new THREE.Mesh(
+    new THREE.SphereGeometry(1.78, lowPower ? 28 : 52, lowPower ? 18 : 36),
+    physical(color, {
+      roughness: .06,
+      metalness: .04,
+      transmission: lowPower ? .18 : .72,
+      transparent: true,
+      opacity: lowPower ? .16 : .12,
+      thickness: .52,
+      ior: 1.38,
+      clearcoat: 1,
+      clearcoatRoughness: .05,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
+  glass.renderOrder = 2;
+  group.add(glass);
+
+  const innerGrid = new THREE.Mesh(
+    new THREE.SphereGeometry(1.67, lowPower ? 18 : 30, lowPower ? 12 : 20),
+    new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: .055, depthWrite: false, toneMapped: false }),
+  );
+  group.add(innerGrid);
+
+  const frame = new THREE.Mesh(
+    new THREE.TorusGeometry(2.2, .12, lowPower ? 8 : 14, lowPower ? 64 : 120),
+    physical("#151a25", { roughness: .2, metalness: .82, clearcoat: .72, clearcoatRoughness: .12 }),
+  );
+  group.add(frame);
+
+  const gimbal = new THREE.Mesh(
+    new THREE.TorusGeometry(1.98, .046, 8, lowPower ? 64 : 120),
+    glowMaterial(color, .78),
+  );
+  gimbal.rotation.y = .76;
+  group.add(gimbal);
+
+  const equator = new THREE.Mesh(
+    new THREE.TorusGeometry(1.83, .028, 7, lowPower ? 56 : 110),
+    glowMaterial("#9eeaff", .72),
+  );
+  equator.rotation.x = Math.PI / 2;
+  group.add(equator);
+  group.userData.rings = [gimbal, equator];
+  group.userData.glass = glass;
+
+  [0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach((angle) => {
+    const mount = new THREE.Mesh(
+      new THREE.CylinderGeometry(.16, .16, .5, 14),
+      physical("#283245", { roughness: .22, metalness: .72, clearcoat: .5 }),
+    );
+    mount.rotation.z = angle + Math.PI / 2;
+    mount.position.set(Math.cos(angle) * 2.18, Math.sin(angle) * 2.18, 0);
+    group.add(mount);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(.075, 10, 8), glowMaterial(color, .96));
+    lamp.position.set(Math.cos(angle) * 2.18, Math.sin(angle) * 2.18, .18);
+    group.add(lamp);
+  });
+
+  const core = new THREE.Mesh(new THREE.SphereGeometry(.13, 18, 12), glowMaterial("#ffffff", .96));
+  core.scale.set(1, 1, 1.65);
+  group.add(core);
+  const coreLight = new THREE.PointLight(color, lowPower ? 4.5 : 8.5, 5.5, 2);
+  group.add(coreLight);
+
+  let particles: THREE.Points;
   if (hallIndex === 0) {
     const points: THREE.Vector3[] = [];
-    for (let i = 0; i < 260; i++) {
-      const branch = i % 7;
-      const progress = i / 260;
-      const angle = branch / 7 * Math.PI * 2 + Math.sin(progress * 13) * .18;
-      const radius = .4 + progress * 3.6;
-      points.push(new THREE.Vector3(Math.cos(angle) * radius, progress * 5.8 - 2.4, Math.sin(angle) * radius * .44));
+    const count = lowPower ? 240 : 520;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < count; i++) {
+      const y = 1 - i / Math.max(1, count - 1) * 2;
+      const radius = Math.sqrt(1 - y * y);
+      const angle = i * goldenAngle;
+      points.push(new THREE.Vector3(Math.cos(angle) * radius * 1.5, y * 1.5, Math.sin(angle) * radius * 1.5));
     }
-    group.add(makePointCloud(points, "#c8ed75", .095, .92));
+    particles = makePointCloud(points, "#d7ff86", lowPower ? .07 : .055, .94);
   } else if (hallIndex === 1) {
-    for (let row = 0; row < 8; row++) for (let column = 0; column < 8; column++) {
-      const tile = new THREE.Mesh(new THREE.BoxGeometry(.48, .48, .22), physical(row % 2 ? "#b5a38c" : "#d8b26c", { roughness: .3, metalness: .42 }));
-      tile.position.set((column - 3.5) * .56, (row - 3.5) * .56, Math.sin((row + column) * .72) * .45);
-      tile.userData.phase = (row + column) * .42;
-      group.add(tile);
-    }
-  } else if (hallIndex === 2) {
-    [0, 1, 2].forEach((wave) => {
-      const points: THREE.Vector3[] = [];
-      for (let i = 0; i <= 80; i++) {
-        const x = i / 80 * 7 - 3.5;
-        points.push(new THREE.Vector3(x, Math.sin(i / 80 * Math.PI * (3 + wave)) * (.72 - wave * .12) + wave * .8 - .8, wave * .18));
-      }
-      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 120, .045, 8, false), glowMaterial(wave === 1 ? "#69ddff" : color, .86));
-      group.add(tube);
+    const points: THREE.Vector3[] = [];
+    const towers = [
+      { x: -1.05, z: -.25, width: .7, height: 1.8 },
+      { x: -.2, z: .2, width: .62, height: 2.65 },
+      { x: .62, z: -.15, width: .82, height: 2.15 },
+      { x: 1.18, z: .28, width: .42, height: 1.35 },
+    ];
+    towers.forEach(({ x, z, width, height }) => {
+      const bottom = -1.32;
+      const top = bottom + height;
+      const corners = [
+        new THREE.Vector3(x - width / 2, bottom, z - width / 2), new THREE.Vector3(x + width / 2, bottom, z - width / 2),
+        new THREE.Vector3(x + width / 2, bottom, z + width / 2), new THREE.Vector3(x - width / 2, bottom, z + width / 2),
+      ];
+      corners.forEach((corner, cornerIndex) => {
+        addParticleSegment(points, corner, new THREE.Vector3(corner.x, top, corner.z), lowPower ? 9 : 17);
+        addParticleSegment(points, new THREE.Vector3(corner.x, top, corner.z), new THREE.Vector3(corners[(cornerIndex + 1) % 4].x, top, corners[(cornerIndex + 1) % 4].z), lowPower ? 6 : 12);
+      });
     });
+    addParticleSegment(points, new THREE.Vector3(-1.55, -1.32, .75), new THREE.Vector3(0, 1.25, .75), lowPower ? 14 : 28);
+    addParticleSegment(points, new THREE.Vector3(0, 1.25, .75), new THREE.Vector3(1.55, -1.32, .75), lowPower ? 14 : 28);
+    addParticleSegment(points, new THREE.Vector3(-1.55, -1.32, .75), new THREE.Vector3(1.55, -1.32, .75), lowPower ? 18 : 34);
+    particles = makePointCloud(points, "#ffc875", lowPower ? .075 : .058, .94);
+  } else if (hallIndex === 2) {
+    const points: THREE.Vector3[] = [];
+    const samples = lowPower ? 72 : 138;
+    for (let wave = 0; wave < 4; wave++) {
+      for (let i = 0; i < samples; i++) {
+        const x = i / (samples - 1) * 3.1 - 1.55;
+        const band = (wave - 1.5) * .42;
+        points.push(new THREE.Vector3(x, band + Math.sin(x * (2.2 + wave * 1.15)) * (.34 - wave * .035), (wave - 1.5) * .18));
+      }
+    }
+    particles = makePointCloud(points, "#77e7ff", lowPower ? .075 : .055, .96);
+    particles.userData.waveSamples = samples;
   } else {
     const points: THREE.Vector3[] = [];
-    for (let i = 0; i < 620; i++) {
+    const count = lowPower ? 320 : 760;
+    for (let i = 0; i < count; i++) {
       const arm = i % 4;
-      const progress = i / 620;
-      const theta = progress * Math.PI * 10 + arm * Math.PI / 2;
-      const radius = .18 + progress * 4.7;
-      points.push(new THREE.Vector3(Math.cos(theta) * radius, Math.sin(theta) * radius * .58, (progress - .5) * .8));
+      const progress = i / count;
+      const theta = progress * Math.PI * 7.5 + arm * Math.PI / 2;
+      const radius = .08 + progress * 1.52;
+      const drift = Math.sin(i * 12.9898) * .09 * (1 - progress * .45);
+      points.push(new THREE.Vector3(Math.cos(theta) * (radius + drift), Math.sin(theta) * (radius + drift) * .62, Math.sin(i * 2.41) * .18 * (1 - progress)));
     }
-    group.add(makePointCloud(points, "#9dafff", .07, .92));
+    particles = makePointCloud(points, "#aebaff", lowPower ? .065 : .045, .95);
   }
-  group.position.set(center.x - 7.1, hallIndex === 0 ? 3.2 : 3.6, center.z - 2.2);
+
+  particles.userData.hologramParticles = true;
+  group.userData.particles = particles;
+  group.add(particles);
+  group.position.set(center.x - 6.2, 4.62, center.z - 2.15);
   scene.add(group);
   return group;
 }
@@ -1050,7 +1149,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     atriumLight.position.set(0, 4.4, 1.2);
     scene.add(atriumLight);
 
-    const signatures: THREE.Group[] = [];
+    const holograms: THREE.Group[] = [];
     const portalGroups: THREE.Group[] = [];
     HALLS.forEach((hall, index) => {
       const center = HALL_CENTERS[index];
@@ -1088,7 +1187,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       const nextCenter = HALL_CENTERS[Math.min(index + 1, HALL_CENTERS.length - 1)];
       const portalX = index === 3 ? center.x + 7.1 : center.x + (nextCenter.x - center.x > 0 ? 7.1 : -7.1);
       portalGroups.push(addPortal(scene, portalX, center.z - 7.15, accent));
-      signatures.push(addHallSignature(scene, index, center));
+      holograms.push(addHallHologram(scene, index, center, lowPower));
       const label = new THREE.Mesh(
         new THREE.PlaneGeometry(12.6, 1.575),
         makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74, false, 2048),
@@ -1198,11 +1297,32 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
           materials.forEach((material, materialIndex) => setMaterialOpacity(material, baseOpacities[materialIndex] * weight));
         });
         ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
-        signatures.forEach((signature, index) => {
-          signature.rotation.y = Math.sin(elapsed * .16 + index) * .08;
-          if (index === 1) signature.children.forEach((child) => {
-            if (child instanceof THREE.Mesh) child.position.z = Math.sin(elapsed * .85 + Number(child.userData.phase ?? 0)) * .42;
-          });
+        holograms.forEach((hologram, index) => {
+          const particles = hologram.userData.particles as THREE.Points;
+          const rings = hologram.userData.rings as THREE.Mesh[];
+          const glass = hologram.userData.glass as THREE.Mesh;
+          particles.rotation.y = elapsed * (.12 + index * .025);
+          particles.rotation.z = Math.sin(elapsed * .28 + index) * .12;
+          rings[0].rotation.y = .76 + Math.sin(elapsed * .32 + index) * .24;
+          rings[0].rotation.z = elapsed * .08;
+          rings[1].rotation.z = -elapsed * .14;
+          const pulse = 1 + Math.sin(elapsed * 1.55 + index * .9) * .018;
+          glass.scale.setScalar(pulse);
+          (particles.material as THREE.PointsMaterial).opacity = .82 + Math.sin(elapsed * 1.8 + index) * .13;
+
+          if (index === 2) {
+            const samples = Number(particles.userData.waveSamples);
+            const positions = particles.geometry.getAttribute("position") as THREE.BufferAttribute;
+            for (let pointIndex = 0; pointIndex < positions.count; pointIndex++) {
+              const wave = Math.floor(pointIndex / samples);
+              const sample = pointIndex % samples;
+              const x = sample / (samples - 1) * 3.1 - 1.55;
+              const band = (wave - 1.5) * .42;
+              positions.setY(pointIndex, band + Math.sin(x * (2.2 + wave * 1.15) - elapsed * (1.5 + wave * .18)) * (.34 - wave * .035));
+              positions.setZ(pointIndex, (wave - 1.5) * .18 + Math.cos(x * 1.7 - elapsed) * .055);
+            }
+            positions.needsUpdate = true;
+          }
         });
         portalGroups.concat(corridorFrames).forEach((portal, index) => {
           portal.scale.setScalar(1 + Math.sin(elapsed * .58 + index * .7) * .008);

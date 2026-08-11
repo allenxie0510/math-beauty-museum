@@ -1090,7 +1090,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       portalGroups.push(addPortal(scene, portalX, center.z - 7.15, accent));
       signatures.push(addHallSignature(scene, index, center));
       const label = new THREE.Mesh(
-        new THREE.PlaneGeometry(8.4, 1.05),
+        new THREE.PlaneGeometry(12.6, 1.575),
         makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74, false, 2048),
       );
       label.position.set(center.x, 7.78, center.z - 6.08);

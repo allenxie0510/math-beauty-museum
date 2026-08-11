@@ -146,6 +146,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /function addHallHologram/);
   assert.match(museum, /group\.scale\.setScalar\(\.8\)/);
   assert.match(museum, /function buildHallScene/);
+  assert.match(museum, /hallTitle\.position\.set\(center\.x, 7\.78, center\.z - 5\.62\)/);
+  assert.match(museum, /titleFace\.position\.z = \.08/);
+  assert.match(museum, /\[-\.005, -\.07\]\.forEach/);
+  assert.match(museum, /titleDepthMaterial\.emissiveIntensity = \.68/);
   assert.match(museum, /let activeHallScene: HallSceneBundle \| null = null/);
   assert.match(museum, /disposeObject\(activeHallScene\.root\)/);
   assert.match(museum, /loadOnlyHall\(requestedHallIndex\)/);

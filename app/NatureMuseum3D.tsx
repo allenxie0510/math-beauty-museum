@@ -1057,12 +1057,28 @@ function buildHallScene(hallIndex: number, lowPower: boolean): HallSceneBundle {
   const portalX = hallIndex === 3 ? center.x + 7.1 : center.x + (nextCenter.x - center.x > 0 ? 7.1 : -7.1);
   const portals = [addPortal(root, portalX, center.z - 7.15, accent)];
   const hologram = addHallHologram(root, hallIndex, center, lowPower);
-  const label = new THREE.Mesh(
-    new THREE.PlaneGeometry(12.6, 1.575),
-    makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74, false, 2048),
-  );
-  label.position.set(center.x, 7.78, center.z - 6.08);
-  root.add(label);
+  const hallTitle = new THREE.Group();
+  hallTitle.name = `hall-title-${hall.key}`;
+  hallTitle.position.set(center.x, 7.78, center.z - 5.62);
+
+  const titleMaterial = makeTextMaterial(hall.name + "  /  " + hall.english, accent, 74, false, 2048);
+  const titleFace = new THREE.Mesh(new THREE.PlaneGeometry(12.6, 1.575), titleMaterial);
+  titleFace.position.z = .08;
+  titleFace.renderOrder = 3;
+  hallTitle.add(titleFace);
+
+  const titleDepthMaterial = titleMaterial.clone();
+  titleDepthMaterial.color.set(accent);
+  titleDepthMaterial.emissiveIntensity = .68;
+  titleDepthMaterial.opacity = .46;
+  titleDepthMaterial.alphaTest = .04;
+  [-.005, -.07].forEach((depth, layerIndex) => {
+    const depthLayer = new THREE.Mesh(new THREE.PlaneGeometry(12.6, 1.575), titleDepthMaterial);
+    depthLayer.position.set(-.018 * (layerIndex + 1), -.018 * (layerIndex + 1), depth);
+    depthLayer.renderOrder = 2 - layerIndex;
+    hallTitle.add(depthLayer);
+  });
+  root.add(hallTitle);
 
   wallMaterial.dispose();
   frostMaterial.dispose();

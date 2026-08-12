@@ -270,6 +270,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /onWheel=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.match(museum, /className="immersive-lab-header"/);
   assert.match(museum, /nature-console-grid/);
+  assert.doesNotMatch(museum, /className="nature-preview-caption"/);
+  assert.doesNotMatch(museum, /className="nature-console-story"/);
+  assert.doesNotMatch(museum, /className="nature-lab-reward"/);
+  assert.doesNotMatch(museum, /已对准|试着对准它/);
   assert.doesNotMatch(museum, /className="nature-room-dock"/);
   assert.match(css, /\.museum-hall-arrows/);
   assert.match(css, /\.museum-route-indicator/);

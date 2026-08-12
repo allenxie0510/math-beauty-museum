@@ -2688,14 +2688,8 @@ export function NatureMuseumWorld() {
               {selected.id === "galaxy"
                 ? <Galaxy3DPreview settings={settings} />
                 : <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />}
-              <div className="nature-preview-caption"><span>{selected.formula}</span><p>{selected.previewCaption}。图形会随底部控制台实时变化。</p></div>
             </div>
             <aside className={"nature-lab-controls " + (hall.key === "sound" ? "sound-console" : "")}>
-              <div className="nature-console-story">
-                <p className="nature-lab-discovery">{selected.discovery}</p>
-                <p className="nature-lab-copy">{selected.explanation}</p>
-                <div className="nature-lab-reward"><span>🌱 数学种子 +1</span><b>发现已收藏 ✓</b></div>
-              </div>
               {hall.key === "sound" && <SoundDrivePanel signalRef={soundSignalRef} />}
               <div className="nature-console-parameters">
                 <div className="nature-lab-try">
@@ -2708,7 +2702,6 @@ export function NatureMuseumWorld() {
                 <div className={"nature-console-grid " + (selected.controls.length > 3 ? "four-controls" : "")}>
                   {selected.controls.map((control) => {
                     const setting = settings[control.key] ?? control.defaultValue;
-                    const reached = control.target !== undefined && Math.abs(setting - control.target) < control.step / 2 + .001;
                     const autoActive = isAutoPlaying && (AUTO_CONTROL_KEYS[selected.id] ?? []).includes(control.key);
                     return (
                       <label className={"nature-lab-control " + (activeControlKey === control.key || autoActive ? "active" : "")} key={control.key}>
@@ -2728,7 +2721,6 @@ export function NatureMuseumWorld() {
                             setSettings((previous) => ({ ...previous, [control.key]: Number(event.target.value) }));
                           }}
                         />
-                        {control.target !== undefined && <small className={reached ? "reached" : ""}>{control.targetLabel} {control.target}{control.suffix} {reached ? "· 已对准" : "· 试着对准它"}</small>}
                       </label>
                     );
                   })}

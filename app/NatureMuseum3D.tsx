@@ -1235,6 +1235,12 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
         }
       `,
     };
+    const reflectionMaxResolution = (navigator.hardwareConcurrency ?? 8) >= 10 ? 1536 : 1024;
+    const reflectionResolution = THREE.MathUtils.clamp(
+      Math.round(Math.max(container.clientWidth, container.clientHeight) * Math.min(window.devicePixelRatio || 1, 1.5) * .72),
+      768,
+      reflectionMaxResolution,
+    );
     const atriumFloor = lowPower
       ? new THREE.Mesh(
         new THREE.CircleGeometry(9.8, 64),
@@ -1242,10 +1248,10 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       )
       : new Reflector(new THREE.CircleGeometry(9.8, 96), {
         clipBias: .003,
-        textureWidth: 512,
-        textureHeight: 512,
+        textureWidth: reflectionResolution,
+        textureHeight: reflectionResolution,
         color: 0x171b24,
-        multisample: 0,
+        multisample: 2,
         shader: mutedFloorShader,
       });
     atriumFloor.name = "atrium-reflective-floor";
@@ -1271,14 +1277,14 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     scene.add(entranceGuide);
 
     const atriumPortalMaterial = physical(atriumBlue, {
-      roughness: .22,
-      transmission: lowPower ? .12 : .36,
+      roughness: .2,
+      transmission: lowPower ? .16 : .42,
       transparent: true,
-      opacity: lowPower ? .2 : .24,
+      opacity: lowPower ? .28 : .34,
       thickness: .58,
       ior: 1.38,
-      emissive: "#183a82",
-      emissiveIntensity: .16,
+      emissive: "#2853a0",
+      emissiveIntensity: .28,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
@@ -1534,6 +1540,15 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
       renderer.setSize(container.clientWidth, container.clientHeight);
+      if (atriumFloor instanceof Reflector) {
+        const targetResolution = THREE.MathUtils.clamp(
+          Math.round(Math.max(container.clientWidth, container.clientHeight) * Math.min(window.devicePixelRatio || 1, 1.5) * .72),
+          768,
+          reflectionMaxResolution,
+        );
+        const reflectionTarget = atriumFloor.getRenderTarget();
+        if (reflectionTarget.width !== targetResolution) reflectionTarget.setSize(targetResolution, targetResolution);
+      }
     };
     const stopObservingResize = observeElementSize(container, resize);
     return () => {

@@ -137,12 +137,17 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.doesNotMatch(museum, /addAtriumDepthCorridor|atrium-depth-corridor/);
   assert.match(museum, /import \{ Reflector \} from "three\/examples\/jsm\/objects\/Reflector\.js"/);
   assert.match(museum, /new Reflector\(new THREE\.CircleGeometry\(9\.8, 96\)/);
-  assert.match(museum, /textureWidth: 512/);
+  assert.match(museum, /const reflectionMaxResolution = \(navigator\.hardwareConcurrency \?\? 8\) >= 10 \? 1536 : 1024/);
+  assert.match(museum, /textureWidth: reflectionResolution/);
+  assert.match(museum, /multisample: 2/);
+  assert.match(museum, /reflectionTarget\.setSize\(targetResolution, targetResolution\)/);
   assert.match(museum, /name: "MutedAtriumReflector"/);
   assert.match(museum, /vec3 desaturated = mix\(vec3\(luminance\), reflected, 0\.26\)/);
   assert.match(museum, /vec3 softened = mix\(desaturated, color, 0\.58\) \* 0\.58/);
   assert.match(museum, /atriumFloor\.name = "atrium-reflective-floor"/);
   assert.match(museum, /atriumFloor\.visible = atriumIsActive/);
+  assert.match(museum, /opacity: lowPower \? \.28 : \.34/);
+  assert.match(museum, /emissiveIntensity: \.28/);
   assert.match(museum, /continuum\.position\.set\(0, 3\.05, \.25\)/);
   assert.match(museum, /knot\.scale\.setScalar\(1\.1\)/);
   assert.match(museum, /const displayRing = new THREE\.Mesh/);

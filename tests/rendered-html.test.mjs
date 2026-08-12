@@ -177,9 +177,18 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /color: "#93b8ff", wireframe: true/);
   assert.match(museum, /material\.customProgramCacheKey = \(\) => "atrium-square-root-surface-v1"/);
   assert.match(museum, /float livingAngle = aBranchAngle \+ uSurfaceTwist/);
-  assert.match(museum, /surfaceParameters\.opening\.value = 1 \+ Math\.sin\(elapsed \* \.34\) \* \.2/);
-  assert.match(museum, /surfaceParameters\.twist\.value = Math\.sin\(elapsed \* \.23 \+ \.7\) \* \.52/);
+  assert.match(museum, /surfaceParameters\.time\.value = elapsed \* 1\.9/);
+  assert.match(museum, /surfaceParameters\.opening\.value = 1 \+ Math\.sin\(elapsed \* \.88\) \* \.25/);
+  assert.match(museum, /surfaceParameters\.twist\.value = Math\.sin\(elapsed \* \.63 \+ \.7\) \* \.62/);
   assert.match(museum, /surface\.rotation\.set\(-\.18 \+ Math\.sin/);
+  assert.match(museum, /function makeTesseractProjection\(\)/);
+  assert.match(museum, /vertex \^ \(1 << dimension\)/);
+  assert.match(museum, /function updateTesseractProjection\(group: THREE\.Group, elapsed: number\)/);
+  assert.match(museum, /\[x, w\] = rotate\(x, w, elapsed \* \.72\)/);
+  assert.match(museum, /const perspective = 2\.8 \/ \(3\.65 - w\)/);
+  assert.match(museum, /tesseract\.visible = loadedHallIndex < 0 && !showSquareRootSurface/);
+  assert.match(museum, /className="atrium-artwork-carousel"/);
+  assert.match(museum, /\["复平方根曲面", "四维超立方体"\]/);
   assert.match(museum, /const displayRing = new THREE\.Mesh/);
   assert.match(museum, /new THREE\.TorusGeometry\(2\.72, \.045/);
   assert.match(museum, /displayRing\.position\.y = -4\.2/);
@@ -298,6 +307,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.museum-hall-arrows/);
   assert.match(css, /\.museum-route-indicator/);
   assert.match(css, /\.museum-route-indicator\{[^}]*padding:8px 0;border:0;background:transparent;box-shadow:none/);
+  assert.match(css, /\.atrium-artwork-carousel\{[^}]*bottom:104px/);
   assert.match(css, /\.garden-guide\{[^}]*top:290px/);
   assert.match(css, /\.immersive-lab-header/);
   assert.match(css, /\.nature-console-grid/);

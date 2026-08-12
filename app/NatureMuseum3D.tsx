@@ -914,6 +914,72 @@ function makeSquareRootSurfaceGeometry(radialSegments: number, angularSegments: 
   return geometry;
 }
 
+function makeTesseractProjection() {
+  const group = new THREE.Group();
+  group.name = "atrium-tesseract-projection";
+  const edges: Array<[number, number]> = [];
+  for (let vertex = 0; vertex < 16; vertex++) {
+    for (let dimension = 0; dimension < 4; dimension++) {
+      const neighbor = vertex ^ (1 << dimension);
+      if (vertex < neighbor) edges.push([vertex, neighbor]);
+    }
+  }
+  const linePositions = new Float32Array(edges.length * 6);
+  const pointPositions = new Float32Array(16 * 3);
+  const lineGeometry = new THREE.BufferGeometry();
+  lineGeometry.setAttribute("position", new THREE.BufferAttribute(linePositions, 3));
+  const pointGeometry = new THREE.BufferGeometry();
+  pointGeometry.setAttribute("position", new THREE.BufferAttribute(pointPositions, 3));
+  const lines = new THREE.LineSegments(
+    lineGeometry,
+    new THREE.LineBasicMaterial({ color: "#79a8ff", transparent: true, opacity: .68, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  );
+  const points = new THREE.Points(
+    pointGeometry,
+    new THREE.PointsMaterial({ color: "#d7e5ff", size: .085, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  );
+  group.add(lines, points);
+  group.userData.edges = edges;
+  group.userData.linePositions = linePositions;
+  group.userData.pointPositions = pointPositions;
+  group.userData.lineGeometry = lineGeometry;
+  group.userData.pointGeometry = pointGeometry;
+  return group;
+}
+
+function updateTesseractProjection(group: THREE.Group, elapsed: number) {
+  const edges = group.userData.edges as Array<[number, number]>;
+  const linePositions = group.userData.linePositions as Float32Array;
+  const pointPositions = group.userData.pointPositions as Float32Array;
+  const projected = new Float32Array(16 * 3);
+  const rotate = (a: number, b: number, angle: number) => {
+    const cosine = Math.cos(angle);
+    const sine = Math.sin(angle);
+    return [a * cosine - b * sine, a * sine + b * cosine] as const;
+  };
+  for (let vertex = 0; vertex < 16; vertex++) {
+    let x = vertex & 1 ? 1 : -1;
+    let y = vertex & 2 ? 1 : -1;
+    let z = vertex & 4 ? 1 : -1;
+    let w = vertex & 8 ? 1 : -1;
+    [x, w] = rotate(x, w, elapsed * .72);
+    [y, w] = rotate(y, w, elapsed * .53 + .8);
+    [z, w] = rotate(z, w, elapsed * .41 + 1.4);
+    [x, y] = rotate(x, y, elapsed * .21);
+    const perspective = 2.8 / (3.65 - w);
+    projected[vertex * 3] = x * perspective * 1.72;
+    projected[vertex * 3 + 1] = y * perspective * 1.72;
+    projected[vertex * 3 + 2] = z * perspective * 1.72;
+  }
+  pointPositions.set(projected);
+  edges.forEach(([start, end], edgeIndex) => {
+    linePositions.set(projected.subarray(start * 3, start * 3 + 3), edgeIndex * 6);
+    linePositions.set(projected.subarray(end * 3, end * 3 + 3), edgeIndex * 6 + 3);
+  });
+  (group.userData.lineGeometry as THREE.BufferGeometry).attributes.position.needsUpdate = true;
+  (group.userData.pointGeometry as THREE.BufferGeometry).attributes.position.needsUpdate = true;
+}
+
 function makePointCloud(points: THREE.Vector3[], color: string, size = .08, opacity = .8) {
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   return new THREE.Points(geometry, new THREE.PointsMaterial({
@@ -1153,16 +1219,18 @@ function buildHallScene(hallIndex: number, lowPower: boolean): HallSceneBundle {
   return { root, hologram, portals };
 }
 
-function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
+function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallIndex: number; atriumArtwork: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [retryKey, setRetryKey] = useState(0);
   const fallbackHall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const onSelectRef = useRef(onSelect);
   const onEnterRef = useRef(onEnter);
   const hallIndexRef = useRef(hallIndex);
+  const atriumArtworkRef = useRef(atriumArtwork);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   useEffect(() => { onEnterRef.current = onEnter; }, [onEnter]);
   useEffect(() => { hallIndexRef.current = hallIndex; }, [hallIndex]);
+  useEffect(() => { atriumArtworkRef.current = atriumArtwork; }, [atriumArtwork]);
 
   useEffect(() => {
     const container = host.current;
@@ -1418,6 +1486,10 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     surface.scale.setScalar(1.04);
     surface.castShadow = !lowPower;
     continuum.add(surface);
+    const tesseract = makeTesseractProjection();
+    tesseract.rotation.set(.28, -.18, .08);
+    tesseract.scale.setScalar(.95);
+    continuum.add(tesseract);
 
     const displayRing = new THREE.Mesh(
       new THREE.TorusGeometry(2.72, .045, 8, lowPower ? 72 : 128),
@@ -1617,12 +1689,14 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
           const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
           entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
           entranceArrow.material.opacity = .62 + Math.sin(elapsed * 2.1) * .1;
-          surfaceParameters.time.value = elapsed;
-          surfaceParameters.opening.value = 1 + Math.sin(elapsed * .34) * .2;
-          surfaceParameters.twist.value = Math.sin(elapsed * .23 + .7) * .52;
-          const radialParameter = 1 + Math.sin(elapsed * .29 + 1.1) * .06;
-          surface.rotation.set(-.18 + Math.sin(elapsed * .17) * .045, .18 + elapsed * .025, -.12 + Math.cos(elapsed * .14) * .04);
+          surfaceParameters.time.value = elapsed * 1.9;
+          surfaceParameters.opening.value = 1 + Math.sin(elapsed * .88) * .25;
+          surfaceParameters.twist.value = Math.sin(elapsed * .63 + .7) * .62;
+          const radialParameter = 1 + Math.sin(elapsed * .74 + 1.1) * .075;
+          surface.rotation.set(-.18 + Math.sin(elapsed * .42) * .055, .18 + elapsed * .055, -.12 + Math.cos(elapsed * .36) * .05);
           surface.scale.set(1.04 * radialParameter, 1.04, 1.04 * radialParameter);
+          updateTesseractProjection(tesseract, elapsed);
+          tesseract.rotation.y = -.18 + Math.sin(elapsed * .31) * .16;
         }
         ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
         if (activeHallScene) {
@@ -1658,6 +1732,9 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
           });
         }
       }
+      const showSquareRootSurface = atriumArtworkRef.current === 0;
+      surface.visible = loadedHallIndex < 0 && showSquareRootSurface;
+      tesseract.visible = loadedHallIndex < 0 && !showSquareRootSurface;
       renderer.render(scene, camera);
       metricsFrame++;
       if (metricsFrame % 30 === 0) {
@@ -2548,6 +2625,7 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
 
 export function NatureMuseumWorld() {
   const [hallIndex, setHallIndex] = useState(-1);
+  const [atriumArtwork, setAtriumArtwork] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settings, setSettings] = useState<MuseumSettings>({ ...DEFAULT_SETTINGS });
   const [discoveries, setDiscoveries] = useState<Set<string>>(() => new Set());
@@ -2741,12 +2819,27 @@ export function NatureMuseumWorld() {
       data-hall={hall?.key ?? "atrium"}
       style={{ "--hall-accent": hall?.accent ?? "#9fb4ff" } as React.CSSProperties}
     >
-      <MuseumCanvas hallIndex={hallIndex} onSelect={select} onEnter={() => switchHall(1)} />
+      <MuseumCanvas hallIndex={hallIndex} atriumArtwork={atriumArtwork} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />
       <div className="nature-progress" aria-label={hall ? "已经发现 " + currentDiscoveries + " 个" + hall.category : "数学美学展序厅"}>
         <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
         <p>{hall?.category ?? "参观序章"}<br /><b>{hall ? currentDiscoveries === 3 ? "全部发现" : "等待探索" : "连续体正在变化"}</b></p>
       </div>
+
+      {hallIndex < 0 && (
+        <div className="atrium-artwork-carousel" role="group" aria-label="切换序厅数学装置">
+          {["复平方根曲面", "四维超立方体"].map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              className={atriumArtwork === index ? "active" : ""}
+              aria-label={`显示${label}`}
+              aria-pressed={atriumArtwork === index}
+              onClick={() => setAtriumArtwork(index)}
+            ><span>{label}</span></button>
+          ))}
+        </div>
+      )}
 
       <div className="museum-route-indicator" aria-label="展馆参观进度">
         {["序", "自然", "建筑", "声音", "宇宙"].map((label, index) => <i key={label} className={hallIndex + 1 === index ? "active" : hallIndex + 1 > index ? "passed" : ""}><span>{label}</span></i>)}

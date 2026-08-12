@@ -868,6 +868,52 @@ function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, 
   return portal;
 }
 
+function makeSquareRootSurfaceGeometry(radialSegments: number, angularSegments: number) {
+  const geometry = new THREE.BufferGeometry();
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const branchAngles: number[] = [];
+  const branchRadii: number[] = [];
+  const indices: number[] = [];
+  const firstSheet = new THREE.Color("#6b92db");
+  const secondSheet = new THREE.Color("#8b76c8");
+  const color = new THREE.Color();
+
+  for (let angleIndex = 0; angleIndex <= angularSegments; angleIndex++) {
+    const theta = angleIndex / angularSegments * Math.PI * 4;
+    const sheetMix = THREE.MathUtils.smoothstep(theta, Math.PI * 1.72, Math.PI * 2.28);
+    color.copy(firstSheet).lerp(secondSheet, sheetMix);
+    for (let radiusIndex = 0; radiusIndex <= radialSegments; radiusIndex++) {
+      const normalizedRadius = radiusIndex / radialSegments;
+      const radius = Math.pow(normalizedRadius, 1.18) * 2.55;
+      positions.push(
+        Math.cos(theta) * radius,
+        Math.sqrt(radius) * Math.cos(theta * .5) * 1.58,
+        Math.sin(theta) * radius,
+      );
+      colors.push(color.r, color.g, color.b);
+      branchAngles.push(theta);
+      branchRadii.push(radius);
+    }
+  }
+
+  const rowSize = radialSegments + 1;
+  for (let angleIndex = 0; angleIndex < angularSegments; angleIndex++) {
+    for (let radiusIndex = 0; radiusIndex < radialSegments; radiusIndex++) {
+      const a = angleIndex * rowSize + radiusIndex;
+      const b = a + rowSize;
+      indices.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+  geometry.setIndex(indices);
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("aBranchAngle", new THREE.Float32BufferAttribute(branchAngles, 1));
+  geometry.setAttribute("aBranchRadius", new THREE.Float32BufferAttribute(branchRadii, 1));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function makePointCloud(points: THREE.Vector3[], color: string, size = .08, opacity = .8) {
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   return new THREE.Points(geometry, new THREE.PointsMaterial({
@@ -1311,60 +1357,67 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
 
     const continuum = new THREE.Group();
     continuum.position.set(0, 3.05, .25);
-    const knotGeometry = new THREE.TorusKnotGeometry(1.72, .42, lowPower ? 90 : 180, lowPower ? 14 : 28, 2, 3);
-    const knotParameters = {
+    const surfaceGeometry = makeSquareRootSurfaceGeometry(lowPower ? 18 : 30, lowPower ? 56 : 104);
+    const surfaceParameters = {
       time: { value: 0 },
-      radialWave: { value: lowPower ? .055 : .085 },
-      axialWave: { value: lowPower ? .07 : .11 },
+      opening: { value: 1 },
+      twist: { value: 0 },
+      wave: { value: lowPower ? .045 : .075 },
     };
-    const addKnotParameterMotion = (material: THREE.Material) => {
+    const addSurfaceParameterMotion = (material: THREE.Material) => {
       material.onBeforeCompile = (shader) => {
-        shader.uniforms.uKnotTime = knotParameters.time;
-        shader.uniforms.uKnotRadialWave = knotParameters.radialWave;
-        shader.uniforms.uKnotAxialWave = knotParameters.axialWave;
+        shader.uniforms.uSurfaceTime = surfaceParameters.time;
+        shader.uniforms.uSurfaceOpening = surfaceParameters.opening;
+        shader.uniforms.uSurfaceTwist = surfaceParameters.twist;
+        shader.uniforms.uSurfaceWave = surfaceParameters.wave;
         shader.vertexShader = shader.vertexShader
           .replace("#include <common>", `#include <common>
-            uniform float uKnotTime;
-            uniform float uKnotRadialWave;
-            uniform float uKnotAxialWave;`)
+            attribute float aBranchAngle;
+            attribute float aBranchRadius;
+            uniform float uSurfaceTime;
+            uniform float uSurfaceOpening;
+            uniform float uSurfaceTwist;
+            uniform float uSurfaceWave;`)
           .replace("#include <begin_vertex>", `#include <begin_vertex>
-            float knotAngle = atan(position.z, position.x);
-            float knotFrequency = 2.35 + sin(uKnotTime * 0.19) * 0.65;
-            float knotPhase = knotAngle * knotFrequency + uKnotTime * 0.72;
-            float knotRadius = 1.0 + sin(knotPhase) * uKnotRadialWave;
-            transformed.xz *= knotRadius;
-            transformed.y *= 1.0 + cos(knotPhase * 0.72 - uKnotTime * 0.31) * uKnotAxialWave;
-            transformed += normalize(position) * sin(knotPhase * 1.45) * uKnotRadialWave * 0.36;`);
+            float livingAngle = aBranchAngle + uSurfaceTwist * (0.18 + aBranchRadius * 0.16);
+            float livingRadius = aBranchRadius * (1.0 + sin(aBranchAngle * 1.5 + uSurfaceTime * 0.55) * uSurfaceWave);
+            transformed.x = cos(livingAngle) * livingRadius;
+            transformed.z = sin(livingAngle) * livingRadius;
+            transformed.y = sqrt(max(aBranchRadius, 0.0)) * cos(livingAngle * 0.5) * 1.58 * uSurfaceOpening;
+            transformed.y += sin(aBranchAngle * 1.15 - uSurfaceTime * 0.42) * uSurfaceWave * aBranchRadius * 0.32;`);
       };
-      material.customProgramCacheKey = () => "atrium-parametric-knot-v1";
+      material.customProgramCacheKey = () => "atrium-square-root-surface-v1";
     };
-    const knotMaterial = physical("#668bd1", {
+    const surfaceMaterial = physical("#d5e2ff", {
       roughness: .76,
       metalness: .03,
       clearcoat: .015,
       transmission: .08,
       transparent: true,
-      opacity: .9,
-      thickness: .46,
+      opacity: .82,
+      thickness: .32,
       emissive: "#244b99",
-      emissiveIntensity: .16,
+      emissiveIntensity: .12,
+      vertexColors: true,
+      side: THREE.DoubleSide,
     });
-    addKnotParameterMotion(knotMaterial);
-    const knot = new THREE.Mesh(
-      knotGeometry,
-      knotMaterial,
+    addSurfaceParameterMotion(surfaceMaterial);
+    const surface = new THREE.Mesh(
+      surfaceGeometry,
+      surfaceMaterial,
     );
-    const knotGridMaterial = new THREE.MeshBasicMaterial({ color: "#78a7ff", wireframe: true, transparent: true, opacity: lowPower ? .052 : .078, depthWrite: false, toneMapped: false });
-    addKnotParameterMotion(knotGridMaterial);
-    const knotGrid = new THREE.Mesh(
-      knotGeometry,
-      knotGridMaterial,
+    const surfaceGridMaterial = new THREE.MeshBasicMaterial({ color: "#93b8ff", wireframe: true, transparent: true, opacity: lowPower ? .075 : .12, depthWrite: false, toneMapped: false });
+    addSurfaceParameterMotion(surfaceGridMaterial);
+    const surfaceGrid = new THREE.Mesh(
+      surfaceGeometry,
+      surfaceGridMaterial,
     );
-    knotGrid.scale.setScalar(1.006);
-    knot.add(knotGrid);
-    knot.scale.setScalar(1.1);
-    knot.castShadow = !lowPower;
-    continuum.add(knot);
+    surfaceGrid.scale.setScalar(1.004);
+    surface.add(surfaceGrid);
+    surface.rotation.set(-.18, .18, -.12);
+    surface.scale.setScalar(1.04);
+    surface.castShadow = !lowPower;
+    continuum.add(surface);
 
     const displayRing = new THREE.Mesh(
       new THREE.TorusGeometry(2.72, .045, 8, lowPower ? 72 : 128),
@@ -1564,12 +1617,12 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
           const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
           entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
           entranceArrow.material.opacity = .62 + Math.sin(elapsed * 2.1) * .1;
-          knotParameters.time.value = elapsed;
-          const radiusParameter = 1 + Math.sin(elapsed * .43) * .065;
-          const heightParameter = 1 + Math.sin(elapsed * .31 + 1.2) * .105;
-          const depthParameter = 1 + Math.cos(elapsed * .37 + .45) * .075;
-          knot.rotation.set(Math.sin(elapsed * .16) * .08, elapsed * .035, Math.cos(elapsed * .13) * .06);
-          knot.scale.set(1.1 * radiusParameter, 1.1 * heightParameter, 1.1 * depthParameter);
+          surfaceParameters.time.value = elapsed;
+          surfaceParameters.opening.value = 1 + Math.sin(elapsed * .34) * .2;
+          surfaceParameters.twist.value = Math.sin(elapsed * .23 + .7) * .52;
+          const radialParameter = 1 + Math.sin(elapsed * .29 + 1.1) * .06;
+          surface.rotation.set(-.18 + Math.sin(elapsed * .17) * .045, .18 + elapsed * .025, -.12 + Math.cos(elapsed * .14) * .04);
+          surface.scale.set(1.04 * radialParameter, 1.04, 1.04 * radialParameter);
         }
         ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
         if (activeHallScene) {

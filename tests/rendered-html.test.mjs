@@ -180,6 +180,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /surfaceParameters\.time\.value = elapsed \* 1\.9/);
   assert.match(museum, /surfaceParameters\.opening\.value = 1 \+ Math\.sin\(elapsed \* \.88\) \* \.25/);
   assert.match(museum, /surfaceParameters\.twist\.value = Math\.sin\(elapsed \* \.63 \+ \.7\) \* \.62/);
+  assert.match(museum, /surfaceParameters\.shear\.value = Math\.sin\(elapsed \* \.47 \+ 1\.6\) \* \.12/);
+  assert.match(museum, /surfaceParameters\.lift\.value = Math\.cos\(elapsed \* \.71 \+ \.2\) \* \.1/);
+  assert.match(museum, /transformed\.x \+= transformed\.y \* uSurfaceShear/);
+  assert.match(museum, /surface\.position\.y = Math\.sin\(elapsed \* \.56\) \* \.16/);
   assert.match(museum, /surface\.rotation\.set\(-\.18 \+ Math\.sin/);
   assert.match(museum, /function makeTesseractProjection\(\)/);
   assert.match(museum, /vertex \^ \(1 << dimension\)/);
@@ -189,9 +193,15 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /opacity: \.065, side: THREE\.DoubleSide/);
   assert.match(museum, /function updateTesseractProjection\(group: THREE\.Group, elapsed: number\)/);
   assert.match(museum, /\[x, w\] = rotate\(x, w, elapsed \* \.72\)/);
-  assert.match(museum, /const perspective = 2\.8 \/ \(3\.65 - w\)/);
+  assert.match(museum, /const projectionDistance = 3\.65 \+ Math\.sin\(elapsed \* \.38\) \* \.34/);
+  assert.match(museum, /const perspective = projectionScale \/ \(projectionDistance - w\)/);
   assert.match(museum, /edgeMesh\.setMatrixAt\(edgeIndex, edgeTransform\.matrix\)/);
   assert.match(museum, /facePositions\[targetOffset\] = projected\[sourceOffset\]/);
+  assert.match(museum, /const tesseractPulse = \.95 \+ Math\.sin\(elapsed \* \.67 \+ \.4\) \* \.09/);
+  assert.match(museum, /function makeFormulaHologram\(formula: string, color: string, lowPower: boolean\)/);
+  assert.match(museum, /"w² = z {2}· {2}w = ±√z"/);
+  assert.match(museum, /"\(x, y, z, w\) {2}→ {2}\(X, Y, Z\)"/);
+  assert.match(museum, /squareRootFormula\.visible = loadedHallIndex < 0 && showSquareRootSurface/);
   assert.match(museum, /tesseract\.visible = loadedHallIndex < 0 && !showSquareRootSurface/);
   assert.match(museum, /className="atrium-artwork-carousel"/);
   assert.match(museum, /\["复平方根曲面", "四维超立方体"\]/);

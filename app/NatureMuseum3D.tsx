@@ -758,6 +758,35 @@ function makeChevronMaterial(color: string) {
   });
 }
 
+function makeFormulaHologram(formula: string, color: string, lowPower: boolean) {
+  const group = new THREE.Group();
+  group.name = "atrium-formula-hologram";
+  const formulaPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(5.2, .86),
+    makeTextMaterial(formula, color, 88, false, 1536),
+  );
+  group.add(formulaPlane);
+  const points: THREE.Vector3[] = [];
+  const pointCount = lowPower ? 28 : 64;
+  for (let index = 0; index < pointCount; index++) {
+    const horizontal = Math.sin(index * 12.9898) * 2.65;
+    const vertical = (Math.sin(index * 7.137) * .5 + .5) * .78 - .39;
+    points.push(new THREE.Vector3(horizontal, vertical, -.04 + Math.cos(index * 3.17) * .08));
+  }
+  const particles = makePointCloud(points, color, lowPower ? .035 : .048, .62);
+  particles.userData.formulaParticles = true;
+  group.add(particles);
+  const scanLine = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.7, .018),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .34, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  );
+  scanLine.position.z = .025;
+  group.add(scanLine);
+  group.userData.particles = particles;
+  group.userData.scanLine = scanLine;
+  return group;
+}
+
 function addTextRing(
   parent: THREE.Group,
   text: string,
@@ -1013,7 +1042,11 @@ function updateTesseractProjection(group: THREE.Group, elapsed: number) {
     [y, w] = rotate(y, w, elapsed * .53 + .8);
     [z, w] = rotate(z, w, elapsed * .41 + 1.4);
     [x, y] = rotate(x, y, elapsed * .21);
-    const perspective = 2.8 / (3.65 - w);
+    [y, z] = rotate(y, z, elapsed * .33 + .35);
+    [x, z] = rotate(x, z, elapsed * .27 + 1.05);
+    const projectionDistance = 3.65 + Math.sin(elapsed * .38) * .34;
+    const projectionScale = 2.8 + Math.cos(elapsed * .29 + .6) * .2;
+    const perspective = projectionScale / (projectionDistance - w);
     projected[vertex * 3] = x * perspective * 1.72;
     projected[vertex * 3 + 1] = y * perspective * 1.72;
     projected[vertex * 3 + 2] = z * perspective * 1.72;
@@ -1503,6 +1536,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       opening: { value: 1 },
       twist: { value: 0 },
       wave: { value: lowPower ? .045 : .075 },
+      shear: { value: 0 },
+      lift: { value: 0 },
     };
     const addSurfaceParameterMotion = (material: THREE.Material) => {
       material.onBeforeCompile = (shader) => {
@@ -1510,6 +1545,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
         shader.uniforms.uSurfaceOpening = surfaceParameters.opening;
         shader.uniforms.uSurfaceTwist = surfaceParameters.twist;
         shader.uniforms.uSurfaceWave = surfaceParameters.wave;
+        shader.uniforms.uSurfaceShear = surfaceParameters.shear;
+        shader.uniforms.uSurfaceLift = surfaceParameters.lift;
         shader.vertexShader = shader.vertexShader
           .replace("#include <common>", `#include <common>
             attribute float aBranchAngle;
@@ -1517,14 +1554,18 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
             uniform float uSurfaceTime;
             uniform float uSurfaceOpening;
             uniform float uSurfaceTwist;
-            uniform float uSurfaceWave;`)
+            uniform float uSurfaceWave;
+            uniform float uSurfaceShear;
+            uniform float uSurfaceLift;`)
           .replace("#include <begin_vertex>", `#include <begin_vertex>
             float livingAngle = aBranchAngle + uSurfaceTwist * (0.18 + aBranchRadius * 0.16);
             float livingRadius = aBranchRadius * (1.0 + sin(aBranchAngle * 1.5 + uSurfaceTime * 0.55) * uSurfaceWave);
             transformed.x = cos(livingAngle) * livingRadius;
             transformed.z = sin(livingAngle) * livingRadius;
             transformed.y = sqrt(max(aBranchRadius, 0.0)) * cos(livingAngle * 0.5) * 1.58 * uSurfaceOpening;
-            transformed.y += sin(aBranchAngle * 1.15 - uSurfaceTime * 0.42) * uSurfaceWave * aBranchRadius * 0.32;`);
+            transformed.y += sin(aBranchAngle * 1.15 - uSurfaceTime * 0.42) * uSurfaceWave * aBranchRadius * 0.32;
+            transformed.x += transformed.y * uSurfaceShear;
+            transformed.z += cos(aBranchAngle * 0.5 + uSurfaceTime * 0.3) * uSurfaceLift * aBranchRadius;`);
       };
       material.customProgramCacheKey = () => "atrium-square-root-surface-v1";
     };
@@ -1559,9 +1600,16 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     surface.castShadow = !lowPower;
     continuum.add(surface);
     const tesseract = makeTesseractProjection();
+    updateTesseractProjection(tesseract, 0);
     tesseract.rotation.set(.28, -.18, .08);
     tesseract.scale.setScalar(.95);
     continuum.add(tesseract);
+    const squareRootFormula = makeFormulaHologram("w² = z  ·  w = ±√z", "#8fb8ff", lowPower);
+    squareRootFormula.position.set(0, 3.15, .08);
+    continuum.add(squareRootFormula);
+    const tesseractFormula = makeFormulaHologram("(x, y, z, w)  →  (X, Y, Z)", "#9fc7ff", lowPower);
+    tesseractFormula.position.set(0, 3.15, .08);
+    continuum.add(tesseractFormula);
 
     const displayRing = new THREE.Mesh(
       new THREE.TorusGeometry(2.72, .045, 8, lowPower ? 72 : 128),
@@ -1764,11 +1812,24 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
           surfaceParameters.time.value = elapsed * 1.9;
           surfaceParameters.opening.value = 1 + Math.sin(elapsed * .88) * .25;
           surfaceParameters.twist.value = Math.sin(elapsed * .63 + .7) * .62;
+          surfaceParameters.shear.value = Math.sin(elapsed * .47 + 1.6) * .12;
+          surfaceParameters.lift.value = Math.cos(elapsed * .71 + .2) * .1;
           const radialParameter = 1 + Math.sin(elapsed * .74 + 1.1) * .075;
           surface.rotation.set(-.18 + Math.sin(elapsed * .42) * .055, .18 + elapsed * .055, -.12 + Math.cos(elapsed * .36) * .05);
-          surface.scale.set(1.04 * radialParameter, 1.04, 1.04 * radialParameter);
-          updateTesseractProjection(tesseract, elapsed);
-          tesseract.rotation.y = -.18 + Math.sin(elapsed * .31) * .16;
+          surface.position.y = Math.sin(elapsed * .56) * .16;
+          surface.scale.set(1.04 * radialParameter, 1.04 + Math.cos(elapsed * .51) * .07, 1.04 * radialParameter);
+          updateTesseractProjection(tesseract, elapsed * 1.15);
+          tesseract.rotation.set(.28 + Math.sin(elapsed * .43) * .14, -.18 + Math.sin(elapsed * .31) * .22, .08 + Math.cos(elapsed * .37) * .13);
+          const tesseractPulse = .95 + Math.sin(elapsed * .67 + .4) * .09;
+          tesseract.scale.set(tesseractPulse, tesseractPulse * (1 + Math.cos(elapsed * .49) * .06), tesseractPulse);
+          [squareRootFormula, tesseractFormula].forEach((formula, index) => {
+            formula.position.y = 3.15 + Math.sin(elapsed * .92 + index * .8) * .12;
+            const particles = formula.userData.particles as THREE.Points;
+            const scanLine = formula.userData.scanLine as THREE.Mesh;
+            particles.rotation.z = Math.sin(elapsed * .45 + index) * .06;
+            (particles.material as THREE.PointsMaterial).opacity = .48 + Math.sin(elapsed * 1.4 + index) * .16;
+            scanLine.position.y = Math.sin(elapsed * 1.18 + index * .7) * .32;
+          });
         }
         ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
         if (activeHallScene) {
@@ -1807,6 +1868,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       const showSquareRootSurface = atriumArtworkRef.current === 0;
       surface.visible = loadedHallIndex < 0 && showSquareRootSurface;
       tesseract.visible = loadedHallIndex < 0 && !showSquareRootSurface;
+      squareRootFormula.visible = loadedHallIndex < 0 && showSquareRootSurface;
+      tesseractFormula.visible = loadedHallIndex < 0 && !showSquareRootSurface;
       renderer.render(scene, camera);
       metricsFrame++;
       if (metricsFrame % 30 === 0) {

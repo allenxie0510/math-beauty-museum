@@ -417,6 +417,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   const selected=useMemo(()=>GARDEN_ITEMS.find(item=>item.id===selectedId)??null,[selectedId]);
   const count=discoveries.size,seeds=count,stars=count*2,badges=(count>=3?1:0)+(count>=5?1:0)+(count===GARDEN_ITEMS.length?1:0);
   useEffect(()=>onProgress(count),[count,onProgress]);
+  useEffect(()=>{document.body.classList.toggle("garden-detail-mode",Boolean(selectedId));return()=>document.body.classList.remove("garden-detail-mode")},[selectedId]);
   useEffect(()=>{
     const section=gardenSection.current;if(!section||gardenCanvasReady)return;
     if(!("IntersectionObserver" in window)){const timer=window.setTimeout(()=>setGardenCanvasReady(true),0);return()=>window.clearTimeout(timer)}

@@ -285,9 +285,11 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /nature-formula-expression>strong\{font-size:40px/);
   assert.match(css, /Full-screen exhibit mode and compact fixed console/);
   assert.match(css, /\.exhibit-mode \.site-header/);
-  assert.match(css, /\.site-nav-visible \.site-header/);
-  assert.match(css, /\.museum-navigation-busy \.site-header/);
   assert.match(css, /\.exhibit-mode \.site-header\{display:none\}/);
+  assert.match(css, /\.garden-detail-mode \.site-header\{display:none\}/);
+  assert.match(css, /\.certificate-mode \.site-header\{display:none\}/);
+  assert.match(css, /\.garden-nav-theme \.site-header\{color:#243448\}/);
+  assert.match(css, /\.site-header\{transform:none;opacity:1;pointer-events:auto/);
   assert.doesNotMatch(css, /\.exhibit-mode\.exhibit-nav-visible \.site-header/);
   assert.doesNotMatch(css, /\.exhibit-mode\.exhibit-nav-visible \.nature-lab-close/);
   assert.match(css, /\.site-header\{color:#f3f4fa;background:transparent;border:0;box-shadow:none;backdrop-filter:none\}/);
@@ -319,8 +321,11 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(page, /<MuseumLoading \/>/);
   assert.match(page, /<DeferredMathGarden/);
   assert.match(page, /rootMargin: "240px 0px"/);
-  assert.match(page, /body\.classList\.add\("site-nav-visible"\)/);
-  assert.match(page, /window\.addEventListener\("pointermove", updateNavigation/);
+  assert.match(page, /body\.classList\.toggle\("garden-nav-theme", active\)/);
+  assert.match(page, /entry\.intersectionRatio >= 0\.5/);
+  assert.doesNotMatch(page, /updateNavigation|site-nav-visible/);
+  assert.match(page, /certificateOpen \? "certificate-mode" : ""/);
+  assert.match(garden, /classList\.toggle\("garden-detail-mode",Boolean\(selectedId\)\)/);
   assert.doesNotMatch(page, /GoldenFlower|FractalForest|GeometryBuilder|FourierSound|SpiralUniverse|journey-intro/);
   assert.match(layout, /Math Beauty Museum/);
   assert.match(layout, /viewportFit: "cover"/);

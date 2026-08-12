@@ -294,7 +294,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.exhibit-mode \.site-header\{display:none\}/);
   assert.match(css, /\.garden-detail-mode \.site-header\{display:none\}/);
   assert.match(css, /\.certificate-mode \.site-header\{display:none\}/);
-  assert.match(css, /\.garden-nav-theme \.site-header\{color:#243448\}/);
+  assert.match(css, /\.garden-nav-theme \.site-header\{color:#162b3c\}/);
+  assert.match(css, /\.garden-nav-theme \.site-header nav button\{color:#233f52;font-weight:700\}/);
+  assert.match(css, /\.garden-nav-theme \.progress-button\{[^}]*background:rgba\(255,255,255,\.58\)/);
   assert.match(css, /\.site-header\{transform:none;opacity:1;pointer-events:auto/);
   assert.doesNotMatch(css, /\.exhibit-mode\.exhibit-nav-visible \.site-header/);
   assert.doesNotMatch(css, /\.exhibit-mode\.exhibit-nav-visible \.nature-lab-close/);
@@ -328,7 +330,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(page, /<DeferredMathGarden/);
   assert.match(page, /rootMargin: "240px 0px"/);
   assert.match(page, /body\.classList\.toggle\("garden-nav-theme", active\)/);
-  assert.match(page, /entry\.intersectionRatio >= 0\.5/);
+  assert.match(page, /bounds\.top <= viewportCenter && bounds\.bottom >= viewportCenter/);
+  assert.match(page, /window\.addEventListener\("scroll", updateTheme/);
+  assert.doesNotMatch(page, /entry\.intersectionRatio >= 0\.5/);
   assert.doesNotMatch(page, /updateNavigation|site-nav-visible/);
   assert.match(page, /certificateOpen \? "certificate-mode" : ""/);
   assert.match(garden, /classList\.toggle\("garden-detail-mode",Boolean\(selectedId\)\)/);

@@ -130,30 +130,20 @@ export default function Home() {
 
   useEffect(() => {
     const body = document.body;
-    const garden = document.getElementById("garden");
-    if (!garden) return;
     const setGardenTheme = (active: boolean) => body.classList.toggle("garden-nav-theme", active);
-    if (!("IntersectionObserver" in window)) {
-      const updateTheme = () => {
-        const bounds = garden.getBoundingClientRect();
-        const visibleHeight = Math.min(bounds.bottom, window.innerHeight) - Math.max(bounds.top, 0);
-        setGardenTheme(visibleHeight > window.innerHeight * 0.5);
-      };
-      updateTheme();
-      window.addEventListener("scroll", updateTheme, { passive: true });
-      window.addEventListener("resize", updateTheme, { passive: true });
-      return () => {
-        window.removeEventListener("scroll", updateTheme);
-        window.removeEventListener("resize", updateTheme);
-        body.classList.remove("garden-nav-theme");
-      };
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      setGardenTheme(entry.isIntersecting && entry.intersectionRatio >= 0.5);
-    }, { threshold: [0, 0.5, 1] });
-    observer.observe(garden);
+    const updateTheme = () => {
+      const garden = document.getElementById("garden");
+      if (!garden) return setGardenTheme(false);
+      const bounds = garden.getBoundingClientRect();
+      const viewportCenter = window.innerHeight * 0.5;
+      setGardenTheme(bounds.top <= viewportCenter && bounds.bottom >= viewportCenter);
+    };
+    updateTheme();
+    window.addEventListener("scroll", updateTheme, { passive: true });
+    window.addEventListener("resize", updateTheme, { passive: true });
     return () => {
-      observer.disconnect();
+      window.removeEventListener("scroll", updateTheme);
+      window.removeEventListener("resize", updateTheme);
       body.classList.remove("garden-nav-theme");
     };
   }, []);

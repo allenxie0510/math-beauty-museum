@@ -115,6 +115,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /ctx\.lineCap = "round"/);
   assert.match(museum, /entranceGuide\.position\.set\(0, \.045, 5\.9\)/);
   assert.match(museum, /new THREE\.PlaneGeometry\(\.9, \.9\), makeChevronMaterial/);
+  assert.doesNotMatch(museum, /点击进入 {2}· {2}ENTER/);
   assert.doesNotMatch(museum, /const arrowShape = new THREE\.Shape/);
   assert.doesNotMatch(museum, /const guidePoints =/);
   assert.doesNotMatch(museum, /const guideCurve =/);
@@ -137,6 +138,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /import \{ Reflector \} from "three\/examples\/jsm\/objects\/Reflector\.js"/);
   assert.match(museum, /new Reflector\(new THREE\.CircleGeometry\(9\.8, 96\)/);
   assert.match(museum, /textureWidth: 512/);
+  assert.match(museum, /name: "MutedAtriumReflector"/);
+  assert.match(museum, /vec3 desaturated = mix\(vec3\(luminance\), reflected, 0\.26\)/);
+  assert.match(museum, /vec3 softened = mix\(desaturated, color, 0\.58\) \* 0\.58/);
   assert.match(museum, /atriumFloor\.name = "atrium-reflective-floor"/);
   assert.match(museum, /atriumFloor\.visible = atriumIsActive/);
   assert.match(museum, /continuum\.position\.set\(0, 3\.05, \.25\)/);
@@ -147,10 +151,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /const beamRig = new THREE\.Group/);
   assert.match(museum, /const outerBeam = new THREE\.Mesh/);
   assert.match(museum, /new THREE\.CylinderGeometry\(2\.62, 2\.9, beamHeight/);
-  assert.match(museum, /const sourceRing = new THREE\.Mesh/);
+  assert.doesNotMatch(museum, /const sourceRing = new THREE\.Mesh/);
   assert.match(museum, /const floorLightPool = new THREE\.Mesh/);
   assert.match(museum, /const beamSpot = new THREE\.SpotLight/);
   assert.match(museum, /const beamDustCount = lowPower \? 34 : 84/);
+  assert.match(museum, /beamMaterial\(lowPower \? \.045 : \.072\)/);
+  assert.match(museum, /if \(atriumFloor instanceof Reflector\) atriumFloor\.dispose\(\)/);
   assert.doesNotMatch(museum, /className="nature-museum-title atrium-title"/);
   assert.doesNotMatch(museum, /THE LANGUAGE BEHIND BEAUTY · PROLOGUE/);
   assert.doesNotMatch(museum, /continuumStates|continuumDust|pedestalHalo/);

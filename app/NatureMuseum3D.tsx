@@ -1200,17 +1200,53 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     addTextRing(atrium, "数学美学展", 3.7, 7.65, "#b8c9ff", 1.08, 0, 1.52);
     scene.add(atrium);
 
+    const mutedFloorShader = {
+      name: "MutedAtriumReflector",
+      uniforms: {
+        color: { value: null },
+        tDiffuse: { value: null },
+        textureMatrix: { value: null },
+      },
+      vertexShader: `
+        uniform mat4 textureMatrix;
+        varying vec4 vUv;
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
+        void main() {
+          vUv = textureMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          #include <logdepthbuf_vertex>
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 color;
+        uniform sampler2D tDiffuse;
+        varying vec4 vUv;
+        #include <logdepthbuf_pars_fragment>
+        void main() {
+          #include <logdepthbuf_fragment>
+          vec3 reflected = texture2DProj(tDiffuse, vUv).rgb;
+          float luminance = dot(reflected, vec3(0.2126, 0.7152, 0.0722));
+          vec3 desaturated = mix(vec3(luminance), reflected, 0.26);
+          vec3 softened = mix(desaturated, color, 0.58) * 0.58;
+          gl_FragColor = vec4(softened, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }
+      `,
+    };
     const atriumFloor = lowPower
       ? new THREE.Mesh(
         new THREE.CircleGeometry(9.8, 64),
-        physical("#101a2e", { roughness: .26, metalness: .48, clearcoat: .72, clearcoatRoughness: .18 }),
+        physical("#151820", { roughness: .42, metalness: .34, clearcoat: .42, clearcoatRoughness: .32 }),
       )
       : new Reflector(new THREE.CircleGeometry(9.8, 96), {
         clipBias: .003,
         textureWidth: 512,
         textureHeight: 512,
-        color: 0x263554,
+        color: 0x171b24,
         multisample: 0,
+        shader: mutedFloorShader,
       });
     atriumFloor.name = "atrium-reflective-floor";
     atriumFloor.rotation.x = -Math.PI / 2;
@@ -1231,10 +1267,6 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     entranceArrow.rotation.x = -Math.PI / 2;
     entranceArrow.position.y = .065;
     entranceGuide.add(entranceArrow);
-    const entranceLabel = new THREE.Mesh(new THREE.PlaneGeometry(2.8, .6), makeTextMaterial("点击进入  ·  ENTER", "#fff0ce", 74));
-    entranceLabel.rotation.x = -Math.PI / 2;
-    entranceLabel.position.set(0, .07, 1.25);
-    entranceGuide.add(entranceLabel);
     entranceGuide.traverse((object) => { object.userData.museumAction = "enter-first-hall"; });
     scene.add(entranceGuide);
 
@@ -1286,7 +1318,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const beamRig = new THREE.Group();
     beamRig.position.set(0, beamHeight / 2 - 3, 0);
     const beamMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
-      color: atriumBlue,
+      color: "#8197cc",
       transparent: true,
       opacity,
       depthWrite: false,
@@ -1296,20 +1328,13 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     });
     const outerBeam = new THREE.Mesh(
       new THREE.CylinderGeometry(2.62, 2.9, beamHeight, lowPower ? 28 : 56, 1, true),
-      beamMaterial(lowPower ? .025 : .04),
+      beamMaterial(lowPower ? .045 : .072),
     );
     const innerBeam = new THREE.Mesh(
       new THREE.CylinderGeometry(2.24, 2.5, beamHeight, lowPower ? 24 : 48, 1, true),
-      beamMaterial(lowPower ? .018 : .03),
+      beamMaterial(lowPower ? .034 : .055),
     );
     beamRig.add(outerBeam, innerBeam);
-    const sourceRing = new THREE.Mesh(
-      new THREE.TorusGeometry(2.62, .055, 8, lowPower ? 64 : 128),
-      glowMaterial("#b8caff", .72),
-    );
-    sourceRing.rotation.x = Math.PI / 2;
-    sourceRing.position.y = beamHeight / 2;
-    beamRig.add(sourceRing);
     const beamDustPoints: THREE.Vector3[] = [];
     const beamDustCount = lowPower ? 34 : 84;
     for (let index = 0; index < beamDustCount; index++) {
@@ -1323,7 +1348,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
         Math.sin(angle) * drift,
       ));
     }
-    beamRig.add(makePointCloud(beamDustPoints, "#c7d5ff", lowPower ? .025 : .032, .32));
+    beamRig.add(makePointCloud(beamDustPoints, "#d4ddf5", lowPower ? .025 : .032, .44));
     continuum.add(beamRig);
     const floorLightPool = new THREE.Mesh(
       new THREE.CircleGeometry(2.9, lowPower ? 48 : 96),
@@ -1520,6 +1545,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       renderer.domElement.removeEventListener("webglcontextrestored", contextRestored);
       controls.dispose();
+      if (atriumFloor instanceof Reflector) atriumFloor.dispose();
       disposeObject(scene);
       renderer.dispose();
       renderer.domElement.remove();

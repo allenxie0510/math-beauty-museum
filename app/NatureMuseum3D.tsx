@@ -1193,6 +1193,18 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const ambientParticles = makePointCloud(ambientPoints, "#8fa7ff", lowPower ? .045 : .06, .33);
     scene.add(ambientParticles);
 
+    const ceilingPoints: THREE.Vector3[] = [];
+    const ceilingPointCount = lowPower ? 34 : 86;
+    for (let index = 0; index < ceilingPointCount; index++) {
+      const x = Math.sin(index * 12.9898) * 9.4;
+      const z = 7.5 - (index / ceilingPointCount) * 15;
+      const y = 8.62 + (Math.sin(index * 5.173) * .5 + .5) * .52;
+      ceilingPoints.push(new THREE.Vector3(x, y, z));
+    }
+    const atriumCeilingParticles = makePointCloud(ceilingPoints, "#adc4ff", lowPower ? .035 : .045, .42);
+    atriumCeilingParticles.name = "atrium-ceiling-particles";
+    scene.add(atriumCeilingParticles);
+
     const atriumBlue = "#5d7fd0";
     const atriumBlueGlow = "#79a0ff";
     const atrium = new THREE.Group();
@@ -1256,12 +1268,12 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       });
     atriumFloor.name = "atrium-reflective-floor";
     atriumFloor.rotation.x = -Math.PI / 2;
-    atriumFloor.position.set(0, .018, .2);
+    atriumFloor.position.set(0, -1.18, .2);
     atriumFloor.renderOrder = -2;
     scene.add(atriumFloor);
 
     const entranceGuide = new THREE.Group();
-    entranceGuide.position.set(0, .045, 5.9);
+    entranceGuide.position.set(0, -1.135, 5.9);
     entranceGuide.userData.museumAction = "enter-first-hall";
     const entranceHitArea = new THREE.Mesh(
       new THREE.CircleGeometry(1.55, 32),
@@ -1310,19 +1322,19 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       glowMaterial(atriumBlueGlow, .72),
     );
     displayRing.rotation.x = Math.PI / 2;
-    displayRing.position.y = -3;
+    displayRing.position.y = -4.2;
     continuum.add(displayRing);
     const displayRingGlow = new THREE.Mesh(
       new THREE.TorusGeometry(2.72, .14, 8, lowPower ? 72 : 128),
       glowMaterial(atriumBlue, .1),
     );
     displayRingGlow.rotation.x = Math.PI / 2;
-    displayRingGlow.position.y = -3.012;
+    displayRingGlow.position.y = -4.212;
     continuum.add(displayRingGlow);
 
-    const beamHeight = 8.1;
+    const beamHeight = 9.3;
     const beamRig = new THREE.Group();
-    beamRig.position.set(0, beamHeight / 2 - 3, 0);
+    beamRig.position.set(0, beamHeight / 2 - 4.2, 0);
     const beamMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
       color: "#8197cc",
       transparent: true,
@@ -1361,11 +1373,11 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       new THREE.MeshBasicMaterial({ color: atriumBlueGlow, transparent: true, opacity: lowPower ? .08 : .13, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
     );
     floorLightPool.rotation.x = -Math.PI / 2;
-    floorLightPool.position.y = -3.026;
+    floorLightPool.position.y = -4.226;
     continuum.add(floorLightPool);
     const beamSpot = new THREE.SpotLight(atriumBlueGlow, lowPower ? 34 : 68, 13, Math.PI * .19, .72, 1.25);
-    beamSpot.position.set(0, beamHeight - 3, 0);
-    beamSpot.target.position.set(0, -3, 0);
+    beamSpot.position.set(0, beamHeight - 4.2, 0);
+    beamSpot.target.position.set(0, -4.2, 0);
     beamSpot.castShadow = !lowPower;
     continuum.add(beamSpot, beamSpot.target);
     scene.add(continuum);
@@ -1394,6 +1406,8 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       const atriumIsActive = nextHallIndex < 0;
       atrium.visible = atriumIsActive;
       atriumFloor.visible = atriumIsActive;
+      atriumCeilingParticles.visible = atriumIsActive;
+      floor.visible = !atriumIsActive;
       continuum.visible = atriumIsActive;
       entranceGuide.visible = atriumIsActive;
       atriumLight.visible = atriumIsActive;

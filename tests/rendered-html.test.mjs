@@ -113,7 +113,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /museumAction = "enter-first-hall"/);
   assert.match(museum, /function makeChevronMaterial/);
   assert.match(museum, /ctx\.lineCap = "round"/);
-  assert.match(museum, /entranceGuide\.position\.set\(0, \.045, 5\.9\)/);
+  assert.match(museum, /entranceGuide\.position\.set\(0, -1\.135, 5\.9\)/);
   assert.match(museum, /new THREE\.PlaneGeometry\(\.9, \.9\), makeChevronMaterial/);
   assert.doesNotMatch(museum, /点击进入 {2}· {2}ENTER/);
   assert.doesNotMatch(museum, /const arrowShape = new THREE\.Shape/);
@@ -145,14 +145,19 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /vec3 desaturated = mix\(vec3\(luminance\), reflected, 0\.26\)/);
   assert.match(museum, /vec3 softened = mix\(desaturated, color, 0\.58\) \* 0\.58/);
   assert.match(museum, /atriumFloor\.name = "atrium-reflective-floor"/);
+  assert.match(museum, /atriumFloor\.position\.set\(0, -1\.18, \.2\)/);
   assert.match(museum, /atriumFloor\.visible = atriumIsActive/);
+  assert.match(museum, /const ceilingPointCount = lowPower \? 34 : 86/);
+  assert.match(museum, /atriumCeilingParticles\.name = "atrium-ceiling-particles"/);
+  assert.match(museum, /atriumCeilingParticles\.visible = atriumIsActive/);
+  assert.match(museum, /floor\.visible = !atriumIsActive/);
   assert.match(museum, /opacity: lowPower \? \.28 : \.34/);
   assert.match(museum, /emissiveIntensity: \.28/);
   assert.match(museum, /continuum\.position\.set\(0, 3\.05, \.25\)/);
   assert.match(museum, /knot\.scale\.setScalar\(1\.1\)/);
   assert.match(museum, /const displayRing = new THREE\.Mesh/);
   assert.match(museum, /new THREE\.TorusGeometry\(2\.72, \.045/);
-  assert.match(museum, /displayRing\.position\.y = -3/);
+  assert.match(museum, /displayRing\.position\.y = -4\.2/);
   assert.match(museum, /const beamRig = new THREE\.Group/);
   assert.match(museum, /const outerBeam = new THREE\.Mesh/);
   assert.match(museum, /new THREE\.CylinderGeometry\(2\.62, 2\.9, beamHeight/);
@@ -259,6 +264,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.doesNotMatch(museum, /className="nature-room-dock"/);
   assert.match(css, /\.museum-hall-arrows/);
   assert.match(css, /\.museum-route-indicator/);
+  assert.match(css, /\.museum-route-indicator\{[^}]*padding:8px 0;border:0;background:transparent;box-shadow:none/);
   assert.match(css, /\.immersive-lab-header/);
   assert.match(css, /\.nature-console-grid/);
   assert.match(css, /\.nature-lab-live-vars/);

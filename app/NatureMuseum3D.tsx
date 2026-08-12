@@ -924,33 +924,80 @@ function makeTesseractProjection() {
       if (vertex < neighbor) edges.push([vertex, neighbor]);
     }
   }
-  const linePositions = new Float32Array(edges.length * 6);
+  const faces: Array<[number, number, number, number]> = [];
+  for (let firstDimension = 0; firstDimension < 4; firstDimension++) {
+    for (let secondDimension = firstDimension + 1; secondDimension < 4; secondDimension++) {
+      const fixedDimensions = [0, 1, 2, 3].filter((dimension) => dimension !== firstDimension && dimension !== secondDimension);
+      for (let fixedState = 0; fixedState < 4; fixedState++) {
+        let baseVertex = 0;
+        if (fixedState & 1) baseVertex |= 1 << fixedDimensions[0];
+        if (fixedState & 2) baseVertex |= 1 << fixedDimensions[1];
+        faces.push([
+          baseVertex,
+          baseVertex ^ (1 << firstDimension),
+          baseVertex ^ (1 << firstDimension) ^ (1 << secondDimension),
+          baseVertex ^ (1 << secondDimension),
+        ]);
+      }
+    }
+  }
   const pointPositions = new Float32Array(16 * 3);
-  const lineGeometry = new THREE.BufferGeometry();
-  lineGeometry.setAttribute("position", new THREE.BufferAttribute(linePositions, 3));
   const pointGeometry = new THREE.BufferGeometry();
   pointGeometry.setAttribute("position", new THREE.BufferAttribute(pointPositions, 3));
-  const lines = new THREE.LineSegments(
-    lineGeometry,
-    new THREE.LineBasicMaterial({ color: "#79a8ff", transparent: true, opacity: .68, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  const edgeGeometry = new THREE.CylinderGeometry(.035, .035, 1, 8, 1, false);
+  const edgeMaterial = new THREE.MeshBasicMaterial({ color: "#8cbbff", transparent: true, opacity: .82, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const edgeMesh = new THREE.InstancedMesh(edgeGeometry, edgeMaterial, edges.length);
+  edgeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const facePositions = new Float32Array(faces.length * 12);
+  const faceIndices: number[] = [];
+  faces.forEach((_, faceIndex) => {
+    const offset = faceIndex * 4;
+    faceIndices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
+  });
+  const faceGeometry = new THREE.BufferGeometry();
+  faceGeometry.setAttribute("position", new THREE.BufferAttribute(facePositions, 3));
+  faceGeometry.setIndex(faceIndices);
+  const faceMesh = new THREE.Mesh(
+    faceGeometry,
+    new THREE.MeshBasicMaterial({ color: "#477bd6", transparent: true, opacity: .065, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
   );
   const points = new THREE.Points(
     pointGeometry,
-    new THREE.PointsMaterial({ color: "#d7e5ff", size: .085, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+    new THREE.PointsMaterial({ color: "#d7e5ff", size: .105, transparent: true, opacity: .94, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
   );
-  group.add(lines, points);
+  group.add(faceMesh, edgeMesh, points);
   group.userData.edges = edges;
-  group.userData.linePositions = linePositions;
+  group.userData.faces = faces;
   group.userData.pointPositions = pointPositions;
-  group.userData.lineGeometry = lineGeometry;
+  group.userData.edgeMesh = edgeMesh;
+  group.userData.facePositions = facePositions;
+  group.userData.faceGeometry = faceGeometry;
   group.userData.pointGeometry = pointGeometry;
+  group.userData.edgeTransform = {
+    midpoint: new THREE.Vector3(),
+    direction: new THREE.Vector3(),
+    quaternion: new THREE.Quaternion(),
+    matrix: new THREE.Matrix4(),
+    scale: new THREE.Vector3(),
+    up: new THREE.Vector3(0, 1, 0),
+  };
   return group;
 }
 
 function updateTesseractProjection(group: THREE.Group, elapsed: number) {
   const edges = group.userData.edges as Array<[number, number]>;
-  const linePositions = group.userData.linePositions as Float32Array;
+  const faces = group.userData.faces as Array<[number, number, number, number]>;
   const pointPositions = group.userData.pointPositions as Float32Array;
+  const edgeMesh = group.userData.edgeMesh as THREE.InstancedMesh;
+  const facePositions = group.userData.facePositions as Float32Array;
+  const edgeTransform = group.userData.edgeTransform as {
+    midpoint: THREE.Vector3;
+    direction: THREE.Vector3;
+    quaternion: THREE.Quaternion;
+    matrix: THREE.Matrix4;
+    scale: THREE.Vector3;
+    up: THREE.Vector3;
+  };
   const projected = new Float32Array(16 * 3);
   const rotate = (a: number, b: number, angle: number) => {
     const cosine = Math.cos(angle);
@@ -973,10 +1020,35 @@ function updateTesseractProjection(group: THREE.Group, elapsed: number) {
   }
   pointPositions.set(projected);
   edges.forEach(([start, end], edgeIndex) => {
-    linePositions.set(projected.subarray(start * 3, start * 3 + 3), edgeIndex * 6);
-    linePositions.set(projected.subarray(end * 3, end * 3 + 3), edgeIndex * 6 + 3);
+    const startOffset = start * 3;
+    const endOffset = end * 3;
+    edgeTransform.midpoint.set(
+      (projected[startOffset] + projected[endOffset]) * .5,
+      (projected[startOffset + 1] + projected[endOffset + 1]) * .5,
+      (projected[startOffset + 2] + projected[endOffset + 2]) * .5,
+    );
+    edgeTransform.direction.set(
+      projected[endOffset] - projected[startOffset],
+      projected[endOffset + 1] - projected[startOffset + 1],
+      projected[endOffset + 2] - projected[startOffset + 2],
+    );
+    const length = edgeTransform.direction.length();
+    edgeTransform.quaternion.setFromUnitVectors(edgeTransform.up, edgeTransform.direction.normalize());
+    edgeTransform.scale.set(1, length, 1);
+    edgeTransform.matrix.compose(edgeTransform.midpoint, edgeTransform.quaternion, edgeTransform.scale);
+    edgeMesh.setMatrixAt(edgeIndex, edgeTransform.matrix);
   });
-  (group.userData.lineGeometry as THREE.BufferGeometry).attributes.position.needsUpdate = true;
+  edgeMesh.instanceMatrix.needsUpdate = true;
+  faces.forEach((face, faceIndex) => {
+    face.forEach((vertex, cornerIndex) => {
+      const sourceOffset = vertex * 3;
+      const targetOffset = (faceIndex * 4 + cornerIndex) * 3;
+      facePositions[targetOffset] = projected[sourceOffset];
+      facePositions[targetOffset + 1] = projected[sourceOffset + 1];
+      facePositions[targetOffset + 2] = projected[sourceOffset + 2];
+    });
+  });
+  (group.userData.faceGeometry as THREE.BufferGeometry).attributes.position.needsUpdate = true;
   (group.userData.pointGeometry as THREE.BufferGeometry).attributes.position.needsUpdate = true;
 }
 

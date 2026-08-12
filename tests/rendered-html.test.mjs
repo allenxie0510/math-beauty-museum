@@ -183,9 +183,15 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /surface\.rotation\.set\(-\.18 \+ Math\.sin/);
   assert.match(museum, /function makeTesseractProjection\(\)/);
   assert.match(museum, /vertex \^ \(1 << dimension\)/);
+  assert.match(museum, /const faces: Array<\[number, number, number, number\]> = \[\]/);
+  assert.match(museum, /new THREE\.CylinderGeometry\(\.035, \.035, 1, 8/);
+  assert.match(museum, /new THREE\.InstancedMesh\(edgeGeometry, edgeMaterial, edges\.length\)/);
+  assert.match(museum, /opacity: \.065, side: THREE\.DoubleSide/);
   assert.match(museum, /function updateTesseractProjection\(group: THREE\.Group, elapsed: number\)/);
   assert.match(museum, /\[x, w\] = rotate\(x, w, elapsed \* \.72\)/);
   assert.match(museum, /const perspective = 2\.8 \/ \(3\.65 - w\)/);
+  assert.match(museum, /edgeMesh\.setMatrixAt\(edgeIndex, edgeTransform\.matrix\)/);
+  assert.match(museum, /facePositions\[targetOffset\] = projected\[sourceOffset\]/);
   assert.match(museum, /tesseract\.visible = loadedHallIndex < 0 && !showSquareRootSurface/);
   assert.match(museum, /className="atrium-artwork-carousel"/);
   assert.match(museum, /\["复平方根曲面", "四维超立方体"\]/);

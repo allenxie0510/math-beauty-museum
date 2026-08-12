@@ -263,7 +263,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.doesNotMatch(museum, /ctx\.strokeStyle = "#b9c4d6"/);
   assert.match(museum, /body\.style\.position = "fixed"/);
   assert.match(museum, /body\.classList\.add\("exhibit-mode"\)/);
-  assert.match(museum, /event\.clientY <= 12/);
+  assert.doesNotMatch(museum, /event\.clientY <= 12/);
+  assert.doesNotMatch(museum, /updateGlobalNavigation/);
   assert.match(museum, /body\.classList\.remove\("exhibit-mode", "exhibit-nav-visible"\)/);
   assert.match(museum, /root\.style\.overscrollBehavior = "none"/);
   assert.match(museum, /onWheel=\{\(event\) => event\.stopPropagation\(\)\}/);
@@ -286,8 +287,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.exhibit-mode \.site-header/);
   assert.match(css, /\.site-nav-visible \.site-header/);
   assert.match(css, /\.museum-navigation-busy \.site-header/);
-  assert.match(css, /\.exhibit-mode\.exhibit-nav-visible \.site-header/);
-  assert.match(css, /\.exhibit-mode\.exhibit-nav-visible \.nature-lab-close/);
+  assert.match(css, /\.exhibit-mode \.site-header\{display:none\}/);
+  assert.doesNotMatch(css, /\.exhibit-mode\.exhibit-nav-visible \.site-header/);
+  assert.doesNotMatch(css, /\.exhibit-mode\.exhibit-nav-visible \.nature-lab-close/);
+  assert.match(css, /\.site-header\{color:#f3f4fa;background:transparent;border:0;box-shadow:none;backdrop-filter:none\}/);
   assert.match(css, /\.nature-lab-shell\{width:100%;height:100svh/);
   assert.match(css, /\.nature-lab-controls\{position:fixed/);
   assert.match(css, /\.sound-clip-select select/);

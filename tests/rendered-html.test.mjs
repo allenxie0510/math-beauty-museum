@@ -136,7 +136,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /const atriumPortalMaterial = physical\(atriumBlue/);
   assert.doesNotMatch(museum, /addAtriumDepthCorridor|atrium-depth-corridor/);
   assert.match(museum, /import \{ Reflector \} from "three\/examples\/jsm\/objects\/Reflector\.js"/);
-  assert.match(museum, /new Reflector\(new THREE\.CircleGeometry\(9\.8, 96\)/);
+  assert.match(museum, /new Reflector\(new THREE\.PlaneGeometry\(34, 108\)/);
   assert.match(museum, /const reflectionMaxResolution = \(navigator\.hardwareConcurrency \?\? 8\) >= 10 \? 1536 : 1024/);
   assert.match(museum, /textureWidth: reflectionResolution/);
   assert.match(museum, /multisample: 2/);
@@ -145,7 +145,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /vec3 desaturated = mix\(vec3\(luminance\), reflected, 0\.26\)/);
   assert.match(museum, /vec3 softened = mix\(desaturated, color, 0\.58\) \* 0\.58/);
   assert.match(museum, /atriumFloor\.name = "atrium-reflective-floor"/);
-  assert.match(museum, /atriumFloor\.position\.set\(0, -1\.18, \.2\)/);
+  assert.match(museum, /atriumFloor\.position\.set\(0, -1\.18, -36\)/);
   assert.match(museum, /atriumFloor\.visible = atriumIsActive/);
   assert.match(museum, /const ceilingPointCount = lowPower \? 34 : 86/);
   assert.match(museum, /atriumCeilingParticles\.name = "atrium-ceiling-particles"/);
@@ -154,6 +154,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /atriumCeilingGlow\.name = "atrium-ceiling-glow"/);
   assert.match(museum, /atriumCeilingParticles\.visible = atriumIsActive/);
   assert.match(museum, /atriumCeilingGlow\.visible = atriumIsActive/);
+  assert.match(museum, /atriumPortals\.name = "atrium-four-hall-portals"/);
+  assert.match(museum, /const portalRoute = \[new THREE\.Vector3\(0, 0, 0\), \.\.\.HALL_CENTERS\]/);
+  assert.match(museum, /HALLS\.forEach\(\(hall, index\) =>/);
+  assert.match(museum, /atriumPortals\.visible = atriumIsActive/);
   assert.match(museum, /floor\.visible = !atriumIsActive/);
   assert.match(museum, /opacity: lowPower \? \.28 : \.34/);
   assert.match(museum, /emissiveIntensity: \.28/);

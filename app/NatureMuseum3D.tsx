@@ -1257,10 +1257,10 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     );
     const atriumFloor = lowPower
       ? new THREE.Mesh(
-        new THREE.CircleGeometry(9.8, 64),
+        new THREE.PlaneGeometry(34, 108),
         physical("#151820", { roughness: .42, metalness: .34, clearcoat: .42, clearcoatRoughness: .32 }),
       )
-      : new Reflector(new THREE.CircleGeometry(9.8, 96), {
+      : new Reflector(new THREE.PlaneGeometry(34, 108), {
         clipBias: .003,
         textureWidth: reflectionResolution,
         textureHeight: reflectionResolution,
@@ -1270,7 +1270,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       });
     atriumFloor.name = "atrium-reflective-floor";
     atriumFloor.rotation.x = -Math.PI / 2;
-    atriumFloor.position.set(0, -1.18, .2);
+    atriumFloor.position.set(0, -1.18, -36);
     atriumFloor.renderOrder = -2;
     scene.add(atriumFloor);
 
@@ -1387,12 +1387,15 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     atriumLight.position.set(0, 4.4, 1.2);
     scene.add(atriumLight);
 
-    HALL_CENTERS.slice(0, -1).forEach((center, index) => {
-      const next = HALL_CENTERS[index + 1];
-      const x = (center.x + next.x) / 2;
-      const z = (center.z + next.z) / 2;
-      addPortal(scene, x, z, HALLS[index + 1].accent);
+    const atriumPortals = new THREE.Group();
+    atriumPortals.name = "atrium-four-hall-portals";
+    const portalRoute = [new THREE.Vector3(0, 0, 0), ...HALL_CENTERS];
+    HALLS.forEach((hall, index) => {
+      const previous = portalRoute[index];
+      const next = portalRoute[index + 1];
+      addPortal(atriumPortals, (previous.x + next.x) / 2, (previous.z + next.z) / 2, hall.accent);
     });
+    scene.add(atriumPortals);
 
     let loadedHallIndex = Number.NaN;
     let activeHallScene: HallSceneBundle | null = null;
@@ -1410,6 +1413,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       atriumFloor.visible = atriumIsActive;
       atriumCeilingParticles.visible = atriumIsActive;
       atriumCeilingGlow.visible = atriumIsActive;
+      atriumPortals.visible = atriumIsActive;
       floor.visible = !atriumIsActive;
       continuum.visible = atriumIsActive;
       entranceGuide.visible = atriumIsActive;

@@ -2411,9 +2411,6 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
       ctx.fillRect(0, 0, logicalWidth, logicalHeight);
       drawGrid(ctx, logicalWidth, logicalHeight);
       drawPreview(ctx, item, settings, logicalWidth, logicalHeight, signalRef.current);
-      ctx.fillStyle = "rgba(228,233,244,.72)";
-      ctx.font = "600 18px Arial, sans-serif";
-      ctx.fillText(item.previewCaption, 44, logicalHeight - 34);
       if (isSoundVisual) raf = window.requestAnimationFrame(render);
     };
     const resize = () => {
@@ -2690,6 +2687,11 @@ export function NatureMuseumWorld() {
                 : <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />}
             </div>
             <aside className={"nature-lab-controls " + (hall.key === "sound" ? "sound-console" : "")}>
+              <div className="nature-console-story">
+                <p className="nature-lab-discovery">{selected.discovery}</p>
+                <p className="nature-lab-copy">{selected.explanation}</p>
+                <div className="nature-lab-reward"><span>🌱 数学种子 +1</span><b>发现已收藏 ✓</b></div>
+              </div>
               {hall.key === "sound" && <SoundDrivePanel signalRef={soundSignalRef} />}
               <div className="nature-console-parameters">
                 <div className="nature-lab-try">
@@ -2702,6 +2704,7 @@ export function NatureMuseumWorld() {
                 <div className={"nature-console-grid " + (selected.controls.length > 3 ? "four-controls" : "")}>
                   {selected.controls.map((control) => {
                     const setting = settings[control.key] ?? control.defaultValue;
+                    const reached = control.target !== undefined && Math.abs(setting - control.target) < control.step / 2 + .001;
                     const autoActive = isAutoPlaying && (AUTO_CONTROL_KEYS[selected.id] ?? []).includes(control.key);
                     return (
                       <label className={"nature-lab-control " + (activeControlKey === control.key || autoActive ? "active" : "")} key={control.key}>
@@ -2721,6 +2724,7 @@ export function NatureMuseumWorld() {
                             setSettings((previous) => ({ ...previous, [control.key]: Number(event.target.value) }));
                           }}
                         />
+                        {control.target !== undefined && <small className={reached ? "reached" : ""}>{control.targetLabel} {control.target}{control.suffix} {reached ? "· 已对准" : "· 试着对准它"}</small>}
                       </label>
                     );
                   })}

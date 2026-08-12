@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 
@@ -849,81 +850,6 @@ class PortalArchCurve extends THREE.Curve<THREE.Vector3> {
   }
 }
 
-function addAtriumDepthCorridor(parent: THREE.Object3D, lowPower: boolean, primary: string, secondary: string) {
-  const corridor = new THREE.Group();
-  corridor.name = "atrium-depth-corridor";
-  const frameCount = lowPower ? 4 : 6;
-  const edgeCount = frameCount * 4;
-  const edgeGeometry = new THREE.BoxGeometry(1, 1, 1);
-  const frameMaterial = glowMaterial(primary, lowPower ? .16 : .23);
-  const haloMaterial = glowMaterial(primary, lowPower ? .035 : .055);
-  const frames = new THREE.InstancedMesh(edgeGeometry, frameMaterial, edgeCount);
-  const halos = new THREE.InstancedMesh(edgeGeometry.clone(), haloMaterial, edgeCount);
-  const edge = new THREE.Object3D();
-  let edgeIndex = 0;
-
-  const placeEdge = (localX: number, localY: number, z: number, width: number, height: number, tilt: number, horizontal: boolean) => {
-    edge.position.set(
-      localX * Math.cos(tilt) - localY * Math.sin(tilt),
-      3.65 + localX * Math.sin(tilt) + localY * Math.cos(tilt),
-      z,
-    );
-    edge.rotation.set(0, 0, tilt);
-    edge.scale.set(horizontal ? width : .055, horizontal ? .055 : height, .07);
-    edge.updateMatrix();
-    frames.setMatrixAt(edgeIndex, edge.matrix);
-    edge.scale.set(horizontal ? width : .14, horizontal ? .14 : height, .12);
-    edge.updateMatrix();
-    halos.setMatrixAt(edgeIndex, edge.matrix);
-    edgeIndex++;
-  };
-
-  for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-    const width = 14.8;
-    const height = 6.8;
-    const z = 4.4 - frameIndex * 3.25;
-    const tilt = [0, -.018, .014, -.012, .009, -.006][frameIndex];
-    placeEdge(0, height / 2, z, width, height, tilt, true);
-    placeEdge(0, -height / 2, z, width, height, tilt, true);
-    placeEdge(-width / 2, 0, z, width, height, tilt, false);
-    placeEdge(width / 2, 0, z, width, height, tilt, false);
-  }
-  frames.instanceMatrix.needsUpdate = true;
-  halos.instanceMatrix.needsUpdate = true;
-  frames.renderOrder = 1;
-  halos.renderOrder = 0;
-  corridor.add(halos, frames);
-
-  const accentGeometry = new THREE.BoxGeometry(1, 1, 1);
-  const accentMaterial = glowMaterial(secondary, lowPower ? .09 : .14);
-  const accentLines = new THREE.InstancedMesh(accentGeometry, accentMaterial, lowPower ? 2 : 3);
-  const accent = new THREE.Object3D();
-  const accentSegments = [
-    [new THREE.Vector3(-7.25, 1.15, 3.8), new THREE.Vector3(-5.1, 7.05, -4.9)],
-    [new THREE.Vector3(7.2, 1.35, .6), new THREE.Vector3(5.25, 7.02, -8.2)],
-    [new THREE.Vector3(-5.8, 7.08, 2.5), new THREE.Vector3(5.4, 7.08, -8.8)],
-  ];
-  accentSegments.slice(0, lowPower ? 2 : 3).forEach(([start, end], index) => {
-    const axis = end.clone().sub(start);
-    accent.position.copy(start).add(end).multiplyScalar(.5);
-    accent.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.clone().normalize());
-    accent.scale.set(.038, axis.length(), .038);
-    accent.updateMatrix();
-    accentLines.setMatrixAt(index, accent.matrix);
-  });
-  accentLines.instanceMatrix.needsUpdate = true;
-  corridor.add(accentLines);
-
-  const depthPlane = new THREE.Mesh(
-    new THREE.PlaneGeometry(14.6, 6.65),
-    new THREE.MeshBasicMaterial({ color: primary, transparent: true, opacity: .035, depthWrite: false, side: THREE.DoubleSide }),
-  );
-  depthPlane.position.set(0, 3.65, 4.4 - frameCount * 3.25);
-  corridor.add(depthPlane);
-  parent.add(corridor);
-  return corridor;
-}
-
 function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, rotationY = 0) {
   const portal = new THREE.Group();
   [0, 1, 2].forEach((layer) => {
@@ -932,7 +858,7 @@ function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, 
     const curve = new PortalArchCurve(width, height, layer * .24);
     const frame = new THREE.Mesh(
       new THREE.TubeGeometry(curve, 96, .045 + layer * .014, 12, false),
-      glowMaterial(color, .48 - layer * .1),
+      glowMaterial(color, .58 - layer * .11),
     );
     portal.add(frame);
   });
@@ -1273,7 +1199,24 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     addTextRing(atrium, "MATH BEAUTY MUSEUM", 5.45, 8.55, "#f4f2ff", .96, 0, 2.36);
     addTextRing(atrium, "数学美学展", 3.7, 7.65, "#b8c9ff", 1.08, 0, 1.52);
     scene.add(atrium);
-    const atriumDepth = addAtriumDepthCorridor(scene, lowPower, atriumBlueGlow, "#ba73d9");
+
+    const atriumFloor = lowPower
+      ? new THREE.Mesh(
+        new THREE.CircleGeometry(9.8, 64),
+        physical("#101a2e", { roughness: .26, metalness: .48, clearcoat: .72, clearcoatRoughness: .18 }),
+      )
+      : new Reflector(new THREE.CircleGeometry(9.8, 96), {
+        clipBias: .003,
+        textureWidth: 512,
+        textureHeight: 512,
+        color: 0x263554,
+        multisample: 0,
+      });
+    atriumFloor.name = "atrium-reflective-floor";
+    atriumFloor.rotation.x = -Math.PI / 2;
+    atriumFloor.position.set(0, .018, .2);
+    atriumFloor.renderOrder = -2;
+    scene.add(atriumFloor);
 
     const entranceGuide = new THREE.Group();
     entranceGuide.position.set(0, .045, 5.9);
@@ -1339,13 +1282,9 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     displayRingGlow.position.y = -3.012;
     continuum.add(displayRingGlow);
 
-    const beamSource = new THREE.Vector3(-4.6, 7.2, 3.4);
-    const beamTarget = new THREE.Vector3(0, .05, 0);
-    const beamAxis = beamSource.clone().sub(beamTarget);
-    const beamLength = beamAxis.length();
+    const beamHeight = 8.1;
     const beamRig = new THREE.Group();
-    beamRig.position.copy(beamSource).add(beamTarget).multiplyScalar(.5);
-    beamRig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), beamAxis.clone().normalize());
+    beamRig.position.set(0, beamHeight / 2 - 3, 0);
     const beamMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
       color: atriumBlue,
       transparent: true,
@@ -1356,32 +1295,47 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       toneMapped: false,
     });
     const outerBeam = new THREE.Mesh(
-      new THREE.CylinderGeometry(.12, 2.4, beamLength, lowPower ? 20 : 40, 1, true),
-      beamMaterial(lowPower ? .022 : .032),
+      new THREE.CylinderGeometry(2.62, 2.9, beamHeight, lowPower ? 28 : 56, 1, true),
+      beamMaterial(lowPower ? .025 : .04),
     );
     const innerBeam = new THREE.Mesh(
-      new THREE.CylinderGeometry(.06, 1.18, beamLength, lowPower ? 16 : 32, 1, true),
-      beamMaterial(lowPower ? .035 : .055),
+      new THREE.CylinderGeometry(2.24, 2.5, beamHeight, lowPower ? 24 : 48, 1, true),
+      beamMaterial(lowPower ? .018 : .03),
     );
     beamRig.add(outerBeam, innerBeam);
+    const sourceRing = new THREE.Mesh(
+      new THREE.TorusGeometry(2.62, .055, 8, lowPower ? 64 : 128),
+      glowMaterial("#b8caff", .72),
+    );
+    sourceRing.rotation.x = Math.PI / 2;
+    sourceRing.position.y = beamHeight / 2;
+    beamRig.add(sourceRing);
     const beamDustPoints: THREE.Vector3[] = [];
-    const beamDustCount = lowPower ? 28 : 68;
+    const beamDustCount = lowPower ? 34 : 84;
     for (let index = 0; index < beamDustCount; index++) {
       const progress = (index + .5) / beamDustCount;
-      const radius = (1 - progress) * 1.9 + .04;
+      const radius = 2.25 + Math.sin(index * 1.71) * .18;
       const angle = index * 2.399963;
       const drift = (Math.sin(index * 17.13) * .5 + .5) * radius;
       beamDustPoints.push(new THREE.Vector3(
         Math.cos(angle) * drift,
-        -beamLength / 2 + progress * beamLength,
+        -beamHeight / 2 + progress * beamHeight,
         Math.sin(angle) * drift,
       ));
     }
-    beamRig.add(makePointCloud(beamDustPoints, "#b9caff", lowPower ? .025 : .032, .28));
+    beamRig.add(makePointCloud(beamDustPoints, "#c7d5ff", lowPower ? .025 : .032, .32));
     continuum.add(beamRig);
-    const beamSpot = new THREE.SpotLight(atriumBlueGlow, lowPower ? 28 : 54, 16, Math.PI * .16, .72, 1.35);
-    beamSpot.position.copy(beamSource);
-    beamSpot.target.position.copy(beamTarget);
+    const floorLightPool = new THREE.Mesh(
+      new THREE.CircleGeometry(2.9, lowPower ? 48 : 96),
+      new THREE.MeshBasicMaterial({ color: atriumBlueGlow, transparent: true, opacity: lowPower ? .08 : .13, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    );
+    floorLightPool.rotation.x = -Math.PI / 2;
+    floorLightPool.position.y = -3.026;
+    continuum.add(floorLightPool);
+    const beamSpot = new THREE.SpotLight(atriumBlueGlow, lowPower ? 34 : 68, 13, Math.PI * .19, .72, 1.25);
+    beamSpot.position.set(0, beamHeight - 3, 0);
+    beamSpot.target.position.set(0, -3, 0);
+    beamSpot.castShadow = !lowPower;
     continuum.add(beamSpot, beamSpot.target);
     scene.add(continuum);
     const atriumLight = new THREE.PointLight(atriumBlueGlow, 32, 18, 2);
@@ -1408,7 +1362,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       loadedHallIndex = nextHallIndex;
       const atriumIsActive = nextHallIndex < 0;
       atrium.visible = atriumIsActive;
-      atriumDepth.visible = atriumIsActive;
+      atriumFloor.visible = atriumIsActive;
       continuum.visible = atriumIsActive;
       entranceGuide.visible = atriumIsActive;
       atriumLight.visible = atriumIsActive;

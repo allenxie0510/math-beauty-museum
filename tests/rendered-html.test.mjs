@@ -279,6 +279,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.museum-hall-arrows/);
   assert.match(css, /\.museum-route-indicator/);
   assert.match(css, /\.museum-route-indicator\{[^}]*padding:8px 0;border:0;background:transparent;box-shadow:none/);
+  assert.match(css, /\.garden-guide\{[^}]*top:290px/);
   assert.match(css, /\.immersive-lab-header/);
   assert.match(css, /\.nature-console-grid/);
   assert.match(css, /\.nature-lab-live-vars/);

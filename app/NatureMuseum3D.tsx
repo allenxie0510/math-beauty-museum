@@ -1312,13 +1312,53 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const continuum = new THREE.Group();
     continuum.position.set(0, 3.05, .25);
     const knotGeometry = new THREE.TorusKnotGeometry(1.72, .42, lowPower ? 90 : 180, lowPower ? 14 : 28, 2, 3);
+    const knotParameters = {
+      time: { value: 0 },
+      radialWave: { value: lowPower ? .055 : .085 },
+      axialWave: { value: lowPower ? .07 : .11 },
+    };
+    const addKnotParameterMotion = (material: THREE.Material) => {
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.uKnotTime = knotParameters.time;
+        shader.uniforms.uKnotRadialWave = knotParameters.radialWave;
+        shader.uniforms.uKnotAxialWave = knotParameters.axialWave;
+        shader.vertexShader = shader.vertexShader
+          .replace("#include <common>", `#include <common>
+            uniform float uKnotTime;
+            uniform float uKnotRadialWave;
+            uniform float uKnotAxialWave;`)
+          .replace("#include <begin_vertex>", `#include <begin_vertex>
+            float knotAngle = atan(position.z, position.x);
+            float knotFrequency = 2.35 + sin(uKnotTime * 0.19) * 0.65;
+            float knotPhase = knotAngle * knotFrequency + uKnotTime * 0.72;
+            float knotRadius = 1.0 + sin(knotPhase) * uKnotRadialWave;
+            transformed.xz *= knotRadius;
+            transformed.y *= 1.0 + cos(knotPhase * 0.72 - uKnotTime * 0.31) * uKnotAxialWave;
+            transformed += normalize(position) * sin(knotPhase * 1.45) * uKnotRadialWave * 0.36;`);
+      };
+      material.customProgramCacheKey = () => "atrium-parametric-knot-v1";
+    };
+    const knotMaterial = physical("#668bd1", {
+      roughness: .76,
+      metalness: .03,
+      clearcoat: .015,
+      transmission: .08,
+      transparent: true,
+      opacity: .9,
+      thickness: .46,
+      emissive: "#244b99",
+      emissiveIntensity: .16,
+    });
+    addKnotParameterMotion(knotMaterial);
     const knot = new THREE.Mesh(
       knotGeometry,
-      physical("#8eb8ff", { roughness: .12, metalness: .04, transmission: .72, transparent: true, opacity: .76, thickness: .72, emissive: "#315fc8", emissiveIntensity: .42 }),
+      knotMaterial,
     );
+    const knotGridMaterial = new THREE.MeshBasicMaterial({ color: "#78a7ff", wireframe: true, transparent: true, opacity: lowPower ? .052 : .078, depthWrite: false, toneMapped: false });
+    addKnotParameterMotion(knotGridMaterial);
     const knotGrid = new THREE.Mesh(
       knotGeometry,
-      new THREE.MeshBasicMaterial({ color: "#6fa2ff", wireframe: true, transparent: true, opacity: lowPower ? .065 : .095, depthWrite: false, toneMapped: false }),
+      knotGridMaterial,
     );
     knotGrid.scale.setScalar(1.006);
     knot.add(knotGrid);
@@ -1524,8 +1564,12 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
           const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
           entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
           entranceArrow.material.opacity = .62 + Math.sin(elapsed * 2.1) * .1;
-          knot.rotation.set(elapsed * .13, elapsed * .19, elapsed * .09);
-          knot.scale.set(1.1 + Math.sin(elapsed * .55) * .07, 1.1 + Math.sin(elapsed * .72 + 1) * .09, 1.1 + Math.sin(elapsed * .48 + 2) * .07);
+          knotParameters.time.value = elapsed;
+          const radiusParameter = 1 + Math.sin(elapsed * .43) * .065;
+          const heightParameter = 1 + Math.sin(elapsed * .31 + 1.2) * .105;
+          const depthParameter = 1 + Math.cos(elapsed * .37 + .45) * .075;
+          knot.rotation.set(Math.sin(elapsed * .16) * .08, elapsed * .035, Math.cos(elapsed * .13) * .06);
+          knot.scale.set(1.1 * radiusParameter, 1.1 * heightParameter, 1.1 * depthParameter);
         }
         ambientParticles.rotation.y = Math.sin(elapsed * .05) * .035;
         if (activeHallScene) {

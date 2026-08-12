@@ -165,8 +165,16 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /opacity: lowPower \? \.28 : \.34/);
   assert.match(museum, /emissiveIntensity: \.28/);
   assert.match(museum, /continuum\.position\.set\(0, 3\.05, \.25\)/);
-  assert.match(museum, /physical\("#8eb8ff", \{[^}]*transmission: \.72[^}]*opacity: \.76/);
-  assert.match(museum, /color: "#6fa2ff", wireframe: true/);
+  assert.match(museum, /const knotParameters = \{/);
+  assert.match(museum, /roughness: \.76/);
+  assert.match(museum, /transmission: \.08/);
+  assert.match(museum, /opacity: \.9/);
+  assert.match(museum, /color: "#78a7ff", wireframe: true/);
+  assert.match(museum, /material\.customProgramCacheKey = \(\) => "atrium-parametric-knot-v1"/);
+  assert.match(museum, /float knotFrequency = 2\.35 \+ sin\(uKnotTime \* 0\.19\) \* 0\.65/);
+  assert.match(museum, /knotParameters\.time\.value = elapsed/);
+  assert.match(museum, /const radiusParameter = 1 \+ Math\.sin\(elapsed \* \.43\) \* \.065/);
+  assert.match(museum, /knot\.rotation\.set\(Math\.sin\(elapsed \* \.16\) \* \.08, elapsed \* \.035/);
   assert.match(museum, /knot\.scale\.setScalar\(1\.1\)/);
   assert.match(museum, /const displayRing = new THREE\.Mesh/);
   assert.match(museum, /new THREE\.TorusGeometry\(2\.72, \.045/);

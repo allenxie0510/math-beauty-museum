@@ -99,7 +99,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /class PortalArchCurve extends THREE\.Curve<THREE\.Vector3>/);
   assert.match(museum, /const arcLength = Math\.PI \* radius/);
   assert.match(museum, /new THREE\.TubeGeometry\(curve, 96, \.045 \+ layer \* \.014, 12, false\)/);
-  assert.match(museum, /glowMaterial\(color, \.58 - layer \* \.11\)/);
+  assert.match(museum, /glowMaterial\(color, \(\.58 - layer \* \.11\) \* opacityScale\)/);
   assert.match(museum, /addTextRing/);
   assert.match(museum, /let cursor = offset - phraseArc \/ 2/);
   assert.doesNotMatch(museum, /repeatCount|repeatGap/);
@@ -157,11 +157,16 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /atriumPortals\.name = "atrium-four-hall-portals"/);
   assert.match(museum, /const portalRoute = \[new THREE\.Vector3\(0, 0, 0\), \.\.\.HALL_CENTERS\]/);
   assert.match(museum, /HALLS\.forEach\(\(hall, index\) =>/);
+  assert.match(museum, /previous\.clone\(\)\.lerp\(next, \.68\)/);
+  assert.match(museum, /hall\.key === "nature" \? \.42 : \.58/);
+  assert.match(museum, /portal\.scale\.setScalar\(\.74\)/);
   assert.match(museum, /atriumPortals\.visible = atriumIsActive/);
   assert.match(museum, /floor\.visible = !atriumIsActive/);
   assert.match(museum, /opacity: lowPower \? \.28 : \.34/);
   assert.match(museum, /emissiveIntensity: \.28/);
   assert.match(museum, /continuum\.position\.set\(0, 3\.05, \.25\)/);
+  assert.match(museum, /physical\("#8eb8ff", \{[^}]*transmission: \.72[^}]*opacity: \.76/);
+  assert.match(museum, /color: "#6fa2ff", wireframe: true/);
   assert.match(museum, /knot\.scale\.setScalar\(1\.1\)/);
   assert.match(museum, /const displayRing = new THREE\.Mesh/);
   assert.match(museum, /new THREE\.TorusGeometry\(2\.72, \.045/);
@@ -173,6 +178,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /const floorLightPool = new THREE\.Mesh/);
   assert.match(museum, /const beamSpot = new THREE\.SpotLight/);
   assert.match(museum, /const beamDustCount = lowPower \? 34 : 84/);
+  assert.match(museum, /color: "#3977e8"/);
+  assert.match(museum, /makePointCloud\(beamDustPoints, "#78a6ff"/);
   assert.match(museum, /beamMaterial\(lowPower \? \.045 : \.072\)/);
   assert.match(museum, /if \(atriumFloor instanceof Reflector\) atriumFloor\.dispose\(\)/);
   assert.doesNotMatch(museum, /className="nature-museum-title atrium-title"/);

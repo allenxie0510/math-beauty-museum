@@ -850,7 +850,7 @@ class PortalArchCurve extends THREE.Curve<THREE.Vector3> {
   }
 }
 
-function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, rotationY = 0) {
+function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, rotationY = 0, opacityScale = 1) {
   const portal = new THREE.Group();
   [0, 1, 2].forEach((layer) => {
     const width = 5.8 + layer * .55;
@@ -858,7 +858,7 @@ function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, 
     const curve = new PortalArchCurve(width, height, layer * .24);
     const frame = new THREE.Mesh(
       new THREE.TubeGeometry(curve, 96, .045 + layer * .014, 12, false),
-      glowMaterial(color, .58 - layer * .11),
+      glowMaterial(color, (.58 - layer * .11) * opacityScale),
     );
     portal.add(frame);
   });
@@ -1311,10 +1311,17 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
 
     const continuum = new THREE.Group();
     continuum.position.set(0, 3.05, .25);
+    const knotGeometry = new THREE.TorusKnotGeometry(1.72, .42, lowPower ? 90 : 180, lowPower ? 14 : 28, 2, 3);
     const knot = new THREE.Mesh(
-      new THREE.TorusKnotGeometry(1.72, .42, lowPower ? 90 : 180, lowPower ? 14 : 28, 2, 3),
-      physical("#d8e6ff", { roughness: .15, metalness: .08, transmission: .62, transparent: true, opacity: .86, thickness: .8, emissive: "#667dcc", emissiveIntensity: .35 }),
+      knotGeometry,
+      physical("#8eb8ff", { roughness: .12, metalness: .04, transmission: .72, transparent: true, opacity: .76, thickness: .72, emissive: "#315fc8", emissiveIntensity: .42 }),
     );
+    const knotGrid = new THREE.Mesh(
+      knotGeometry,
+      new THREE.MeshBasicMaterial({ color: "#6fa2ff", wireframe: true, transparent: true, opacity: lowPower ? .065 : .095, depthWrite: false, toneMapped: false }),
+    );
+    knotGrid.scale.setScalar(1.006);
+    knot.add(knotGrid);
     knot.scale.setScalar(1.1);
     knot.castShadow = !lowPower;
     continuum.add(knot);
@@ -1338,7 +1345,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     const beamRig = new THREE.Group();
     beamRig.position.set(0, beamHeight / 2 - 4.2, 0);
     const beamMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
-      color: "#8197cc",
+      color: "#3977e8",
       transparent: true,
       opacity,
       depthWrite: false,
@@ -1368,7 +1375,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
         Math.sin(angle) * drift,
       ));
     }
-    beamRig.add(makePointCloud(beamDustPoints, "#d4ddf5", lowPower ? .025 : .032, .44));
+    beamRig.add(makePointCloud(beamDustPoints, "#78a6ff", lowPower ? .025 : .032, .44));
     continuum.add(beamRig);
     const floorLightPool = new THREE.Mesh(
       new THREE.CircleGeometry(2.9, lowPower ? 48 : 96),
@@ -1393,7 +1400,16 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     HALLS.forEach((hall, index) => {
       const previous = portalRoute[index];
       const next = portalRoute[index + 1];
-      addPortal(atriumPortals, (previous.x + next.x) / 2, (previous.z + next.z) / 2, hall.accent);
+      const portalPosition = previous.clone().lerp(next, .68);
+      const portal = addPortal(
+        atriumPortals,
+        portalPosition.x,
+        portalPosition.z,
+        hall.accent,
+        0,
+        hall.key === "nature" ? .42 : .58,
+      );
+      portal.scale.setScalar(.74);
     });
     scene.add(atriumPortals);
 

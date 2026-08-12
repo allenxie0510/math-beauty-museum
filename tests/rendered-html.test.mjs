@@ -113,7 +113,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /museumAction = "enter-first-hall"/);
   assert.match(museum, /function makeChevronMaterial/);
   assert.match(museum, /ctx\.lineCap = "round"/);
-  assert.match(museum, /entranceGuide\.position\.set\(0, -1\.135, 5\.9\)/);
+  assert.match(museum, /entranceGuide\.position\.set\(0, -\.72, 5\.45\)/);
   assert.match(museum, /new THREE\.PlaneGeometry\(\.9, \.9\), makeChevronMaterial/);
   assert.doesNotMatch(museum, /点击进入 {2}· {2}ENTER/);
   assert.doesNotMatch(museum, /const arrowShape = new THREE\.Shape/);
@@ -149,7 +149,11 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /atriumFloor\.visible = atriumIsActive/);
   assert.match(museum, /const ceilingPointCount = lowPower \? 34 : 86/);
   assert.match(museum, /atriumCeilingParticles\.name = "atrium-ceiling-particles"/);
+  assert.match(museum, /makePointCloud\(ceilingPoints, "#c5d7ff", lowPower \? \.055 : \.072, \.68\)/);
+  assert.match(museum, /makePointCloud\(ceilingPoints, "#5f89ee", lowPower \? \.12 : \.18, \.14\)/);
+  assert.match(museum, /atriumCeilingGlow\.name = "atrium-ceiling-glow"/);
   assert.match(museum, /atriumCeilingParticles\.visible = atriumIsActive/);
+  assert.match(museum, /atriumCeilingGlow\.visible = atriumIsActive/);
   assert.match(museum, /floor\.visible = !atriumIsActive/);
   assert.match(museum, /opacity: lowPower \? \.28 : \.34/);
   assert.match(museum, /emissiveIntensity: \.28/);

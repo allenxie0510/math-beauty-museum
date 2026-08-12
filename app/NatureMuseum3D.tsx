@@ -1201,9 +1201,11 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       const y = 8.62 + (Math.sin(index * 5.173) * .5 + .5) * .52;
       ceilingPoints.push(new THREE.Vector3(x, y, z));
     }
-    const atriumCeilingParticles = makePointCloud(ceilingPoints, "#adc4ff", lowPower ? .035 : .045, .42);
+    const atriumCeilingParticles = makePointCloud(ceilingPoints, "#c5d7ff", lowPower ? .055 : .072, .68);
     atriumCeilingParticles.name = "atrium-ceiling-particles";
-    scene.add(atriumCeilingParticles);
+    const atriumCeilingGlow = makePointCloud(ceilingPoints, "#5f89ee", lowPower ? .12 : .18, .14);
+    atriumCeilingGlow.name = "atrium-ceiling-glow";
+    scene.add(atriumCeilingGlow, atriumCeilingParticles);
 
     const atriumBlue = "#5d7fd0";
     const atriumBlueGlow = "#79a0ff";
@@ -1273,7 +1275,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     scene.add(atriumFloor);
 
     const entranceGuide = new THREE.Group();
-    entranceGuide.position.set(0, -1.135, 5.9);
+    entranceGuide.position.set(0, -.72, 5.45);
     entranceGuide.userData.museumAction = "enter-first-hall";
     const entranceHitArea = new THREE.Mesh(
       new THREE.CircleGeometry(1.55, 32),
@@ -1407,6 +1409,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       atrium.visible = atriumIsActive;
       atriumFloor.visible = atriumIsActive;
       atriumCeilingParticles.visible = atriumIsActive;
+      atriumCeilingGlow.visible = atriumIsActive;
       floor.visible = !atriumIsActive;
       continuum.visible = atriumIsActive;
       entranceGuide.visible = atriumIsActive;

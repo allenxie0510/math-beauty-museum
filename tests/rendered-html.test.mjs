@@ -133,6 +133,13 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.doesNotMatch(museum, /const pedestal = new THREE\.Mesh/);
   assert.match(museum, /const atriumBlue = "#5d7fd0"/);
   assert.match(museum, /const atriumPortalMaterial = physical\(atriumBlue/);
+  assert.match(museum, /function addAtriumDepthCorridor/);
+  assert.match(museum, /corridor\.name = "atrium-depth-corridor"/);
+  assert.match(museum, /const frameCount = lowPower \? 4 : 6/);
+  assert.match(museum, /new THREE\.InstancedMesh\(edgeGeometry, frameMaterial, edgeCount\)/);
+  assert.match(museum, /const z = 4\.4 - frameIndex \* 3\.25/);
+  assert.match(museum, /addAtriumDepthCorridor\(scene, lowPower, atriumBlueGlow, "#ba73d9"\)/);
+  assert.match(museum, /atriumDepth\.visible = atriumIsActive/);
   assert.match(museum, /continuum\.position\.set\(0, 3\.05, \.25\)/);
   assert.match(museum, /knot\.scale\.setScalar\(1\.1\)/);
   assert.match(museum, /const displayRing = new THREE\.Mesh/);

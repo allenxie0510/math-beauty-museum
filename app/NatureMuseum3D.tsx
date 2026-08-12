@@ -849,6 +849,81 @@ class PortalArchCurve extends THREE.Curve<THREE.Vector3> {
   }
 }
 
+function addAtriumDepthCorridor(parent: THREE.Object3D, lowPower: boolean, primary: string, secondary: string) {
+  const corridor = new THREE.Group();
+  corridor.name = "atrium-depth-corridor";
+  const frameCount = lowPower ? 4 : 6;
+  const edgeCount = frameCount * 4;
+  const edgeGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const frameMaterial = glowMaterial(primary, lowPower ? .16 : .23);
+  const haloMaterial = glowMaterial(primary, lowPower ? .035 : .055);
+  const frames = new THREE.InstancedMesh(edgeGeometry, frameMaterial, edgeCount);
+  const halos = new THREE.InstancedMesh(edgeGeometry.clone(), haloMaterial, edgeCount);
+  const edge = new THREE.Object3D();
+  let edgeIndex = 0;
+
+  const placeEdge = (localX: number, localY: number, z: number, width: number, height: number, tilt: number, horizontal: boolean) => {
+    edge.position.set(
+      localX * Math.cos(tilt) - localY * Math.sin(tilt),
+      3.65 + localX * Math.sin(tilt) + localY * Math.cos(tilt),
+      z,
+    );
+    edge.rotation.set(0, 0, tilt);
+    edge.scale.set(horizontal ? width : .055, horizontal ? .055 : height, .07);
+    edge.updateMatrix();
+    frames.setMatrixAt(edgeIndex, edge.matrix);
+    edge.scale.set(horizontal ? width : .14, horizontal ? .14 : height, .12);
+    edge.updateMatrix();
+    halos.setMatrixAt(edgeIndex, edge.matrix);
+    edgeIndex++;
+  };
+
+  for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+    const width = 14.8;
+    const height = 6.8;
+    const z = 4.4 - frameIndex * 3.25;
+    const tilt = [0, -.018, .014, -.012, .009, -.006][frameIndex];
+    placeEdge(0, height / 2, z, width, height, tilt, true);
+    placeEdge(0, -height / 2, z, width, height, tilt, true);
+    placeEdge(-width / 2, 0, z, width, height, tilt, false);
+    placeEdge(width / 2, 0, z, width, height, tilt, false);
+  }
+  frames.instanceMatrix.needsUpdate = true;
+  halos.instanceMatrix.needsUpdate = true;
+  frames.renderOrder = 1;
+  halos.renderOrder = 0;
+  corridor.add(halos, frames);
+
+  const accentGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const accentMaterial = glowMaterial(secondary, lowPower ? .09 : .14);
+  const accentLines = new THREE.InstancedMesh(accentGeometry, accentMaterial, lowPower ? 2 : 3);
+  const accent = new THREE.Object3D();
+  const accentSegments = [
+    [new THREE.Vector3(-7.25, 1.15, 3.8), new THREE.Vector3(-5.1, 7.05, -4.9)],
+    [new THREE.Vector3(7.2, 1.35, .6), new THREE.Vector3(5.25, 7.02, -8.2)],
+    [new THREE.Vector3(-5.8, 7.08, 2.5), new THREE.Vector3(5.4, 7.08, -8.8)],
+  ];
+  accentSegments.slice(0, lowPower ? 2 : 3).forEach(([start, end], index) => {
+    const axis = end.clone().sub(start);
+    accent.position.copy(start).add(end).multiplyScalar(.5);
+    accent.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.clone().normalize());
+    accent.scale.set(.038, axis.length(), .038);
+    accent.updateMatrix();
+    accentLines.setMatrixAt(index, accent.matrix);
+  });
+  accentLines.instanceMatrix.needsUpdate = true;
+  corridor.add(accentLines);
+
+  const depthPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(14.6, 6.65),
+    new THREE.MeshBasicMaterial({ color: primary, transparent: true, opacity: .035, depthWrite: false, side: THREE.DoubleSide }),
+  );
+  depthPlane.position.set(0, 3.65, 4.4 - frameCount * 3.25);
+  corridor.add(depthPlane);
+  parent.add(corridor);
+  return corridor;
+}
+
 function addPortal(parent: THREE.Object3D, x: number, z: number, color: string, rotationY = 0) {
   const portal = new THREE.Group();
   [0, 1, 2].forEach((layer) => {
@@ -1198,6 +1273,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
     addTextRing(atrium, "MATH BEAUTY MUSEUM", 5.45, 8.55, "#f4f2ff", .96, 0, 2.36);
     addTextRing(atrium, "数学美学展", 3.7, 7.65, "#b8c9ff", 1.08, 0, 1.52);
     scene.add(atrium);
+    const atriumDepth = addAtriumDepthCorridor(scene, lowPower, atriumBlueGlow, "#ba73d9");
 
     const entranceGuide = new THREE.Group();
     entranceGuide.position.set(0, .045, 5.9);
@@ -1332,6 +1408,7 @@ function MuseumCanvas({ hallIndex, onSelect, onEnter }: { hallIndex: number; onS
       loadedHallIndex = nextHallIndex;
       const atriumIsActive = nextHallIndex < 0;
       atrium.visible = atriumIsActive;
+      atriumDepth.visible = atriumIsActive;
       continuum.visible = atriumIsActive;
       entranceGuide.visible = atriumIsActive;
       atriumLight.visible = atriumIsActive;

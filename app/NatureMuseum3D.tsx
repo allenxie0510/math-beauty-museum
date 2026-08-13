@@ -2866,6 +2866,7 @@ export function NatureMuseumWorld() {
   const wheelCooldownUntil = useRef(0);
   const galleryRef = useRef<HTMLElement>(null);
   const soundSignalRef = useRef<SoundSignal>({ ...EMPTY_SOUND_SIGNAL });
+  const linkedDemoOpen = useRef(false);
   const hall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const selected = useMemo(() => hall?.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
   const currentDiscoveries = hall?.items.filter((item) => discoveries.has(item.id)).length ?? 0;
@@ -2878,6 +2879,25 @@ export function NatureMuseumWorld() {
     setActiveControlKey(item?.controls[0]?.key ?? null);
     setDiscoveries((previous) => new Set(previous).add(id));
   }, []);
+
+  useEffect(() => {
+    const openLinkedDemo = (event: Event) => {
+      const demoId = (event as CustomEvent<{ demoId?: string }>).detail?.demoId;
+      if (!demoId) return;
+      const aliases: Record<string, string> = { tessellation: "tessellation", fractal: "fractal", phyllotaxis: "phyllotaxis", catenary: "catenary", sine: "sine" };
+      const itemId = aliases[demoId] ?? demoId;
+      const targetHallIndex = HALLS.findIndex((candidate) => candidate.items.some((item) => item.id === itemId));
+      if (targetHallIndex >= 0) { linkedDemoOpen.current = true; select(itemId, targetHallIndex); }
+    };
+    window.addEventListener("open-museum-demo", openLinkedDemo);
+    return () => window.removeEventListener("open-museum-demo", openLinkedDemo);
+  }, [select]);
+
+  useEffect(() => {
+    if (selectedId || !linkedDemoOpen.current) return;
+    linkedDemoOpen.current = false;
+    window.dispatchEvent(new CustomEvent("museum-demo-closed"));
+  }, [selectedId]);
 
   const switchHall = useCallback((direction: number) => {
     document.body.classList.remove("site-nav-visible", "exhibit-nav-visible");

@@ -36,6 +36,7 @@ test("server-renders the finished mathematics museum", async () => {
   assert.match(html, /下一个展厅：自然数学馆/);
   assert.doesNotMatch(html, /THE LANGUAGE BEHIND BEAUTY · PROLOGUE/);
   assert.match(html, /数学探索花园/);
+  assert.match(html, /我的家乡数学馆/);
   assert.doesNotMatch(html, /journey-intro|class="exhibit|互动实验台/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/i);
 });

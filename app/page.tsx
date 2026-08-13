@@ -12,6 +12,16 @@ const LazyMathGardenWorld = lazy(async () => {
   return { default: gardenModule.MathGardenWorld };
 });
 
+const LazyHometownMathWorld = lazy(async () => {
+  const hometownModule = await import("./HometownMathWorld");
+  return { default: hometownModule.HometownMathWorld };
+});
+
+const LazyHometownTeacherStudio = lazy(async () => {
+  const studioModule = await import("./HometownTeacherStudio");
+  return { default: studioModule.HometownTeacherStudio };
+});
+
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -42,6 +52,25 @@ function GardenLoading() {
       <div className="garden-sky-title"><span>THE MATHEMATICAL GARDEN</span><h2>数学探索花园</h2><p>抵达这里时，3D 花园将自动开启</p></div>
     </section>
   );
+}
+
+function HometownLoading() {
+  return <section className="hometown-world hometown-loading" id="hometown" aria-busy="true"><div><i>⌁</i><span>正在打开家乡里的数学 · DISCOVERING HOMETOWN MATHEMATICS</span></div></section>;
+}
+
+function DeferredHometownMath({ slug, previewManifest, onOpenStudio, onExploreDemo, onDetailChange }: { slug?: string | null; previewManifest?: import("./hometown-math/domain/types").HometownSceneManifest | null; onOpenStudio: () => void; onExploreDemo: (demoId: string, exhibitId: string) => void; onDetailChange: (open: boolean) => void }) {
+  const trigger = useRef<HTMLElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  useEffect(() => {
+    const section = trigger.current;
+    if (shouldLoad || !section) return;
+    if (!("IntersectionObserver" in window)) { const timer = window.setTimeout(() => setShouldLoad(true), 0); return () => window.clearTimeout(timer); }
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setShouldLoad(true); observer.disconnect(); } }, { rootMargin: "320px 0px" });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+  if (!shouldLoad) return <section ref={trigger} className="hometown-world hometown-loading" id="hometown" aria-busy="true"><div><i>⌁</i><span>继续向下，家乡数学馆将在抵达前开启</span></div></section>;
+  return <Suspense fallback={<HometownLoading/>}><LazyHometownMathWorld slug={slug} previewManifest={previewManifest} onOpenStudio={onOpenStudio} onExploreDemo={onExploreDemo} onDetailChange={onDetailChange}/></Suspense>;
 }
 
 function DeferredMathGarden({ onProgress }: { onProgress: (count: number) => void }) {
@@ -107,6 +136,10 @@ export default function Home() {
   const [name, setName] = useState("Allen");
   const [gardenProgress, setGardenProgress] = useState(0);
   const [unlockNotice, setUnlockNotice] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [hometownSlug, setHometownSlug] = useState<string | null>(null);
+  const [hometownPreview, setHometownPreview] = useState<import("./hometown-math/domain/types").HometownSceneManifest | null>(null);
+  const hometownReturnExhibit = useRef<string | null>(null);
   const certificateUnlocked = useRef(false);
 
   const updateGardenProgress = useCallback((value: number) => {
@@ -148,6 +181,41 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      setHometownSlug(params.get("hometown"));
+      if (params.get("studio") === "hometown") setStudioOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const returnToHometown = () => {
+      const exhibitId = hometownReturnExhibit.current;
+      if (!exhibitId) return;
+      hometownReturnExhibit.current = null;
+      scrollToId("hometown");
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent("open-hometown-exhibit", { detail: { exhibitId } })), 520);
+    };
+    window.addEventListener("museum-demo-closed", returnToHometown);
+    return () => window.removeEventListener("museum-demo-closed", returnToHometown);
+  }, []);
+
+  const previewHometown = useCallback((slug: string, manifest?: import("./hometown-math/domain/types").HometownSceneManifest) => {
+    setHometownSlug(slug);
+    setHometownPreview(manifest ?? null);
+    setStudioOpen(false);
+    window.history.replaceState(null, "", `/?hometown=${encodeURIComponent(slug)}#hometown`);
+    window.setTimeout(() => scrollToId("hometown"), 50);
+  }, []);
+
+  const exploreMuseumDemo = useCallback((demoId: string, exhibitId: string) => {
+    hometownReturnExhibit.current = exhibitId;
+    scrollToId("hall");
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent("open-museum-demo", { detail: { demoId } })), 520);
+  }, []);
+
   return (
     <main className={`immersive-main ${certificateOpen ? "certificate-mode" : ""}`}>
       <header className="site-header">
@@ -158,6 +226,7 @@ export default function Home() {
         <nav aria-label="沉浸空间导航">
           <button onClick={() => scrollToId("hall")}>四展馆</button>
           <button onClick={() => scrollToId("garden")}>数学花园</button>
+          <button onClick={() => scrollToId("hometown")}>我的家乡数学馆</button>
         </nav>
         <button
           className={"progress-button " + (gardenProgress >= 5 ? "certificate-ready" : "")}
@@ -171,6 +240,7 @@ export default function Home() {
 
       <Suspense fallback={<MuseumLoading />}><LazyNatureMuseumWorld /></Suspense>
       <DeferredMathGarden onProgress={updateGardenProgress} />
+      <DeferredHometownMath slug={hometownSlug} previewManifest={hometownPreview} onOpenStudio={() => setStudioOpen(true)} onExploreDemo={exploreMuseumDemo} onDetailChange={() => undefined}/>
 
       {unlockNotice && (
         <div className="certificate-unlock-toast" role="status">
@@ -180,6 +250,7 @@ export default function Home() {
         </div>
       )}
       {certificateOpen && <Certificate name={name} setName={setName} close={() => setCertificateOpen(false)} />}
+      {studioOpen && <Suspense fallback={<div className="studio-loading" role="status">正在打开教师策展台…</div>}><LazyHometownTeacherStudio close={() => setStudioOpen(false)} preview={previewHometown}/></Suspense>}
     </main>
   );
 }

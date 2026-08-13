@@ -383,6 +383,7 @@ type SoundClip = {
   notes: readonly number[];
   ratios: readonly number[];
   character?: "birdsong" | "stream" | "humming";
+  source?: string;
 };
 
 const SOUND_CLIPS: readonly SoundClip[] = [
@@ -395,6 +396,7 @@ const SOUND_CLIPS: readonly SoundClip[] = [
     notes: [1174.66, 1396.91, 1567.98, 1318.51, 1760, 1480, 1174.66, 1567.98],
     ratios: [1, 1.012],
     character: "birdsong",
+    source: "/audio/birdsong-morning.mp3",
   },
   {
     id: "stream",
@@ -405,11 +407,12 @@ const SOUND_CLIPS: readonly SoundClip[] = [
     notes: [659.25, 783.99, 987.77, 880, 698.46, 1046.5],
     ratios: [1],
     character: "stream",
+    source: "/audio/flowing-stream.mp3",
   },
   {
     id: "humming",
-    name: "童声哼唱",
-    detail: "温柔 · 旋律",
+    name: "柔和哼鸣旋律",
+    detail: "合成音色 · 舒缓",
     tempo: 520,
     waveform: "sine",
     notes: [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 392],
@@ -2351,10 +2354,12 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
   const [mode, setMode] = useState<SoundMode>("idle");
   const [clipId, setClipId] = useState<SoundClip["id"]>("birdsong");
   const [level, setLevel] = useState(0);
-  const [status, setStatus] = useState("选择音乐片段，或让麦克风捕捉身边的声音");
+  const [status, setStatus] = useState("选择声音或音乐，或让麦克风捕捉身边的声音");
   const contextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const soundSourcesRef = useRef<AudioScheduledSourceNode[]>([]);
+  const mediaAudioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const stepTimerRef = useRef<number | null>(null);
   const analysisRafRef = useRef<number | null>(null);
 
@@ -2367,6 +2372,13 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
       try { source.stop(); } catch { /* already stopped */ }
     });
     soundSourcesRef.current = [];
+    if (mediaAudioRef.current) {
+      mediaAudioRef.current.pause();
+      mediaAudioRef.current.src = "";
+    }
+    mediaAudioRef.current = null;
+    mediaSourceRef.current?.disconnect();
+    mediaSourceRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     const context = contextRef.current;
@@ -2408,6 +2420,26 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = .82;
+      if (clip.source) {
+        const audio = new Audio(clip.source);
+        const mediaSource = context.createMediaElementSource(audio);
+        const output = context.createGain();
+        audio.loop = true;
+        audio.preload = "auto";
+        audio.playbackRate = 1;
+        audio.volume = clip.character === "birdsong" ? .72 : .8;
+        mediaSource.connect(analyser);
+        analyser.connect(output);
+        output.connect(context.destination);
+        mediaAudioRef.current = audio;
+        mediaSourceRef.current = mediaSource;
+        await audio.play();
+        setClipId(clip.id);
+        setMode("music");
+        setStatus("正在播放真实「" + clip.name + "」· 曲线随频谱实时变化");
+        startAnalysis(analyser, "music");
+        return;
+      }
       const mix = context.createGain();
       const output = context.createGain();
       mix.gain.value = clip.character === "birdsong" ? .012 : clip.character === "stream" ? .5 : .3;
@@ -2415,30 +2447,6 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
       mix.connect(analyser);
       analyser.connect(output);
       output.connect(context.destination);
-
-      if (clip.character === "stream") {
-        const buffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
-        const channel = buffer.getChannelData(0);
-        let filtered = 0;
-        for (let index = 0; index < channel.length; index++) {
-          filtered = filtered * .985 + (Math.random() * 2 - 1) * .12;
-          channel[index] = filtered * .34;
-        }
-        const water = context.createBufferSource();
-        const waterFilter = context.createBiquadFilter();
-        const waterGain = context.createGain();
-        water.loop = true;
-        water.buffer = buffer;
-        waterFilter.type = "bandpass";
-        waterFilter.frequency.value = 1050;
-        waterFilter.Q.value = .62;
-        waterGain.gain.value = .5;
-        water.connect(waterFilter);
-        waterFilter.connect(waterGain);
-        waterGain.connect(mix);
-        water.start();
-        soundSourcesRef.current.push(water);
-      }
 
       const voices = clip.ratios.map((ratio, index) => {
         const oscillator = context.createOscillator();
@@ -2527,7 +2535,7 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
   const pause = () => {
     stopEngine();
     setMode("idle");
-    setStatus("声音已暂停，可选择另一段音乐或麦克风");
+    setStatus("声音已暂停，可选择另一段声音或使用麦克风");
   };
 
   useEffect(() => () => stopEngine(), [stopEngine]);
@@ -2547,11 +2555,11 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
     <section className="sound-drive-panel" aria-label="声音实时驱动">
       <div className="sound-drive-heading">
         <span><i aria-hidden="true" />声音实时驱动</span>
-        <b>{mode === "music" ? "MUSIC" : mode === "microphone" ? "MIC LIVE" : "READY"}</b>
+        <b>{mode === "music" ? "AUDIO" : mode === "microphone" ? "MIC LIVE" : "READY"}</b>
       </div>
       <div className="sound-input-row">
         <label className="sound-clip-select">
-          <span>音乐片段</span>
+          <span>声音与音乐</span>
           <select
             aria-label="选择声音片段"
             value={clipId}
@@ -2566,7 +2574,7 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
         </label>
         <div className="sound-source-actions">
           <button className={mode === "music" ? "active" : ""} type="button" onClick={() => mode === "music" ? pause() : void startMusic(clipId)}>
-            {mode === "music" ? "暂停" : "播放音乐"}
+            {mode === "music" ? "暂停" : "播放声音"}
           </button>
           <button className={mode === "microphone" ? "active" : ""} type="button" onClick={() => mode === "microphone" ? pause() : void startMicrophone()}>
             {mode === "microphone" ? "停止" : "麦克风驱动"}

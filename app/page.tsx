@@ -22,8 +22,10 @@ const LazyHometownTeacherStudio = lazy(async () => {
   return { default: studioModule.HometownTeacherStudio };
 });
 
-function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+function scrollToId(id: string, behavior: ScrollBehavior = "smooth") {
+  const target = document.getElementById(id);
+  if (!target) return;
+  window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior });
 }
 
 function Mark({ children }: { children: React.ReactNode }) {
@@ -212,8 +214,11 @@ export default function Home() {
 
   const exploreMuseumDemo = useCallback((demoId: string, exhibitId: string) => {
     hometownReturnExhibit.current = exhibitId;
-    scrollToId("hall");
-    window.setTimeout(() => window.dispatchEvent(new CustomEvent("open-museum-demo", { detail: { demoId } })), 520);
+    scrollToId("hall", "auto");
+    window.requestAnimationFrame(() => {
+      scrollToId("hall", "auto");
+      window.dispatchEvent(new CustomEvent("open-museum-demo", { detail: { demoId } }));
+    });
   }, []);
 
   return (

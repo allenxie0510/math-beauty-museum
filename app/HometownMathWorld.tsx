@@ -141,6 +141,8 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
   const [touring, setTouring] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
   const [revealStep, setRevealStep] = useState(0);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [carouselPaused, setCarouselPaused] = useState(false);
   const [webglFailed, setWebglFailed] = useState(false);
   const handleWebglError = useCallback(() => setWebglFailed(true), []);
   const exhibits = useMemo(() => allExhibits(manifest), [manifest]);
@@ -156,6 +158,12 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
   }, [previewManifest, slug]);
 
   useEffect(() => { onDetailChange?.(Boolean(selected)); document.body.classList.toggle("hometown-detail-mode", Boolean(selected)); return () => document.body.classList.remove("hometown-detail-mode"); }, [selected, onDetailChange]);
+
+  useEffect(() => {
+    if (carouselPaused || selected || exhibits.length < 2) return;
+    const timer = window.setInterval(() => setCarouselIndex((index) => (index + 1) % exhibits.length), 4200);
+    return () => window.clearInterval(timer);
+  }, [carouselPaused, exhibits.length, selected]);
 
   useEffect(() => {
     const reopen = (event: Event) => {
@@ -183,6 +191,20 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
         <p>从一片叶、一座桥和一圈水纹出发，<br/>看见乡土生活里一直存在的数学。</p>
         <div><button onClick={startTour}>开始导览 <i>→</i></button><button onClick={onOpenStudio}>教师策展台</button></div>
       </header>
+      <div className="hometown-photo-carousel" aria-label="家乡数学照片轮播" onPointerEnter={() => setCarouselPaused(true)} onPointerLeave={() => setCarouselPaused(false)} onFocus={() => setCarouselPaused(true)} onBlur={() => setCarouselPaused(false)}>
+        <div className="hometown-carousel-window">
+          {exhibits.map((item, index) => {
+            const total = exhibits.length;
+            let offset = index - carouselIndex;
+            if (offset > total / 2) offset -= total;
+            if (offset < -total / 2) offset += total;
+            return <button key={item.id} className={`${offset === 0 ? "active" : ""} ${Math.abs(offset) > 2 ? "is-hidden" : ""}`} style={{ "--carousel-offset": Math.max(-2, Math.min(2, offset)) } as React.CSSProperties} onClick={() => offset === 0 ? select(item.id) : setCarouselIndex(index)} aria-label={`${item.title}${offset === 0 ? "，打开展品" : "，切换到这张照片"}`}><img src={item.thumbnailUrl} alt=""/><span>{item.title}</span></button>;
+          })}
+        </div>
+        <button className="hometown-carousel-arrow previous" onClick={() => setCarouselIndex((index) => (index - 1 + exhibits.length) % exhibits.length)} aria-label="上一张照片">←</button>
+        <button className="hometown-carousel-arrow next" onClick={() => setCarouselIndex((index) => (index + 1) % exhibits.length)} aria-label="下一张照片">→</button>
+        <div className="hometown-carousel-dots">{exhibits.map((item, index) => <button key={item.id} className={index === carouselIndex ? "active" : ""} onClick={() => setCarouselIndex(index)} aria-label={`第 ${index + 1} 张：${item.title}`}/>)}</div>
+      </div>
       <aside className="hometown-zone-rail" aria-label="家乡数学展分区">
         {manifest.zones.map((zone) => <button key={zone.id} onClick={() => select(zone.exhibits[0]?.id)}><i style={{ background: zone.accent }}/><span>{zone.name}<small>{zone.subtitle}</small></span><b>{String(zone.exhibits.length).padStart(2, "0")}</b></button>)}
       </aside>
@@ -193,11 +215,11 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
         <div className="hometown-reveal" role="dialog" aria-modal="true" aria-label={`${selected.title} 数学显影`}>
           <button className="hometown-close" onClick={close} aria-label="关闭并返回家乡数学馆">×</button>
           <div className="hometown-photo-stage" style={{ "--hometown-accent": selectedZone.accent } as React.CSSProperties}>
-            <div className="hometown-photo-frame" style={{ aspectRatio: `${selected.imageWidth || 4}/${selected.imageHeight || 3}`, display: "block", overflow: "hidden" }}>
-              <img src={selected.imageUrl} alt={selected.title} style={{ position: "absolute", inset: 0, objectFit: "fill" }}/>
+            <div className="hometown-photo-frame" style={{ "--photo-ratio": (selected.imageWidth || 4) / (selected.imageHeight || 3), aspectRatio: `${selected.imageWidth || 4}/${selected.imageHeight || 3}` } as React.CSSProperties}>
+              <img src={selected.imageUrl} alt={selected.title} width={selected.imageWidth || 800} height={selected.imageHeight || 600}/>
               <div className={`hometown-overlay step-${revealStep}`}><HometownMathOverlay overlay={selected.overlay} aspectRatio={(selected.imageWidth || 4) / (selected.imageHeight || 3)}/></div>
             </div>
-            <div className="hometown-evidence-marker" style={{ opacity: revealStep >= 2 ? 1 : 0 }}><i/><span>{selected.evidence}</span></div>
+            <div className="hometown-evidence-marker" style={{ opacity: revealStep >= 2 ? 1 : 0 }}><i/><span>{selected.learning.measurementDetail}</span></div>
             <div className="hometown-reveal-steps" aria-label="数学显影步骤">
               {["原照片", "显现结构", "寻找证据", "读懂数学"].map((label, index) => <button key={label} className={revealStep === index ? "active" : ""} onClick={() => setRevealStep(index)}><i>{index + 1}</i><span>{label}</span></button>)}
             </div>
@@ -206,7 +228,6 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
             <span>{selectedZone.name} · {selected.conceptLabel}</span>
             <h3>{selected.title}</h3>
             <p>{selected.learning.observation || selected.interpretation}</p>
-            <div className="hometown-learning-evidence"><b>我们看见的证据</b><p>{selected.evidence}</p></div>
             <section className={`hometown-math-reading ${revealStep >= 3 ? "is-visible" : ""}`} aria-live="polite">
               <header><span>核心测量</span><strong>{selected.learning.measurementValue}</strong><small>{selected.learning.measurementDetail}</small></header>
               <div className="hometown-formula-card"><span>数学表达式</span><strong>{selected.learning.formula}</strong><p>{selected.learning.formulaMeaning}</p></div>

@@ -3,7 +3,7 @@
 /* R2 assets are WebP files already resized for the display and thumbnail roles. */
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CONCEPT_REGISTRY, CONCEPT_BY_ID } from "./hometown-math/domain/registry";
 import type { HometownConceptId, TeacherExhibitDraft, TeacherExhibitionDraft } from "./hometown-math/domain/types";
 import { buildLearningContent } from "./hometown-math/domain/registry";
@@ -83,8 +83,8 @@ export function HometownTeacherStudio({ close, preview }: { close: () => void; p
     setBusy(true);
     try {
       const learning = next.conceptId && next.overlay ? buildLearningContent(next.conceptId, next.overlay, next.interpretation) : next.learning;
-      await request(`/api/hometown/exhibits/${selected.id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ conceptId: next.conceptId, title: next.title, interpretation: next.interpretation, evidence: next.evidence, learning, overlay: next.overlay, zoneId: next.zoneId, order: next.order, teacherConfirmed: next.teacherConfirmed }) });
-      updateSelectedLocal({ ...patch, learning });
+      await request(`/api/hometown/exhibits/${selected.id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ conceptId: next.conceptId, title: next.title, interpretation: next.interpretation, evidence: next.interpretation, learning, overlay: next.overlay, zoneId: next.zoneId, order: next.order, teacherConfirmed: next.teacherConfirmed }) });
+      updateSelectedLocal({ ...patch, evidence: next.interpretation, learning });
       setMessage(next.teacherConfirmed ? "已确认，这件展品可以参与发布" : "修改已保存");
     } catch (error) { setMessage((error as Error).message); }
     finally { setBusy(false); }
@@ -92,7 +92,8 @@ export function HometownTeacherStudio({ close, preview }: { close: () => void; p
 
   const chooseConcept = (conceptId: HometownConceptId) => {
     const concept = CONCEPT_BY_ID[conceptId];
-    updateSelectedLocal({ conceptId, title: concept.shortTitle, interpretation: concept.childExplanation, overlay: concept.overlay, learning: buildLearningContent(conceptId, concept.overlay, concept.childExplanation), teacherConfirmed: false });
+    const observation = selected?.interpretation?.trim() || concept.childExplanation;
+    updateSelectedLocal({ conceptId, title: concept.shortTitle, overlay: concept.overlay, learning: buildLearningContent(conceptId, concept.overlay, observation), teacherConfirmed: false });
   };
 
   const uploadFiles = async (files: File[]) => {
@@ -208,7 +209,33 @@ export function HometownTeacherStudio({ close, preview }: { close: () => void; p
 }
 
 function Inspector({ item, draft, busy, update, chooseConcept, save }: { item: TeacherExhibitDraft; draft: TeacherExhibitionDraft; busy: boolean; update: (patch: Partial<TeacherExhibitDraft>) => void; chooseConcept: (id: HometownConceptId) => void; save: (patch?: Partial<TeacherExhibitDraft>) => void }) {
-  const candidates = useMemo(() => item.candidates.filter((candidate) => candidate.confidence >= .55), [item.candidates]);
+  const suggestion = item.candidates.find((candidate) => candidate.confidence >= .55);
   const updateOverlay = (overlay: NonNullable<TeacherExhibitDraft["overlay"]>) => update({ overlay, teacherConfirmed: false, learning: item.conceptId ? buildLearningContent(item.conceptId, overlay, item.interpretation) : item.learning });
-  return <div className="studio-inspector-form"><div className="studio-calibration-stage" style={{ aspectRatio: `${item.imageWidth || 4}/${item.imageHeight || 3}` }}><img src={item.imageUrl} alt={item.filename}/>{item.overlay && <HometownMathOverlay overlay={item.overlay} aspectRatio={(item.imageWidth || 4) / (item.imageHeight || 3)} editable onChange={updateOverlay}/>}</div><span>原始文件 · {item.filename}</span>{item.overlay && <div className="studio-calibration-tools"><b>照片级结构校准</b><p>拖动中心点与半径点，使白色结构线贴合真实对象。调整后需重新确认。</p><label>重复数 / 波形密度<input type="range" min="2" max="16" value={Math.round(item.overlay.spacing ?? 8)} onChange={(event) => updateOverlay({ ...item.overlay!, spacing: Number(event.target.value) })}/><i>{Math.round(item.overlay.spacing ?? 8)}</i></label><label>结构旋转角<input type="range" min="-180" max="180" value={Math.round(item.overlay.rotation ?? 0)} onChange={(event) => updateOverlay({ ...item.overlay!, rotation: Number(event.target.value) })}/><i>{Math.round(item.overlay.rotation ?? 0)}°</i></label></div>}<h3>{candidates.length ? "发现了这些可能的数学" : "暂未发现清晰数学"}</h3>{candidates.length ? <div className="studio-candidates">{candidates.map((candidate) => <button key={candidate.conceptId} className={item.conceptId === candidate.conceptId ? "active" : ""} onClick={() => chooseConcept(candidate.conceptId)}><span>{candidate.labelZh}<small>{candidate.evidence}</small></span><b>{Math.round(candidate.confidence * 100)}%</b></button>)}</div> : <p className="studio-no-math">这不是失败。可以从下方 Registry 手动选择有确切证据的概念，也可以不把它放进本次展览。</p>}<label>受控数学概念<select value={item.conceptId ?? ""} onChange={(event) => chooseConcept(event.target.value as HometownConceptId)}><option value="" disabled>请选择</option>{CONCEPT_REGISTRY.map((concept) => <option key={concept.id} value={concept.id}>{concept.labelZh} · {concept.labelEn}</option>)}</select></label><label>儿童标题（最多 18 字）<input maxLength={18} value={item.title} onChange={(event) => update({ title: event.target.value })}/></label><label>照片观察<textarea value={item.interpretation} onChange={(event) => update({ interpretation: event.target.value, teacherConfirmed: false })}/></label><label>画面证据<textarea value={item.evidence} onChange={(event) => update({ evidence: event.target.value, teacherConfirmed: false })}/></label>{item.conceptId && <div className="studio-formula-preview"><b>由当前标注计算</b><strong>{item.learning.formula}</strong><p>{item.learning.formulaMeaning}</p></div>}<label>所属分区<select value={item.zoneId} onChange={(event) => update({ zoneId: event.target.value })}>{draft.zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}</select></label><div className="studio-confirm"><button onClick={() => save()} disabled={busy}>保存修改</button><button className={item.teacherConfirmed ? "confirmed" : ""} onClick={() => save({ teacherConfirmed: !item.teacherConfirmed })} disabled={busy || !item.conceptId}>{item.teacherConfirmed ? "已由教师确认 ✓" : "确认概念、标注与解读"}</button></div></div>;
+  const overlayType = item.overlay?.type;
+  const showCount = overlayType === "radial" || overlayType === "repeat" || overlayType === "wave";
+  const showRotation = overlayType === "radial" || overlayType === "spiral" || overlayType === "wave";
+  const calibrationHint = overlayType === "axis"
+    ? "拖动轴线两端，让白线穿过真实的镜像中轴。"
+    : overlayType === "arch"
+      ? "拖动左右支点和拱顶，让曲线贴合真实建筑轮廓。"
+      : overlayType === "nested"
+        ? "拖动结构范围的两个角点，让相似层级覆盖真实山脊、梯田或枝叶。"
+        : "拖动中心与半径点，让白色结构线贴合照片中的真实对象。";
+  return <div className="studio-inspector-form">
+    <div className="studio-calibration-stage">
+      <div className="studio-calibration-frame">
+        <img src={item.imageUrl} alt={item.filename}/>
+        {item.overlay && <HometownMathOverlay overlay={item.overlay} aspectRatio={(item.imageWidth || 4) / (item.imageHeight || 3)} editable onChange={updateOverlay}/>}
+      </div>
+    </div>
+    <span>原始文件 · {item.filename}</span>
+    <label>核心数学概念<select value={item.conceptId ?? ""} onChange={(event) => chooseConcept(event.target.value as HometownConceptId)}><option value="" disabled>请选择一个核心概念</option>{CONCEPT_REGISTRY.map((concept) => <option key={concept.id} value={concept.id}>{concept.labelZh} · {concept.labelEn}</option>)}</select></label>
+    {!item.conceptId && (suggestion ? <button className="studio-core-suggestion" onClick={() => chooseConcept(suggestion.conceptId)}><span>AI 建议：{suggestion.labelZh}<small>{suggestion.evidence}</small></span><b>采用</b></button> : <p className="studio-no-math">没有足够清晰的自动证据。请结合照片只选择一个最有把握的核心概念。</p>)}
+    {item.overlay && <div className="studio-calibration-tools"><b>照片级结构校准</b><p>{calibrationHint} 调整后需重新确认。</p>{showCount && <label>{overlayType === "wave" ? "波形密度" : "重复方向数"}<input type="range" min="2" max="16" value={Math.round(item.overlay.spacing ?? 8)} onChange={(event) => updateOverlay({ ...item.overlay!, spacing: Number(event.target.value) })}/><i>{Math.round(item.overlay.spacing ?? 8)}</i></label>}{showRotation && <label>{overlayType === "wave" ? "波形相位" : "结构旋转角"}<input type="range" min="-180" max="180" value={Math.round(item.overlay.rotation ?? 0)} onChange={(event) => updateOverlay({ ...item.overlay!, rotation: Number(event.target.value) })}/><i>{Math.round(item.overlay.rotation ?? 0)}°</i></label>}</div>}
+    <label>儿童标题（最多 18 字）<input maxLength={18} value={item.title} onChange={(event) => update({ title: event.target.value })}/></label>
+    <label>AI 照片分析<textarea value={item.interpretation} onChange={(event) => update({ interpretation: event.target.value, evidence: event.target.value, teacherConfirmed: false })}/><small>把照片观察与画面证据合并为一段，只描述这张照片里真正看得到的结构。</small></label>
+    {item.conceptId && <div className="studio-formula-preview"><b>由当前标注计算</b><strong>{item.learning.formula}</strong><p>{item.learning.formulaMeaning}</p></div>}
+    <label>所属分区<select value={item.zoneId} onChange={(event) => update({ zoneId: event.target.value })}>{draft.zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}</select></label>
+    <div className="studio-confirm"><button onClick={() => save()} disabled={busy}>保存修改</button><button className={item.teacherConfirmed ? "confirmed" : ""} onClick={() => save({ teacherConfirmed: !item.teacherConfirmed })} disabled={busy || !item.conceptId}>{item.teacherConfirmed ? "已由教师确认 ✓" : "确认概念、标注与解读"}</button></div>
+  </div>;
 }

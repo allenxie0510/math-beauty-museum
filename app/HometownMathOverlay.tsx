@@ -74,7 +74,17 @@ export function HometownMathOverlay({ overlay, aspectRatio = 4 / 3, editable = f
   } else if (overlay.type === "nested") {
     const [startX, startY] = pair(points[0], [.16, .17]);
     const [endX, endY] = pair(points[1], [.84, .83]);
-    geometry = <>{[0, 1, 2, 3].map((index) => { const inset = index * 7; return <rect key={index} x={startX + inset} y={startY + inset} width={Math.max(8, endX - startX - inset * 2)} height={Math.max(8, endY - startY - inset * 2)} rx="2" {...(index === 0 ? primary : guide)}/>; })}</>;
+    const width = endX - startX;
+    const height = endY - startY;
+    geometry = <>{[0, 1, 2, 3].map((index) => {
+      const t = index / 3;
+      const left = startX + width * (.02 + t * .09);
+      const right = endX - width * (.02 + t * .09);
+      const baseline = startY + height * (.2 + t * .2);
+      const rise = height * (.18 - t * .025);
+      const path = `M${left} ${baseline + rise * .35}C${left + width * .2} ${baseline - rise},${left + width * .36} ${baseline + rise * .7},${left + width * .52} ${baseline}S${right - width * .18} ${baseline - rise * .8},${right} ${baseline + rise * .25}`;
+      return <path key={index} d={path} {...(index === 0 ? primary : guide)}/>;
+    })}<line x1={startX} y1={startY} x2={endX} y2={endY} {...guide} opacity=".28"/></>;
   } else if (overlay.type === "repeat") {
     const [startX, startY] = pair(points[0], [.14, .5]);
     const [endX, endY] = pair(points[1], [.86, .5]);
@@ -100,6 +110,9 @@ export function HometownMathOverlay({ overlay, aspectRatio = 4 / 3, editable = f
 
   return <svg ref={svgRef} viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="none" className={editable ? "is-editable" : ""} aria-label={editable ? "可拖动的照片数学标注" : "照片上的数学结构标注"}>
     <g className="math-overlay-geometry">{geometry}</g>
-    {editable && <g className="math-overlay-controls"><circle cx={cx} cy={cy} r="2.4" onPointerDown={(event) => move(event, "center")}/><circle cx={cx + radius} cy={cy} r="2" onPointerDown={(event) => move(event, "radius")}/><line x1={cx} y1={cy} x2={cx + radius} y2={cy} stroke="#fff" strokeDasharray="2 2" opacity=".55"/>{points.map((point, index) => <circle key={index} cx={x(point[0], .5)} cy={y(point[1], .5)} r="2" onPointerDown={(event) => move(event, "point", index)}/>)}</g>}
+    {editable && <g className="math-overlay-controls">
+      {["radial", "hexgrid", "spiral"].includes(overlay.type) && <circle cx={cx} cy={cy} r="2.4" onPointerDown={(event) => move(event, "center")}/>}
+      {["radial", "hexgrid", "spiral", "wave"].includes(overlay.type) && <><circle cx={cx + radius} cy={cy} r="2" onPointerDown={(event) => move(event, "radius")}/><line x1={cx} y1={cy} x2={cx + radius} y2={cy} stroke="#fff" strokeDasharray="2 2" opacity=".55"/></>}
+      {points.map((point, index) => <circle key={index} cx={x(point[0], .5)} cy={y(point[1], .5)} r="2" onPointerDown={(event) => move(event, "point", index)}/>)}</g>}
   </svg>;
 }

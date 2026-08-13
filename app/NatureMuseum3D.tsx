@@ -2887,7 +2887,11 @@ export function NatureMuseumWorld() {
       const aliases: Record<string, string> = { tessellation: "tessellation", fractal: "fractal", phyllotaxis: "phyllotaxis", catenary: "catenary", sine: "sine" };
       const itemId = aliases[demoId] ?? demoId;
       const targetHallIndex = HALLS.findIndex((candidate) => candidate.items.some((item) => item.id === itemId));
-      if (targetHallIndex >= 0) { linkedDemoOpen.current = true; select(itemId, targetHallIndex); }
+      if (targetHallIndex >= 0) {
+        galleryRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+        linkedDemoOpen.current = true;
+        select(itemId, targetHallIndex);
+      }
     };
     window.addEventListener("open-museum-demo", openLinkedDemo);
     return () => window.removeEventListener("open-museum-demo", openLinkedDemo);
@@ -3016,11 +3020,6 @@ export function NatureMuseumWorld() {
     const body = document.body;
     const root = document.documentElement;
     const previousBody = {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
       overflow: body.style.overflow,
     };
     const previousRoot = {
@@ -3029,22 +3028,12 @@ export function NatureMuseumWorld() {
     };
     body.classList.add("exhibit-mode");
     body.classList.remove("exhibit-nav-visible", "site-nav-visible");
-    body.style.position = "fixed";
-    body.style.top = `-${scrollPosition}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
     body.style.overflow = "hidden";
     root.style.overflow = "hidden";
     root.style.overscrollBehavior = "none";
 
     return () => {
       body.classList.remove("exhibit-mode", "exhibit-nav-visible");
-      body.style.position = previousBody.position;
-      body.style.top = previousBody.top;
-      body.style.left = previousBody.left;
-      body.style.right = previousBody.right;
-      body.style.width = previousBody.width;
       body.style.overflow = previousBody.overflow;
       root.style.overflow = previousRoot.overflow;
       root.style.overscrollBehavior = previousRoot.overscrollBehavior;

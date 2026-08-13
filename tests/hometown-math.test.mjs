@@ -50,7 +50,12 @@ test("aligns per-photo vector evidence with deterministic learning formulas", as
   assert.match(world, /核心测量/);
   assert.match(world, /数学表达式/);
   assert.match(world, /为什么这种结构很美/);
+  assert.match(world, /hometown-photo-carousel/);
+  assert.doesNotMatch(world, /objectFit: "fill"/);
   assert.match(studio, /照片级结构校准/);
+  assert.match(studio, /AI 照片分析/);
+  assert.doesNotMatch(studio, /画面证据<textarea/);
+  assert.match(studio, /showCount/);
   assert.match(studio, /确认概念、标注与解读/);
 });
 

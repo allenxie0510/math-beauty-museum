@@ -18,11 +18,8 @@ type Props = {
 const allExhibits = (manifest: HometownSceneManifest) => manifest.zones.flatMap((zone) => zone.exhibits);
 const completeManifest = (manifest: HometownSceneManifest): HometownSceneManifest => ({ ...manifest, zones: manifest.zones.map((zone) => ({ ...zone, exhibits: zone.exhibits.map((item) => ({ ...item, learning: item.learning?.formula ? item.learning : buildLearningContent(item.conceptId, item.overlay, item.interpretation) })) })) });
 
-function HometownCanvas({ manifest, onPick, onError }: { manifest: HometownSceneManifest; onPick: (id: string) => void; onError: () => void }) {
+function HometownCanvas({ manifest, onError }: { manifest: HometownSceneManifest; onError: () => void }) {
   const mount = useRef<HTMLDivElement>(null);
-  const pickRef = useRef(onPick);
-
-  useEffect(() => { pickRef.current = onPick; }, [onPick]);
 
   useEffect(() => {
     const container = mount.current;
@@ -38,7 +35,7 @@ function HometownCanvas({ manifest, onPick, onError }: { manifest: HometownScene
     catch { onError(); return; }
     renderer.setPixelRatio(Math.min(devicePixelRatio, lowPower ? 1.2 : 1.7));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.domElement.setAttribute("aria-label", "我的家乡数学馆三维展厅，可点击发光展板探索");
+    renderer.domElement.setAttribute("aria-label", "我的家乡数学馆沉浸式空间背景");
     container.appendChild(renderer.domElement);
 
     scene.add(new THREE.HemisphereLight("#d8e5d6", "#0b1114", 1.2));
@@ -50,7 +47,6 @@ function HometownCanvas({ manifest, onPick, onError }: { manifest: HometownScene
     floor.position.set(0, -1.3, -27);
     scene.add(floor);
 
-    const interactives: THREE.Mesh[] = [];
     manifest.zones.forEach((zone, zoneIndex) => {
       const z = -zoneIndex * 13 - 5;
       const left = zoneIndex % 2 === 0;
@@ -60,24 +56,6 @@ function HometownCanvas({ manifest, onPick, onError }: { manifest: HometownScene
       const beam = new THREE.PointLight(zone.accent, 9, 17, 2);
       beam.position.set(left ? -3.1 : 3.1, 3.6, z + 1.4);
       scene.add(beam);
-      zone.exhibits.forEach((exhibit, index) => {
-        const panelMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(zone.accent).multiplyScalar(.38), transparent: true, opacity: .82 });
-        const panel = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 2.25), panelMaterial);
-        panel.position.set((left ? -8.7 : 4.1) + index * 3.55, 2.55, z + (left ? .15 : -.15));
-        if (!left) panel.rotation.y = Math.PI;
-        panel.userData.exhibitId = exhibit.id;
-        interactives.push(panel);
-        scene.add(panel);
-        new THREE.TextureLoader().load(exhibit.thumbnailUrl, (texture) => {
-          if (!running) { texture.dispose(); return; }
-          texture.colorSpace = THREE.SRGBColorSpace;
-          panelMaterial.map = texture;
-          panelMaterial.color.set("#ffffff");
-          panelMaterial.needsUpdate = true;
-        });
-        const frame = new THREE.LineSegments(new THREE.EdgesGeometry(panel.geometry), new THREE.LineBasicMaterial({ color: zone.accent, transparent: true, opacity: .85 }));
-        panel.add(frame);
-      });
       const arch = new THREE.Mesh(new THREE.TorusGeometry(3.6, .045, 8, 48, Math.PI), new THREE.MeshBasicMaterial({ color: zone.accent, transparent: true, opacity: .42 }));
       arch.position.set(0, 2.2, z - 5.1);
       arch.rotation.z = Math.PI;
@@ -90,16 +68,6 @@ function HometownCanvas({ manifest, onPick, onError }: { manifest: HometownScene
     dustGeometry.setAttribute("position", new THREE.BufferAttribute(dust, 3));
     scene.add(new THREE.Points(dustGeometry, new THREE.PointsMaterial({ color: "#f0d49e", size: .035, transparent: true, opacity: .45 })));
 
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const click = (event: PointerEvent) => {
-      const bounds = renderer.domElement.getBoundingClientRect();
-      pointer.set((event.clientX - bounds.left) / bounds.width * 2 - 1, -((event.clientY - bounds.top) / bounds.height * 2 - 1));
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(interactives, false)[0];
-      if (hit?.object.userData.exhibitId) pickRef.current(hit.object.userData.exhibitId);
-    };
-    renderer.domElement.addEventListener("pointerup", click);
     let visible = true;
     let running = true;
     const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }, { threshold: .08 });
@@ -123,7 +91,6 @@ function HometownCanvas({ manifest, onPick, onError }: { manifest: HometownScene
       running = false;
       observer.disconnect();
       resizeObserver.disconnect();
-      renderer.domElement.removeEventListener("pointerup", click);
       scene.traverse((object) => { if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.LineSegments) { object.geometry.dispose(); const material = object.material; const disposeMaterial = (item: THREE.Material) => { const mapped = item as THREE.Material & { map?: THREE.Texture | null }; mapped.map?.dispose(); item.dispose(); }; if (Array.isArray(material)) material.forEach(disposeMaterial); else disposeMaterial(material); } });
       renderer.dispose();
       renderer.domElement.remove();
@@ -184,7 +151,7 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
   return (
     <section className="hometown-world" id="hometown" aria-label="我的家乡数学馆">
       <div className="hometown-ambient" aria-hidden="true"><i/><i/><i/></div>
-      {!webglFailed ? <HometownCanvas manifest={manifest} onPick={select} onError={handleWebglError}/> : <div className="hometown-2d-fallback" role="status"><b>当前设备使用轻量参观模式</b><span>所有照片、数学显影与讲解仍可正常探索</span></div>}
+      {!webglFailed ? <HometownCanvas manifest={manifest} onError={handleWebglError}/> : <div className="hometown-2d-fallback" role="status"><b>当前设备使用轻量参观模式</b><span>所有照片、数学显影与讲解仍可正常探索</span></div>}
       <header className="hometown-hero-copy">
         <span>DISCOVER BEAUTY · 发现美</span>
         <h2>我的家乡<br/>是一座数学馆</h2>
@@ -195,21 +162,17 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
         <div className="hometown-carousel-window">
           {exhibits.map((item, index) => {
             const total = exhibits.length;
+            const zone = manifest.zones.find((candidate) => candidate.id === item.zoneId);
             let offset = index - carouselIndex;
             if (offset > total / 2) offset -= total;
             if (offset < -total / 2) offset += total;
-            return <button key={item.id} className={`${offset === 0 ? "active" : ""} ${Math.abs(offset) > 2 ? "is-hidden" : ""}`} style={{ "--carousel-offset": Math.max(-2, Math.min(2, offset)) } as React.CSSProperties} onClick={() => offset === 0 ? select(item.id) : setCarouselIndex(index)} aria-label={`${item.title}${offset === 0 ? "，打开展品" : "，切换到这张照片"}`}><img src={item.thumbnailUrl} alt=""/><span>{item.title}</span></button>;
+            return <button key={item.id} className={`${offset === 0 ? "active" : ""} ${Math.abs(offset) > 2 ? "is-hidden" : ""}`} style={{ "--carousel-offset": Math.max(-2, Math.min(2, offset)), "--carousel-accent": zone?.accent || "#9ad8bd" } as React.CSSProperties} onClick={() => offset === 0 ? select(item.id) : setCarouselIndex(index)} aria-label={`${item.title}${offset === 0 ? "，打开展品" : "，切换到这张照片"}`}><img src={item.thumbnailUrl} alt=""/><span><small>{zone?.name || "家乡数学"}</small><b>{item.title}</b></span></button>;
           })}
         </div>
         <button className="hometown-carousel-arrow previous" onClick={() => setCarouselIndex((index) => (index - 1 + exhibits.length) % exhibits.length)} aria-label="上一张照片">←</button>
         <button className="hometown-carousel-arrow next" onClick={() => setCarouselIndex((index) => (index + 1) % exhibits.length)} aria-label="下一张照片">→</button>
         <div className="hometown-carousel-dots">{exhibits.map((item, index) => <button key={item.id} className={index === carouselIndex ? "active" : ""} onClick={() => setCarouselIndex(index)} aria-label={`第 ${index + 1} 张：${item.title}`}/>)}</div>
       </div>
-      <aside className="hometown-zone-rail" aria-label="家乡数学展分区">
-        {manifest.zones.map((zone) => <button key={zone.id} onClick={() => select(zone.exhibits[0]?.id)}><i style={{ background: zone.accent }}/><span>{zone.name}<small>{zone.subtitle}</small></span><b>{String(zone.exhibits.length).padStart(2, "0")}</b></button>)}
-      </aside>
-      <div className="hometown-curator-note"><span>OUR HOMETOWN EXHIBITION</span><b>{manifest.schoolClass || "乡村少年共同策展"}</b><small>{manifest.locationLabel}</small></div>
-      {webglFailed && <div className="hometown-fallback-grid">{exhibits.map((item) => <button key={item.id} onClick={() => select(item.id)}><img src={item.thumbnailUrl} alt=""/><span>{item.title}</span></button>)}</div>}
 
       {selected && selectedZone && (
         <div className="hometown-reveal" role="dialog" aria-modal="true" aria-label={`${selected.title} 数学显影`}>

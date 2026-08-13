@@ -36,6 +36,24 @@ test("uses a controlled concept registry and one manifest contract", async () =>
   for (const zone of ["自然的规律", "劳动的智慧", "建筑的秩序", "山水的节奏"]) assert.match(defaults, new RegExp(zone));
 });
 
+test("aligns per-photo vector evidence with deterministic learning formulas", async () => {
+  const overlay = await read("../app/HometownMathOverlay.tsx");
+  const registry = await read("../app/hometown-math/domain/registry.ts");
+  const world = await read("../app/HometownMathWorld.tsx");
+  const studio = await read("../app/HometownTeacherStudio.tsx");
+  assert.match(overlay, /aspectRatio/);
+  assert.match(overlay, /editable/);
+  assert.match(overlay, /vectorEffect/);
+  assert.match(registry, /θ ≈ 360° ÷/);
+  assert.match(registry, /d\(P, l\) ≈ d\(P′, l\)/);
+  assert.match(registry, /f\(x \+ T\) ≈ f\(x\)/);
+  assert.match(world, /核心测量/);
+  assert.match(world, /数学表达式/);
+  assert.match(world, /为什么这种结构很美/);
+  assert.match(studio, /照片级结构校准/);
+  assert.match(studio, /确认概念、标注与解读/);
+});
+
 test("persists teacher workflow in D1 and images in R2", async () => {
   const [hosting, schema, upload, server, studio, migration] = await Promise.all([
     read("../.openai/hosting.json"),

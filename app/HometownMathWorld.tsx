@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { HometownMathOverlay } from "./HometownMathOverlay";
 import { DEFAULT_HOMETOWN_MANIFEST } from "./hometown-math/domain/default-manifest";
-import type { HometownSceneManifest, OverlayGeometry } from "./hometown-math/domain/types";
+import { buildLearningContent } from "./hometown-math/domain/registry";
+import type { HometownSceneManifest } from "./hometown-math/domain/types";
 
 type Props = {
   slug?: string | null;
@@ -14,18 +16,7 @@ type Props = {
 };
 
 const allExhibits = (manifest: HometownSceneManifest) => manifest.zones.flatMap((zone) => zone.exhibits);
-
-function Overlay({ overlay, accent }: { overlay: OverlayGeometry; accent: string }) {
-  const line = { stroke: accent, strokeWidth: 2, fill: "none", vectorEffect: "non-scaling-stroke" as const };
-  if (overlay.type === "axis") return <svg viewBox="0 0 100 100"><line x1="50" y1="12" x2="50" y2="89" {...line} strokeDasharray="4 3"/><path d="M42 25L50 18L58 25M42 75L50 82L58 75" {...line}/></svg>;
-  if (overlay.type === "radial") return <svg viewBox="0 0 100 100">{Array.from({ length: overlay.spacing ?? 8 }, (_, index) => <line key={index} x1="50" y1="50" x2="50" y2="15" transform={`rotate(${index * 360 / (overlay.spacing ?? 8)} 50 50)`} {...line}/>)}</svg>;
-  if (overlay.type === "nested") return <svg viewBox="0 0 100 100">{[0, 1, 2, 3].map((index) => <rect key={index} x={12 + index * 9} y={14 + index * 9} width={76 - index * 18} height={70 - index * 18} rx="4" {...line}/>)}</svg>;
-  if (overlay.type === "repeat") return <svg viewBox="0 0 100 100">{Array.from({ length: 6 }, (_, index) => <g key={index} transform={`translate(${10 + index * 15} 0)`}><path d="M0 34L12 50L0 66" {...line}/></g>)}</svg>;
-  if (overlay.type === "arch") return <svg viewBox="0 0 100 100"><path d="M12 78C18 20 82 20 88 78" {...line}/><path d="M20 78C26 34 74 34 80 78" {...line}/><line x1="8" y1="78" x2="92" y2="78" {...line}/></svg>;
-  if (overlay.type === "hexgrid") return <svg viewBox="0 0 100 100">{[[28,30],[50,30],[72,30],[17,49],[39,49],[61,49],[83,49],[28,68],[50,68],[72,68]].map(([x,y], index) => <polygon key={index} points={`${x-10},${y} ${x-5},${y-9} ${x+5},${y-9} ${x+10},${y} ${x+5},${y+9} ${x-5},${y+9}`} {...line}/>)}</svg>;
-  if (overlay.type === "spiral") return <svg viewBox="0 0 100 100"><path d="M50 50C54 44 62 47 62 54C62 65 45 70 36 59C23 42 40 20 61 25C86 31 89 64 68 78" {...line}/><circle cx="50" cy="50" r="3" fill={accent}/></svg>;
-  return <svg viewBox="0 0 100 100"><path d="M5 52C16 28 27 76 39 52S62 28 73 52S89 76 98 52" {...line}/><path d="M5 64C16 40 27 88 39 64S62 40 73 64S89 88 98 64" {...line} opacity=".5"/></svg>;
-}
+const completeManifest = (manifest: HometownSceneManifest): HometownSceneManifest => ({ ...manifest, zones: manifest.zones.map((zone) => ({ ...zone, exhibits: zone.exhibits.map((item) => ({ ...item, learning: item.learning?.formula ? item.learning : buildLearningContent(item.conceptId, item.overlay, item.interpretation) })) })) });
 
 function HometownCanvas({ manifest, onPick, onError }: { manifest: HometownSceneManifest; onPick: (id: string) => void; onError: () => void }) {
   const mount = useRef<HTMLDivElement>(null);
@@ -159,9 +150,9 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
   const close = useCallback(() => { setSelectedId(null); setTouring(false); }, []);
 
   useEffect(() => {
-    if (previewManifest) { const timer = window.setTimeout(() => setManifest(previewManifest), 0); return () => window.clearTimeout(timer); }
+    if (previewManifest) { const timer = window.setTimeout(() => setManifest(completeManifest(previewManifest)), 0); return () => window.clearTimeout(timer); }
     if (!slug) return;
-    fetch(`/api/hometown/public/${encodeURIComponent(slug)}`).then((response) => response.ok ? response.json() : Promise.reject()).then((payload) => setManifest(payload.manifest)).catch(() => setManifest(DEFAULT_HOMETOWN_MANIFEST));
+    fetch(`/api/hometown/public/${encodeURIComponent(slug)}`).then((response) => response.ok ? response.json() : Promise.reject()).then((payload) => setManifest(completeManifest(payload.manifest))).catch(() => setManifest(DEFAULT_HOMETOWN_MANIFEST));
   }, [previewManifest, slug]);
 
   useEffect(() => { onDetailChange?.(Boolean(selected)); document.body.classList.toggle("hometown-detail-mode", Boolean(selected)); return () => document.body.classList.remove("hometown-detail-mode"); }, [selected, onDetailChange]);
@@ -202,8 +193,10 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
         <div className="hometown-reveal" role="dialog" aria-modal="true" aria-label={`${selected.title} 数学显影`}>
           <button className="hometown-close" onClick={close} aria-label="关闭并返回家乡数学馆">×</button>
           <div className="hometown-photo-stage" style={{ "--hometown-accent": selectedZone.accent } as React.CSSProperties}>
-            <img src={selected.imageUrl} alt={selected.title}/>
-            <div className={`hometown-overlay step-${revealStep}`}><Overlay overlay={selected.overlay} accent={selectedZone.accent}/></div>
+            <div className="hometown-photo-frame" style={{ aspectRatio: `${selected.imageWidth || 4}/${selected.imageHeight || 3}`, display: "block", overflow: "hidden" }}>
+              <img src={selected.imageUrl} alt={selected.title} style={{ position: "absolute", inset: 0, objectFit: "fill" }}/>
+              <div className={`hometown-overlay step-${revealStep}`}><HometownMathOverlay overlay={selected.overlay} aspectRatio={(selected.imageWidth || 4) / (selected.imageHeight || 3)}/></div>
+            </div>
             <div className="hometown-evidence-marker" style={{ opacity: revealStep >= 2 ? 1 : 0 }}><i/><span>{selected.evidence}</span></div>
             <div className="hometown-reveal-steps" aria-label="数学显影步骤">
               {["原照片", "显现结构", "寻找证据", "读懂数学"].map((label, index) => <button key={label} className={revealStep === index ? "active" : ""} onClick={() => setRevealStep(index)}><i>{index + 1}</i><span>{label}</span></button>)}
@@ -212,8 +205,17 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
           <aside className="hometown-story-card" style={{ "--hometown-accent": selectedZone.accent } as React.CSSProperties}>
             <span>{selectedZone.name} · {selected.conceptLabel}</span>
             <h3>{selected.title}</h3>
-            <p>{selected.interpretation}</p>
-            <div><b>我们看见的证据</b><p>{selected.evidence}</p></div>
+            <p>{selected.learning.observation || selected.interpretation}</p>
+            <div className="hometown-learning-evidence"><b>我们看见的证据</b><p>{selected.evidence}</p></div>
+            <section className={`hometown-math-reading ${revealStep >= 3 ? "is-visible" : ""}`} aria-live="polite">
+              <header><span>核心测量</span><strong>{selected.learning.measurementValue}</strong><small>{selected.learning.measurementDetail}</small></header>
+              <div className="hometown-formula-card"><span>数学表达式</span><strong>{selected.learning.formula}</strong><p>{selected.learning.formulaMeaning}</p></div>
+              <ol>{selected.learning.reasoning.map((line, index) => <li key={line}><i>{index + 1}</i><span>{line}</span></li>)}</ol>
+              <dl>{selected.learning.variables.map((variable) => <div key={variable.symbol}><dt>{variable.symbol}</dt><dd>{variable.meaning}</dd></div>)}</dl>
+              <div className="hometown-why"><b>为什么这种结构很美？</b><p>{selected.learning.whyItMatters}</p></div>
+              <div className="hometown-applications"><b>生活中的应用</b><p>{selected.learning.applications.map((application) => <span key={application}>{application}</span>)}</p></div>
+              <div className="hometown-explore-prompt"><b>你也可以这样探索</b><p>{selected.learning.explorePrompt}</p></div>
+            </section>
             <button onClick={() => { const exhibitId = selected.id; close(); onExploreDemo(selected.interactiveDemoId, exhibitId); }}>去互动实验里试一试 <i>↗</i></button>
             {touring && <nav aria-label="课堂导览控制"><button disabled={tourIndex === 0} onClick={() => nextTour(-1)}>← 上一站</button><span>{tourIndex + 1} / {manifest.tourPath.length}</span><button disabled={tourIndex === manifest.tourPath.length - 1} onClick={() => nextTour(1)}>下一站 →</button></nav>}
           </aside>

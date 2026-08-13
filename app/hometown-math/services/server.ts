@@ -9,9 +9,9 @@ import {
   hometownZones,
 } from "../../../db/schema";
 import { getChatGPTUser, type ChatGPTUser } from "../../chatgpt-auth";
-import { CONCEPT_BY_ID } from "../domain/registry";
+import { buildLearningContent, CONCEPT_BY_ID } from "../domain/registry";
 import { buildHometownManifest } from "../domain/manifest";
-import type { HometownConceptId, OverlayGeometry, TeacherExhibitionDraft } from "../domain/types";
+import type { HometownConceptId, MathLearningContent, OverlayGeometry, TeacherExhibitionDraft } from "../domain/types";
 
 export const DEFAULT_ZONES = [
   ["nature", "自然的规律", "叶脉、花朵与生长的秩序"],
@@ -66,6 +66,8 @@ export async function readTeacherDraft(id: string, ownerId: string): Promise<Tea
       filename: asset.filename,
       imageUrl: `/api/hometown/media?key=${encodeURIComponent(asset.objectKey)}`,
       thumbnailUrl: `/api/hometown/media?key=${encodeURIComponent(asset.thumbnailKey)}`,
+      imageWidth: asset.width,
+      imageHeight: asset.height,
       status: asset.status as TeacherExhibitionDraft["exhibits"][number]["status"],
       zoneId: exhibit.zoneId,
       order: exhibit.orderIndex,
@@ -74,6 +76,7 @@ export async function readTeacherDraft(id: string, ownerId: string): Promise<Tea
       evidence: exhibit.evidence,
       conceptId: exhibit.conceptId as HometownConceptId | null,
       overlay: parseJson<OverlayGeometry | null>(exhibit.overlayJson, null),
+      learning: learningFromJson(exhibit.learningJson, exhibit.conceptId as HometownConceptId | null, parseJson<OverlayGeometry | null>(exhibit.overlayJson, null), exhibit.interpretation),
       candidates: parseJson(exhibit.candidatesJson, []),
       teacherConfirmed: exhibit.teacherConfirmed,
     })),
@@ -117,7 +120,17 @@ export async function deleteExhibition(id: string, ownerId: string) {
 
 export function conceptDefaults(conceptId: HometownConceptId) {
   const concept = CONCEPT_BY_ID[conceptId];
-  return { title: concept.shortTitle, interpretation: concept.childExplanation, overlayJson: JSON.stringify(concept.overlay) };
+  return { title: concept.shortTitle, interpretation: concept.childExplanation, overlayJson: JSON.stringify(concept.overlay), learningJson: JSON.stringify(buildLearningContent(conceptId, concept.overlay, concept.childExplanation)) };
+}
+
+function emptyLearning(): MathLearningContent {
+  return { observation: "等待教师观察照片", measurementLabel: "尚未测量", measurementValue: "—", measurementDetail: "请先选择数学概念并校准照片标注。", formula: "—", formulaMeaning: "完成测量后显示公式。", variables: [], reasoning: [], whyItMatters: "", applications: [], explorePrompt: "", precision: "approximate" };
+}
+
+function learningFromJson(value: string, conceptId: HometownConceptId | null, overlay: OverlayGeometry | null, interpretation: string): MathLearningContent {
+  const parsed = parseJson<Partial<MathLearningContent>>(value, {});
+  if (parsed.formula && parsed.measurementValue && Array.isArray(parsed.reasoning)) return parsed as MathLearningContent;
+  return conceptId && overlay ? buildLearningContent(conceptId, overlay, interpretation) : emptyLearning();
 }
 
 function parseJson<T>(value: string, fallback: T): T {

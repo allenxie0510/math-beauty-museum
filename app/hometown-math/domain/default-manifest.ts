@@ -1,4 +1,4 @@
-import { CONCEPT_BY_ID } from "./registry";
+import { buildLearningContent, CONCEPT_BY_ID } from "./registry";
 import type { HometownConceptId, HometownSceneManifest, OverlayGeometry } from "./types";
 
 const svgPhoto = (title: string, subtitle: string, accent: string, kind: "leaf" | "weave" | "bridge" | "water") => {
@@ -16,7 +16,7 @@ const svgPhoto = (title: string, subtitle: string, accent: string, kind: "leaf" 
 const demoItem = (id: string, zoneId: string, title: string, conceptId: HometownConceptId, interpretation: string, evidence: string, accent: string, kind: "leaf" | "weave" | "bridge" | "water", order: number) => {
   const concept = CONCEPT_BY_ID[conceptId];
   const imageUrl = svgPhoto(title, concept.labelEn, accent, kind);
-  return { id, zoneId, title, conceptId, conceptLabel: concept.labelZh, interpretation, evidence, interactiveDemoId: concept.demoId, overlay: concept.overlay as OverlayGeometry, imageUrl, thumbnailUrl: imageUrl, order };
+  return { id, zoneId, title, conceptId, conceptLabel: concept.labelZh, interpretation, evidence, learning: buildLearningContent(conceptId, concept.overlay, interpretation), interactiveDemoId: concept.demoId, overlay: concept.overlay as OverlayGeometry, imageUrl, thumbnailUrl: imageUrl, imageWidth: 800, imageHeight: 600, order };
 };
 
 export const DEFAULT_HOMETOWN_MANIFEST: HometownSceneManifest = {

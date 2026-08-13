@@ -8,6 +8,13 @@
       "when": 1786591875840,
       "tag": "0000_bouncy_magma",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786605108141,
+      "tag": "0001_swift_hydra",
+      "breakpoints": true
     }
   ]
 }

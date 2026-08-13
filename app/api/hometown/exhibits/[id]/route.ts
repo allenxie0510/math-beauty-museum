@@ -2,8 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../../../db";
 import { hometownAssets, hometownExhibits } from "../../../../../db/schema";
-import { CONCEPT_BY_ID } from "../../../../hometown-math/domain/registry";
-import type { HometownConceptId, OverlayGeometry } from "../../../../hometown-math/domain/types";
+import { buildLearningContent, CONCEPT_BY_ID } from "../../../../hometown-math/domain/registry";
+import type { HometownConceptId, MathLearningContent, OverlayGeometry } from "../../../../hometown-math/domain/types";
 import { ownsExhibition, requireApiUser } from "../../../../hometown-math/services/server";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +12,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const [row] = await getDb().select().from(hometownExhibits).where(eq(hometownExhibits.id, id)).limit(1);
   if (!row || !await ownsExhibition(row.exhibitionId, identity.userId)) return Response.json({ error: "无权修改这个展项" }, { status: 403 });
-  const payload = await request.json() as { conceptId?: HometownConceptId; title?: string; interpretation?: string; evidence?: string; overlay?: OverlayGeometry; zoneId?: string; order?: number; teacherConfirmed?: boolean; rejected?: boolean };
+  const payload = await request.json() as { conceptId?: HometownConceptId; title?: string; interpretation?: string; evidence?: string; learning?: MathLearningContent; overlay?: OverlayGeometry; zoneId?: string; order?: number; teacherConfirmed?: boolean; rejected?: boolean };
   const concept = payload.conceptId ? CONCEPT_BY_ID[payload.conceptId] : null;
   if (payload.conceptId && !concept) return Response.json({ error: "概念不在受控 Registry 中" }, { status: 400 });
   const updates: Record<string, string | number | boolean | null> = { updatedAt: new Date().toISOString() };
@@ -21,6 +21,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (payload.interpretation !== undefined) updates.interpretation = payload.interpretation.trim().slice(0, 220);
   if (payload.evidence !== undefined) updates.evidence = payload.evidence.trim().slice(0, 220);
   if (payload.overlay !== undefined) updates.overlayJson = JSON.stringify(payload.overlay);
+  if (payload.learning !== undefined) updates.learningJson = JSON.stringify(payload.learning);
+  else if (payload.conceptId || payload.overlay || payload.interpretation !== undefined || payload.evidence !== undefined) {
+    const conceptId = payload.conceptId ?? row.conceptId as HometownConceptId | null;
+    if (conceptId) {
+      const overlay = payload.overlay ?? JSON.parse(row.overlayJson) as OverlayGeometry;
+      updates.learningJson = JSON.stringify(buildLearningContent(conceptId, overlay, payload.interpretation ?? row.interpretation));
+    }
+  }
   if (payload.zoneId !== undefined) updates.zoneId = payload.zoneId;
   if (payload.order !== undefined) updates.orderIndex = payload.order;
   if (payload.teacherConfirmed !== undefined) updates.teacherConfirmed = payload.teacherConfirmed;

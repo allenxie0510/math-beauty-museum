@@ -17,6 +17,21 @@ export type OverlayGeometry = {
   rotation?: number;
 };
 
+export type MathLearningContent = {
+  observation: string;
+  measurementLabel: string;
+  measurementValue: string;
+  measurementDetail: string;
+  formula: string;
+  formulaMeaning: string;
+  variables: Array<{ symbol: string; meaning: string }>;
+  reasoning: string[];
+  whyItMatters: string;
+  applications: string[];
+  explorePrompt: string;
+  precision: "approximate" | "measured" | "teacher-confirmed";
+};
+
 export type ConceptCandidate = {
   conceptId: HometownConceptId;
   labelZh: string;
@@ -35,8 +50,11 @@ export type HometownManifestExhibit = {
   conceptLabel: string;
   interpretation: string;
   evidence: string;
+  learning: MathLearningContent;
   interactiveDemoId: string;
   overlay: OverlayGeometry;
+  imageWidth?: number;
+  imageHeight?: number;
   zoneId: string;
   order: number;
   discoverer?: string;
@@ -74,6 +92,8 @@ export type TeacherExhibitDraft = {
   assetId: string;
   imageUrl: string;
   thumbnailUrl: string;
+  imageWidth: number;
+  imageHeight: number;
   filename: string;
   status: "UPLOADED" | "ANALYSIS_PENDING" | "ANALYZING" | "REVIEW_REQUIRED" | "APPROVED" | "REJECTED";
   zoneId: string;
@@ -81,6 +101,7 @@ export type TeacherExhibitDraft = {
   title: string;
   interpretation: string;
   evidence: string;
+  learning: MathLearningContent;
   conceptId: HometownConceptId | null;
   overlay: OverlayGeometry | null;
   candidates: ConceptCandidate[];

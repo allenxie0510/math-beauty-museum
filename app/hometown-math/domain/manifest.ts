@@ -37,8 +37,11 @@ export function buildHometownManifest(draft: TeacherExhibitionDraft, version: nu
           conceptLabel: concept.labelZh,
           interpretation: item.interpretation,
           evidence: item.evidence,
+          learning: item.learning,
           interactiveDemoId: concept.demoId,
           overlay: item.overlay!,
+          imageWidth: item.imageWidth,
+          imageHeight: item.imageHeight,
           zoneId: zone.id,
           order: item.order,
         };

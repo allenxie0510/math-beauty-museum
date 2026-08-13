@@ -1,0 +1,1 @@
+ALTER TABLE `hometown_exhibits` ADD `learning_json` text DEFAULT '{}' NOT NULL;

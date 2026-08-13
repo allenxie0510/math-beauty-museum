@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   const existing = await db.select({ id: hometownExhibits.id }).from(hometownExhibits).where(eq(hometownExhibits.exhibitionId, exhibitionId));
   await db.batch([
     db.insert(hometownAssets).values({ id: assetId, exhibitionId, ownerId: identity.userId, objectKey, thumbnailKey, filename: file.name.slice(0, 180), contentType: file.type, byteSize: file.size, width, height, status: "REVIEW_REQUIRED" }),
-    db.insert(hometownExhibits).values({ id: exhibitId, exhibitionId, assetId, zoneId: `${exhibitionId}_nature`, orderIndex: existing.length, title: defaults?.title ?? "等待发现", conceptId: recommended?.conceptId ?? null, interpretation: defaults?.interpretation ?? "这张照片尚未发现足够清晰的数学证据。请教师观察后手动选择，或将它移出本次展览。", evidence: recommended?.evidence ?? "视觉证据不足，系统没有强行匹配数学概念。", overlayJson: defaults?.overlayJson ?? "{}", candidatesJson: JSON.stringify(candidates) }),
+    db.insert(hometownExhibits).values({ id: exhibitId, exhibitionId, assetId, zoneId: `${exhibitionId}_nature`, orderIndex: existing.length, title: defaults?.title ?? "等待发现", conceptId: recommended?.conceptId ?? null, interpretation: defaults?.interpretation ?? "这张照片尚未发现足够清晰的数学证据。请教师观察后手动选择，或将它移出本次展览。", evidence: recommended?.evidence ?? "视觉证据不足，系统没有强行匹配数学概念。", learningJson: defaults?.learningJson ?? "{}", overlayJson: defaults?.overlayJson ?? "{}", candidatesJson: JSON.stringify(candidates) }),
   ]);
   return Response.json({ exhibitId, noClearMath: candidates.length === 0, candidates }, { status: 201 });
 }

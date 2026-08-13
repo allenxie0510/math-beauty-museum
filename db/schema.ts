@@ -46,6 +46,7 @@ export const hometownExhibits = sqliteTable("hometown_exhibits", {
   conceptId: text("concept_id"),
   interpretation: text("interpretation").notNull().default(""),
   evidence: text("evidence").notNull().default(""),
+  learningJson: text("learning_json").notNull().default("{}"),
   overlayJson: text("overlay_json").notNull().default("{}"),
   candidatesJson: text("candidates_json").notNull().default("[]"),
   teacherConfirmed: integer("teacher_confirmed", { mode: "boolean" }).notNull().default(false),

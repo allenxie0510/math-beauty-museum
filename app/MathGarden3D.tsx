@@ -8,6 +8,22 @@ import { observeElementSize, observeElementVisibility } from "./viewport";
 
 type GardenId = "flower" | "tree" | "butterfly" | "vine" | "building" | "pond" | "shell" | "mobius" | "euler";
 type GardenSettings = Record<string, number>;
+type PondTrackId = "rainbow" | "forest" | "starlight" | "parade";
+
+const POND_TRACKS: ReadonlyArray<{
+  id: PondTrackId;
+  name: string;
+  mood: string;
+  tempo: number;
+  waveform: OscillatorType;
+  notes: readonly number[];
+  harmony: readonly number[];
+}> = [
+  { id:"rainbow", name:"彩虹水舞", mood:"明亮 · 跳跃", tempo:280, waveform:"sine", notes:[261.63,329.63,392,523.25,440,392,329.63,392], harmony:[1,.5,1.5] },
+  { id:"forest", name:"森林晨曲", mood:"自然 · 舒缓", tempo:430, waveform:"sine", notes:[293.66,349.23,440,392,329.63,293.66,261.63,329.63], harmony:[1,.5,2] },
+  { id:"starlight", name:"星光圆舞曲", mood:"梦幻 · 三拍", tempo:360, waveform:"triangle", notes:[329.63,392,493.88,392,523.25,493.88,392,329.63,293.66], harmony:[1,.5,1.5] },
+  { id:"parade", name:"小小探险家", mood:"活泼 · 进行曲", tempo:245, waveform:"triangle", notes:[261.63,329.63,392,392,440,392,329.63,293.66,261.63,392], harmony:[1,.5,2] },
+];
 
 type GardenItem = {
   id: GardenId;
@@ -408,9 +424,10 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   const [discoveries,setDiscoveries]=useState<Set<GardenId>>(()=>new Set());
   const [settings,setSettings]=useState<GardenSettings>(DEFAULT_SETTINGS);
   const [pondPlaying,setPondPlaying]=useState(false);
-  const pondAudio=useRef<HTMLAudioElement|null>(null);
+  const [pondTrackId,setPondTrackId]=useState<PondTrackId>("rainbow");
   const pondAudioContext=useRef<AudioContext|null>(null);
-  const pondAudioSource=useRef<MediaElementAudioSourceNode|null>(null);
+  const pondAudioSources=useRef<AudioScheduledSourceNode[]>([]);
+  const pondStepTimer=useRef<number|null>(null);
   const pondAnalyser=useRef<AnalyserNode|null>(null);
   const pondPlayingRef=useRef(false);
   useEffect(()=>{pondPlayingRef.current=pondPlaying},[pondPlaying]);
@@ -425,14 +442,38 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
     observer.observe(section);return()=>observer.disconnect();
   },[gardenCanvasReady]);
   const select=useCallback((id:GardenId)=>{setSelectedId(id);setDiscoveries(prev=>{const next=new Set(prev);next.add(id);return next})},[]);
-  const togglePondSound=async()=>{
-    if(pondPlaying){if(pondAudio.current){pondAudio.current.pause();pondAudio.current.currentTime=0}setPondPlaying(false);return;}
-    if(!pondAudio.current){const audio=new Audio("/audio/mozart-garden.mp3");audio.loop=true;audio.volume=.48;audio.preload="auto";pondAudio.current=audio}
-    if(!pondAudioContext.current){const context=createCompatibleAudioContext();const analyser=context.createAnalyser();analyser.fftSize=512;analyser.smoothingTimeConstant=.72;const source=context.createMediaElementSource(pondAudio.current);source.connect(analyser);analyser.connect(context.destination);pondAudioContext.current=context;pondAudioSource.current=source;pondAnalyser.current=analyser}
-    try{await resumeAudioContext(pondAudioContext.current);await pondAudio.current.play();setPondPlaying(true)}catch(error){console.error("Garden music playback failed",error);setPondPlaying(false)}
-  };
-  useEffect(()=>{const pauseWhenHidden=()=>{if(!document.hidden)return;pondAudio.current?.pause();void pondAudioContext.current?.suspend();setPondPlaying(false)};document.addEventListener("visibilitychange",pauseWhenHidden);return()=>document.removeEventListener("visibilitychange",pauseWhenHidden)},[]);
-  useEffect(()=>()=>{if(pondAudio.current){pondAudio.current.pause();pondAudio.current.src=""}pondAudioSource.current?.disconnect();pondAnalyser.current?.disconnect();void pondAudioContext.current?.close()},[]);
+  const stopPondSound=useCallback((updateState=true)=>{
+    if(pondStepTimer.current!==null)window.clearInterval(pondStepTimer.current);
+    pondStepTimer.current=null;
+    pondAudioSources.current.forEach(source=>{try{source.stop()}catch{/* already stopped */}});
+    pondAudioSources.current=[];
+    pondAnalyser.current?.disconnect();
+    pondAnalyser.current=null;
+    const context=pondAudioContext.current;
+    pondAudioContext.current=null;
+    if(context&&context.state!=="closed")void context.close();
+    if(updateState)setPondPlaying(false);
+  },[]);
+  const startPondTrack=useCallback(async(nextTrackId:PondTrackId)=>{
+    stopPondSound();
+    const track=POND_TRACKS.find(entry=>entry.id===nextTrackId)??POND_TRACKS[0];
+    try{
+      const context=createCompatibleAudioContext();
+      const analyser=context.createAnalyser();
+      const master=context.createGain();
+      analyser.fftSize=512;analyser.smoothingTimeConstant=.72;master.gain.value=.16;
+      analyser.connect(master);master.connect(context.destination);
+      const voices=track.harmony.map((ratio,index)=>{const oscillator=context.createOscillator();const gain=context.createGain();oscillator.type=index===0?track.waveform:"sine";oscillator.frequency.value=track.notes[0]*ratio;gain.gain.value=.2/(index+1);oscillator.connect(gain);gain.connect(analyser);oscillator.start();return oscillator});
+      pondAudioContext.current=context;pondAnalyser.current=analyser;pondAudioSources.current=voices;
+      await resumeAudioContext(context);
+      let step=0;
+      const advance=()=>{const now=context.currentTime,note=track.notes[step%track.notes.length];voices.forEach((voice,index)=>{voice.frequency.cancelScheduledValues(now);voice.frequency.setTargetAtTime(note*track.harmony[index],now,.055+index*.025)});master.gain.cancelScheduledValues(now);master.gain.setValueAtTime(.18,now);master.gain.linearRampToValueAtTime(.34,now+.035);master.gain.exponentialRampToValueAtTime(.12,now+Math.min(.38,track.tempo/1000*.84));step+=1};
+      advance();pondStepTimer.current=window.setInterval(advance,track.tempo);setPondTrackId(track.id);setPondPlaying(true);
+    }catch(error){console.error("Garden music playback failed",error);stopPondSound()}
+  },[stopPondSound]);
+  const togglePondSound=()=>{if(pondPlaying)stopPondSound();else void startPondTrack(pondTrackId)};
+  useEffect(()=>{const pauseWhenHidden=()=>{if(document.hidden)stopPondSound()};document.addEventListener("visibilitychange",pauseWhenHidden);return()=>document.removeEventListener("visibilitychange",pauseWhenHidden)},[stopPondSound]);
+  useEffect(()=>()=>stopPondSound(false),[stopPondSound]);
 
   return (
     <section className="garden-world" id="garden" ref={gardenSection}>
@@ -460,7 +501,10 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         <p className="garden-explanation">{selected.explanation}</p>
         <div className="garden-try-title"><span>试试看改变它</span><i>参数会实时作用于 3D 物体</i></div>
         {selected.controls.map(control=>{const value=Number(settings[control.key]);const isGoldenRatio=control.key==="flowerRatio";const atGoldenRatio=isGoldenRatio&&Math.abs(value-1.618)<.0005;return <label className="garden-control" key={control.key}><span>{control.label}<b>{value.toFixed(control.step<.01?3:control.step<.1?2:control.step<1?1:0)}{control.suffix}</b></span><input type="range" aria-label={control.label} min={control.min} max={control.max} step={control.step} value={value} onChange={e=>setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}/>{isGoldenRatio&&<small className={`golden-ratio-target ${atGoldenRatio?"reached":""}`}><i>目标值 φ = 1.618</i><strong>{atGoldenRatio?"✓ 已达到黄金比例":"拖动滑杆对准目标值"}</strong></small>}</label>})}
-        {selected.id==="pond"&&<button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"音乐正在驱动喷泉":"启动音乐可视化"}<small>实时频谱控制水柱高度与声波圆环</small></span></button>}
+        {selected.id==="pond"&&<div className="pond-music-control">
+          <label className="pond-track-select"><span>喷泉音乐</span><select aria-label="选择喷泉音乐" value={pondTrackId} onChange={event=>{const nextTrackId=event.target.value as PondTrackId;setPondTrackId(nextTrackId);if(pondPlaying)void startPondTrack(nextTrackId)}}>{POND_TRACKS.map(track=><option key={track.id} value={track.id}>{track.name} · {track.mood}</option>)}</select></label>
+          <button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"音乐正在驱动喷泉":"启动音乐可视化"}<small>实时频谱控制水柱高度与声波圆环</small></span></button>
+        </div>}
         <div className="garden-reward"><span>🌱 +1 数学种子</span><span>⭐ +2 美学星星</span></div>
       </aside>}
     </section>

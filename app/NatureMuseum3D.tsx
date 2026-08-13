@@ -374,7 +374,48 @@ function snapControlValue(control: MuseumControl, value: number) {
 }
 
 const EMPTY_SOUND_SIGNAL: SoundSignal = { mode: "idle", energy: 0, bass: 0, mid: 0, treble: 0, tick: 0 };
-const SOUND_CLIPS = [
+type SoundClip = {
+  id: "birdsong" | "stream" | "humming" | "crystal" | "pulse" | "cosmos";
+  name: string;
+  detail: string;
+  tempo: number;
+  waveform: OscillatorType;
+  notes: readonly number[];
+  ratios: readonly number[];
+  character?: "birdsong" | "stream" | "humming";
+};
+
+const SOUND_CLIPS: readonly SoundClip[] = [
+  {
+    id: "birdsong",
+    name: "鸟鸣清晨",
+    detail: "啾鸣 · 轻快",
+    tempo: 230,
+    waveform: "sine",
+    notes: [1174.66, 1396.91, 1567.98, 1318.51, 1760, 1480, 1174.66, 1567.98],
+    ratios: [1, 1.012],
+    character: "birdsong",
+  },
+  {
+    id: "stream",
+    name: "溪流叮咚",
+    detail: "流水 · 水滴",
+    tempo: 480,
+    waveform: "sine",
+    notes: [659.25, 783.99, 987.77, 880, 698.46, 1046.5],
+    ratios: [1],
+    character: "stream",
+  },
+  {
+    id: "humming",
+    name: "童声哼唱",
+    detail: "温柔 · 旋律",
+    tempo: 520,
+    waveform: "sine",
+    notes: [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 392],
+    ratios: [1, 1.5, 2],
+    character: "humming",
+  },
   {
     id: "crystal",
     name: "晶体琶音",
@@ -2308,12 +2349,12 @@ function drawPreview(
 
 function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
   const [mode, setMode] = useState<SoundMode>("idle");
-  const [clipId, setClipId] = useState<(typeof SOUND_CLIPS)[number]["id"]>("crystal");
+  const [clipId, setClipId] = useState<SoundClip["id"]>("birdsong");
   const [level, setLevel] = useState(0);
   const [status, setStatus] = useState("选择音乐片段，或让麦克风捕捉身边的声音");
   const contextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const soundSourcesRef = useRef<AudioScheduledSourceNode[]>([]);
   const stepTimerRef = useRef<number | null>(null);
   const analysisRafRef = useRef<number | null>(null);
 
@@ -2322,10 +2363,10 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
     if (analysisRafRef.current !== null) window.cancelAnimationFrame(analysisRafRef.current);
     stepTimerRef.current = null;
     analysisRafRef.current = null;
-    oscillatorsRef.current.forEach((oscillator) => {
-      try { oscillator.stop(); } catch { /* already stopped */ }
+    soundSourcesRef.current.forEach((source) => {
+      try { source.stop(); } catch { /* already stopped */ }
     });
-    oscillatorsRef.current = [];
+    soundSourcesRef.current = [];
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     const context = contextRef.current;
@@ -2357,7 +2398,7 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
     sample();
   }, [signalRef]);
 
-  const startMusic = useCallback(async (nextClipId: (typeof SOUND_CLIPS)[number]["id"]) => {
+  const startMusic = useCallback(async (nextClipId: SoundClip["id"]) => {
     stopEngine();
     const clip = SOUND_CLIPS.find((entry) => entry.id === nextClipId) ?? SOUND_CLIPS[0];
     try {
@@ -2367,34 +2408,78 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = .82;
-      const master = context.createGain();
-      master.gain.value = .32;
-      analyser.connect(master);
-      master.connect(context.destination);
+      const mix = context.createGain();
+      const output = context.createGain();
+      mix.gain.value = clip.character === "birdsong" ? .012 : clip.character === "stream" ? .5 : .3;
+      output.gain.value = clip.character === "stream" ? .42 : clip.character === "humming" ? .3 : .34;
+      mix.connect(analyser);
+      analyser.connect(output);
+      output.connect(context.destination);
+
+      if (clip.character === "stream") {
+        const buffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
+        const channel = buffer.getChannelData(0);
+        let filtered = 0;
+        for (let index = 0; index < channel.length; index++) {
+          filtered = filtered * .985 + (Math.random() * 2 - 1) * .12;
+          channel[index] = filtered * .34;
+        }
+        const water = context.createBufferSource();
+        const waterFilter = context.createBiquadFilter();
+        const waterGain = context.createGain();
+        water.loop = true;
+        water.buffer = buffer;
+        waterFilter.type = "bandpass";
+        waterFilter.frequency.value = 1050;
+        waterFilter.Q.value = .62;
+        waterGain.gain.value = .5;
+        water.connect(waterFilter);
+        waterFilter.connect(waterGain);
+        waterGain.connect(mix);
+        water.start();
+        soundSourcesRef.current.push(water);
+      }
 
       const voices = clip.ratios.map((ratio, index) => {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
         oscillator.type = index === 0 ? clip.waveform : "sine";
         oscillator.frequency.value = clip.notes[0] * ratio;
-        gain.gain.value = .13 / (index + 1);
+        gain.gain.value = clip.character === "stream" ? .08 : clip.character === "humming" ? .15 / (index + 1) : .13 / (index + 1);
         oscillator.connect(gain);
-        gain.connect(analyser);
+        gain.connect(mix);
         oscillator.start();
         return oscillator;
       });
-      oscillatorsRef.current = voices;
+      soundSourcesRef.current.push(...voices);
       let step = 0;
       const advance = () => {
         const now = context.currentTime;
         const note = clip.notes[step % clip.notes.length];
         voices.forEach((oscillator, index) => {
           oscillator.frequency.cancelScheduledValues(now);
-          oscillator.frequency.setTargetAtTime(note * clip.ratios[index], now, .045 + index * .02);
+          const frequency = note * clip.ratios[index];
+          oscillator.frequency.setValueAtTime(frequency, now);
+          if (clip.character === "birdsong") oscillator.frequency.exponentialRampToValueAtTime(frequency * (step % 3 === 0 ? 1.18 : .94), now + .11);
+          else oscillator.frequency.setTargetAtTime(frequency, now, clip.character === "humming" ? .12 : .045 + index * .02);
         });
-        master.gain.cancelScheduledValues(now);
-        master.gain.setValueAtTime(.36, now);
-        master.gain.exponentialRampToValueAtTime(.19, now + Math.min(.5, clip.tempo / 1000 * .86));
+        mix.gain.cancelScheduledValues(now);
+        if (clip.character === "birdsong") {
+          mix.gain.setValueAtTime(.008, now);
+          mix.gain.linearRampToValueAtTime(.42, now + .025);
+          mix.gain.exponentialRampToValueAtTime(.008, now + .16);
+        } else if (clip.character === "stream") {
+          mix.gain.setValueAtTime(.5, now);
+          mix.gain.linearRampToValueAtTime(.72, now + .035);
+          mix.gain.exponentialRampToValueAtTime(.5, now + .26);
+        } else if (clip.character === "humming") {
+          mix.gain.setValueAtTime(.24, now);
+          mix.gain.linearRampToValueAtTime(.36, now + .11);
+          mix.gain.linearRampToValueAtTime(.24, now + Math.min(.48, clip.tempo / 1000 * .9));
+        } else {
+          mix.gain.setValueAtTime(.36, now);
+          mix.gain.exponentialRampToValueAtTime(.19, now + Math.min(.5, clip.tempo / 1000 * .86));
+        }
         step += 1;
       };
       advance();
@@ -2471,7 +2556,7 @@ function SoundDrivePanel({ signalRef }: { signalRef: SoundSignalRef }) {
             aria-label="选择声音片段"
             value={clipId}
             onChange={(event) => {
-              const nextClipId = event.target.value as (typeof SOUND_CLIPS)[number]["id"];
+              const nextClipId = event.target.value as SoundClip["id"];
               setClipId(nextClipId);
               if (mode === "music") void startMusic(nextClipId);
             }}

@@ -166,7 +166,7 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
             let offset = index - carouselIndex;
             if (offset > total / 2) offset -= total;
             if (offset < -total / 2) offset += total;
-            return <button key={item.id} className={`${offset === 0 ? "active" : ""} ${Math.abs(offset) > 2 ? "is-hidden" : ""}`} style={{ "--carousel-offset": Math.max(-2, Math.min(2, offset)), "--carousel-accent": zone?.accent || "#9ad8bd" } as React.CSSProperties} onClick={() => offset === 0 ? select(item.id) : setCarouselIndex(index)} aria-label={`${item.title}${offset === 0 ? "，打开展品" : "，切换到这张照片"}`}><img src={item.thumbnailUrl} alt=""/><span><small>{zone?.name || "家乡数学"}</small><b>{item.title}</b></span></button>;
+            return <button key={item.id} className={`${offset === 0 ? "active" : ""} ${Math.abs(offset) > 2 ? "is-hidden" : ""}`} style={{ "--carousel-offset": Math.max(-2, Math.min(2, offset)), "--carousel-accent": zone?.accent || "#9ad8bd" } as React.CSSProperties} onClick={() => offset === 0 ? select(item.id) : setCarouselIndex(index)} aria-label={`${item.title}${offset === 0 ? "，打开展品" : "，切换到这张照片"}`}><img src={item.thumbnailUrl} alt=""/><strong className="hometown-carousel-heading">{item.title}</strong><span><small>{zone?.name || "家乡数学"}</small><b>{item.title}</b></span></button>;
           })}
         </div>
         <button className="hometown-carousel-arrow previous" onClick={() => setCarouselIndex((index) => (index - 1 + exhibits.length) % exhibits.length)} aria-label="上一张照片">←</button>

@@ -1,7 +1,7 @@
 import { buildLearningContent, CONCEPT_BY_ID } from "./registry";
 import type { HometownConceptId, HometownSceneManifest, OverlayGeometry } from "./types";
 
-const svgPhoto = (title: string, subtitle: string, accent: string, kind: "leaf" | "weave" | "bridge" | "water") => {
+const svgPhoto = (accent: string, kind: "leaf" | "weave" | "bridge" | "water") => {
   const art = kind === "leaf"
     ? `<path d="M225 478C264 280 379 170 596 133C552 355 432 468 225 478Z" fill="none" stroke="${accent}" stroke-width="10"/><path d="M232 466C330 385 413 302 584 147" stroke="#f4e8c8" stroke-width="5"/><g stroke="${accent}" stroke-width="4" opacity=".7"><path d="M303 407l4-112"/><path d="M367 348l16-121"/><path d="M431 286l17-94"/><path d="M302 405l110 4"/><path d="M368 347l121-7"/><path d="M432 285l92-13"/></g>`
     : kind === "weave"
@@ -9,13 +9,13 @@ const svgPhoto = (title: string, subtitle: string, accent: string, kind: "leaf" 
       : kind === "bridge"
         ? `<path d="M92 460H710" stroke="#f4e8c8" stroke-width="12"/><path d="M145 454C235 198 555 198 655 454" fill="none" stroke="${accent}" stroke-width="18"/><path d="M205 454C270 286 520 286 590 454" fill="none" stroke="#f4e8c8" stroke-width="8"/><g stroke="${accent}" stroke-width="5" opacity=".55"><path d="M177 390h444"/><path d="M227 314h344"/><path d="M303 254h192"/></g>`
         : `<g fill="none" stroke-linecap="round">${Array.from({ length: 6 }, (_, i) => `<path d="M60 ${220 + i * 48}C190 ${160 + i * 48} 290 ${285 + i * 48} 420 ${220 + i * 48}S650 ${160 + i * 48} 760 ${225 + i * 48}" stroke="${i % 2 ? "#f4e8c8" : accent}" stroke-width="${i % 2 ? 7 : 12}" opacity="${.92 - i * .08}"/>`).join("")}</g>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><defs><radialGradient id="g"><stop stop-color="${accent}" stop-opacity=".25"/><stop offset="1" stop-color="#08151b"/></radialGradient></defs><rect width="800" height="600" fill="#08151b"/><rect width="800" height="600" fill="url(#g)"/>${art}<text x="54" y="70" fill="#f7efd9" font-size="30" font-family="sans-serif" font-weight="700">${title}</text><text x="56" y="103" fill="#d5c7a6" font-size="15" font-family="sans-serif" letter-spacing="3">${subtitle}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><defs><radialGradient id="g"><stop stop-color="${accent}" stop-opacity=".25"/><stop offset="1" stop-color="#08151b"/></radialGradient></defs><rect width="800" height="600" fill="#08151b"/><rect width="800" height="600" fill="url(#g)"/>${art}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
 const demoItem = (id: string, zoneId: string, title: string, conceptId: HometownConceptId, interpretation: string, evidence: string, accent: string, kind: "leaf" | "weave" | "bridge" | "water", order: number) => {
   const concept = CONCEPT_BY_ID[conceptId];
-  const imageUrl = svgPhoto(title, concept.labelEn, accent, kind);
+  const imageUrl = svgPhoto(accent, kind);
   return { id, zoneId, title, conceptId, conceptLabel: concept.labelZh, interpretation, evidence, learning: buildLearningContent(conceptId, concept.overlay, interpretation), interactiveDemoId: concept.demoId, overlay: concept.overlay as OverlayGeometry, imageUrl, thumbnailUrl: imageUrl, imageWidth: 800, imageHeight: 600, order };
 };
 

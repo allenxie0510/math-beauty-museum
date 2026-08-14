@@ -16,12 +16,13 @@ npm run dev
 npm run build
 ```
 
-## Dual deployment targets
+## Production deployment
 
-The same source supports two independent deployments:
+The active production stack is intentionally single-source:
 
-- `npm run build:sites` keeps the existing Sites + D1 + R2 runtime.
-- `npm run build:vercel` builds the full application with Nitro for Vercel.
+- Vercel runs the application (`npm run build:vercel`).
+- Supabase is the only actively maintained data, media, and teacher-auth backend.
+- `math.ahaslope.com` is the canonical public domain.
 
 The Vercel deployment uses Supabase for the hometown exhibition workflow. Copy
 `.env.example` into the deployment environment and set all three variables.
@@ -31,6 +32,11 @@ key is server-only and must never use a `NEXT_PUBLIC_` prefix.
 Apply `supabase/migrations/202608140001_hometown_math.sql` before the first
 Vercel deployment. Its private `hometown-media` bucket is served through the
 same-origin media route, so public exhibitions do not expose privileged keys.
+
+The previous Sites + D1 + R2 path remains in the repository only as a frozen
+rollback target. Do not add features, write data, or run migrations against it.
+It can still be checked with `npm run build:sites` while the rollback window is
+kept, but production releases should deploy only the verified Vercel build.
 
 This starter does not use `wrangler.jsonc`.
 

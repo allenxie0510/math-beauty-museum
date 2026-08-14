@@ -1,6 +1,6 @@
 "use client";
 
-/* R2 assets are WebP files already resized for the display and thumbnail roles. */
+/* Remote media assets are WebP files already resized for the display and thumbnail roles. */
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useRef, useState } from "react";

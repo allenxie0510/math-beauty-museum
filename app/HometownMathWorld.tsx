@@ -100,7 +100,7 @@ function HometownCanvas({ manifest, onError }: { manifest: HometownSceneManifest
   return <div className="hometown-webgl" ref={mount} />;
 }
 
-/* Manifest images are immutable R2 WebP assets (or bundled SVG demo art), already sized for their role. */
+/* Manifest images are immutable remote WebP assets (or bundled SVG demo art), already sized for their role. */
 /* eslint-disable @next/next/no-img-element */
 export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExploreDemo, onDetailChange }: Props) {
   const [manifest, setManifest] = useState(DEFAULT_HOMETOWN_MANIFEST);

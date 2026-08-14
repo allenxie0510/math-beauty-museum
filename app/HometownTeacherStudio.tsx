@@ -9,12 +9,15 @@ import type { HometownConceptId, TeacherExhibitDraft, TeacherExhibitionDraft } f
 import { buildLearningContent } from "./hometown-math/domain/registry";
 import { HometownMathOverlay } from "./HometownMathOverlay";
 import { prepareHometownImage } from "./hometown-math/services/client-image";
+import { authenticatedRequestInit, getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "./hometown-math/services/supabase-client";
 
 type ExhibitionListItem = { id: string; title: string; slug: string; visibility: string; manifestVersion: number; updatedAt: string };
 type UploadTask = { id: string; name: string; status: "waiting" | "preparing" | "uploading" | "done" | "error"; error?: string };
 
 export function HometownTeacherStudio({ close, preview }: { close: () => void; preview: (slug: string, manifest?: import("./hometown-math/domain/types").HometownSceneManifest) => void }) {
   const [authRequired, setAuthRequired] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
   const [list, setList] = useState<ExhibitionListItem[]>([]);
   const [draft, setDraft] = useState<TeacherExhibitionDraft | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -26,7 +29,7 @@ export function HometownTeacherStudio({ close, preview }: { close: () => void; p
   const approvedCount = draft?.exhibits.filter((item) => item.teacherConfirmed).length ?? 0;
 
   const request = useCallback(async (url: string, init?: RequestInit) => {
-    const response = await fetch(url, init);
+    const response = await fetch(url, await authenticatedRequestInit(init));
     if (response.status === 401) { setAuthRequired(true); throw new Error("AUTH_REQUIRED"); }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.details?.join("；") || payload.error || "操作失败");
@@ -46,6 +49,31 @@ export function HometownTeacherStudio({ close, preview }: { close: () => void; p
   }, [request]);
 
   useEffect(() => { loadList(); }, [loadList]);
+
+  useEffect(() => {
+    const client = getSupabaseBrowserClient();
+    if (!client) return;
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setAuthRequired(false);
+        setAuthMessage("");
+        void loadList();
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, [loadList]);
+
+  const sendMagicLink = async () => {
+    const client = getSupabaseBrowserClient();
+    const email = authEmail.trim();
+    if (!client || !email) return;
+    setAuthMessage("正在发送登录邮件…");
+    const { error } = await client.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/?studio=hometown` },
+    });
+    setAuthMessage(error ? error.message : "登录链接已发送，请打开邮件完成验证。");
+  };
 
   const openDraft = async (id: string) => {
     setBusy(true);
@@ -184,7 +212,7 @@ export function HometownTeacherStudio({ close, preview }: { close: () => void; p
   if (authRequired) return (
     <div className="hometown-studio" role="dialog" aria-modal="true" aria-label="教师策展台登录">
       <button className="hometown-studio-close" onClick={close}>×</button>
-      <div className="studio-auth-card"><span>CURATOR ACCESS</span><h2>教师策展台</h2><p>采集、审核和发布会保存为班级展览，因此需要先确认教师身份。学生和访客参观公开展览不需要登录。</p><a href="/signin-with-chatgpt?return_to=%2F%3Fstudio%3Dhometown">使用 ChatGPT 登录</a></div>
+      <div className="studio-auth-card"><span>CURATOR ACCESS</span><h2>教师策展台</h2><p>采集、审核和发布会保存为班级展览，因此需要先确认教师身份。学生和访客参观公开展览不需要登录。</p>{isSupabaseBrowserConfigured() ? <><label>教师邮箱<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="name@example.com" autoComplete="email"/></label><button onClick={sendMagicLink} disabled={!authEmail.trim()}>发送邮箱登录链接</button>{authMessage && <small>{authMessage}</small>}</> : <a href="/signin-with-chatgpt?return_to=%2F%3Fstudio%3Dhometown">使用 ChatGPT 登录</a>}</div>
     </div>
   );
 

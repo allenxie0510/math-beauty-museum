@@ -112,6 +112,41 @@ alter table public.hometown_assets enable row level security;
 alter table public.hometown_exhibits enable row level security;
 alter table public.hometown_published_manifests enable row level security;
 
+-- Attach records imported from the legacy Sites identity to the first
+-- Supabase account that signs in with the same verified email address.
+create or replace function public.claim_hometown_exhibitions()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  claimed_count integer;
+begin
+  if auth.uid() is null or auth.jwt() ->> 'email' is null then
+    raise exception 'Authentication required';
+  end if;
+
+  update public.hometown_exhibitions
+  set owner_id = auth.uid()::text
+  where owner_id like 'legacy_%'
+    and lower(owner_email) = lower(auth.jwt() ->> 'email');
+  get diagnostics claimed_count = row_count;
+
+  update public.hometown_assets asset
+  set owner_id = auth.uid()::text
+  from public.hometown_exhibitions exhibition
+  where asset.exhibition_id = exhibition.id
+    and exhibition.owner_id = auth.uid()::text
+    and asset.owner_id like 'legacy_%';
+
+  return claimed_count;
+end;
+$$;
+
+revoke all on function public.claim_hometown_exhibitions() from public;
+grant execute on function public.claim_hometown_exhibitions() to authenticated;
+
 -- Re-running the migration locally should replace policies rather than fail.
 drop policy if exists "owners manage exhibitions" on public.hometown_exhibitions;
 create policy "owners manage exhibitions"

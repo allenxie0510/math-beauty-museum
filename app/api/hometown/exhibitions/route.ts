@@ -2,10 +2,12 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { hometownExhibitions, hometownZones } from "../../../../db/schema";
 import { DEFAULT_ZONES, makeId, requireApiUser, safeSlug } from "../../../hometown-math/services/server";
+import { isSupabaseServerConfigured, supabaseCreateExhibition, supabaseListExhibitions } from "../../../hometown-math/services/supabase-server";
 
 export async function GET() {
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
+  if (isSupabaseServerConfigured()) return Response.json({ exhibitions: await supabaseListExhibitions(identity.userId) });
   const exhibitions = await getDb().select().from(hometownExhibitions).where(eq(hometownExhibitions.ownerId, identity.userId)).orderBy(desc(hometownExhibitions.updatedAt));
   return Response.json({ exhibitions });
 }
@@ -14,6 +16,7 @@ export async function POST(request: Request) {
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
   const payload = await request.json().catch(() => ({})) as { title?: string; schoolClass?: string; locationLabel?: string };
+  if (isSupabaseServerConfigured()) return Response.json(await supabaseCreateExhibition(identity, payload), { status: 201 });
   const title = payload.title?.trim().slice(0, 40) || "我们的家乡数学展";
   const id = makeId("exhibition");
   const slug = `${safeSlug(title)}-${crypto.randomUUID().slice(0, 6)}`;

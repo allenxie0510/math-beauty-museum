@@ -5,16 +5,18 @@ import { hometownAssets, hometownExhibits } from "../../../../../db/schema";
 import { buildLearningContent, CONCEPT_BY_ID } from "../../../../hometown-math/domain/registry";
 import type { HometownConceptId, MathLearningContent, OverlayGeometry } from "../../../../hometown-math/domain/types";
 import { ownsExhibition, requireApiUser } from "../../../../hometown-math/services/server";
+import { isSupabaseServerConfigured, supabaseDeleteExhibit, supabaseUpdateExhibit } from "../../../../hometown-math/services/supabase-server";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
   const { id } = await params;
-  const [row] = await getDb().select().from(hometownExhibits).where(eq(hometownExhibits.id, id)).limit(1);
-  if (!row || !await ownsExhibition(row.exhibitionId, identity.userId)) return Response.json({ error: "无权修改这个展项" }, { status: 403 });
   const payload = await request.json() as { conceptId?: HometownConceptId; title?: string; interpretation?: string; evidence?: string; learning?: MathLearningContent; overlay?: OverlayGeometry; zoneId?: string; order?: number; teacherConfirmed?: boolean; rejected?: boolean };
   const concept = payload.conceptId ? CONCEPT_BY_ID[payload.conceptId] : null;
   if (payload.conceptId && !concept) return Response.json({ error: "概念不在受控 Registry 中" }, { status: 400 });
+  if (isSupabaseServerConfigured()) return await supabaseUpdateExhibit(id, identity.userId, payload) ? Response.json({ ok: true }) : Response.json({ error: "无权修改这个展项" }, { status: 403 });
+  const [row] = await getDb().select().from(hometownExhibits).where(eq(hometownExhibits.id, id)).limit(1);
+  if (!row || !await ownsExhibition(row.exhibitionId, identity.userId)) return Response.json({ error: "无权修改这个展项" }, { status: 403 });
   const updates: Record<string, string | number | boolean | null> = { updatedAt: new Date().toISOString() };
   if (payload.conceptId) updates.conceptId = payload.conceptId;
   if (payload.title !== undefined) updates.title = payload.title.trim().slice(0, 18);
@@ -45,6 +47,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
   const { id } = await params;
+  if (isSupabaseServerConfigured()) return await supabaseDeleteExhibit(id, identity.userId) ? Response.json({ ok: true }) : Response.json({ error: "无权删除这个展项" }, { status: 403 });
   const db = getDb();
   const [row] = await db.select({ exhibit: hometownExhibits, asset: hometownAssets }).from(hometownExhibits).innerJoin(hometownAssets, eq(hometownExhibits.assetId, hometownAssets.id)).where(eq(hometownExhibits.id, id)).limit(1);
   if (!row || !await ownsExhibition(row.exhibit.exhibitionId, identity.userId)) return Response.json({ error: "无权删除这个展项" }, { status: 403 });

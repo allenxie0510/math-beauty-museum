@@ -16,6 +16,22 @@ npm run dev
 npm run build
 ```
 
+## Dual deployment targets
+
+The same source supports two independent deployments:
+
+- `npm run build:sites` keeps the existing Sites + D1 + R2 runtime.
+- `npm run build:vercel` builds the full application with Nitro for Vercel.
+
+The Vercel deployment uses Supabase for the hometown exhibition workflow. Copy
+`.env.example` into the deployment environment and set all three variables.
+The publishable key is used by the browser for email sign-in; the service-role
+key is server-only and must never use a `NEXT_PUBLIC_` prefix.
+
+Apply `supabase/migrations/202608140001_hometown_math.sql` before the first
+Vercel deployment. Its private `hometown-media` bucket is served through the
+same-origin media route, so public exhibitions do not expose privileged keys.
+
 This starter does not use `wrangler.jsonc`.
 
 ## Included Shape

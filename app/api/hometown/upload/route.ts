@@ -5,6 +5,7 @@ import { hometownAssets, hometownExhibits } from "../../../../db/schema";
 import { candidatesFromFilename } from "../../../hometown-math/domain/registry";
 import type { ConceptCandidate } from "../../../hometown-math/domain/types";
 import { conceptDefaults, makeId, ownsExhibition, requireApiUser } from "../../../hometown-math/services/server";
+import { isSupabaseServerConfigured, supabaseUploadExhibit } from "../../../hometown-math/services/supabase-server";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -12,6 +13,11 @@ export async function POST(request: Request) {
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
   const form = await request.formData();
+  if (isSupabaseServerConfigured()) {
+    const result = await supabaseUploadExhibit(identity, form);
+    if ("error" in result) return Response.json({ error: result.error }, { status: result.status });
+    return Response.json(result, { status: 201 });
+  }
   const exhibitionId = String(form.get("exhibitionId") ?? "");
   const file = form.get("file");
   const thumbnail = form.get("thumbnail");

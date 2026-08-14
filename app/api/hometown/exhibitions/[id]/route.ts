@@ -2,11 +2,16 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
 import { hometownExhibitions, hometownZones } from "../../../../../db/schema";
 import { deleteExhibition, ownsExhibition, readTeacherDraft, requireApiUser } from "../../../../hometown-math/services/server";
+import { isSupabaseServerConfigured, supabaseDeleteExhibition, supabaseReadTeacherDraft, supabaseUpdateExhibition } from "../../../../hometown-math/services/supabase-server";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
   const { id } = await params;
+  if (isSupabaseServerConfigured()) {
+    const draft = await supabaseReadTeacherDraft(id, identity.userId);
+    return draft ? Response.json({ exhibition: draft }) : Response.json({ error: "没有找到这个展览" }, { status: 404 });
+  }
   const draft = await readTeacherDraft(id, identity.userId);
   return draft ? Response.json({ exhibition: draft }) : Response.json({ error: "没有找到这个展览" }, { status: 404 });
 }
@@ -15,8 +20,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
   const { id } = await params;
-  if (!await ownsExhibition(id, identity.userId)) return Response.json({ error: "无权修改这个展览" }, { status: 403 });
   const payload = await request.json() as { title?: string; schoolClass?: string; locationLabel?: string; zones?: Array<{ id: string; name: string; subtitle: string; order: number }> };
+  if (isSupabaseServerConfigured()) return await supabaseUpdateExhibition(id, identity.userId, payload) ? Response.json({ ok: true }) : Response.json({ error: "无权修改这个展览" }, { status: 403 });
+  if (!await ownsExhibition(id, identity.userId)) return Response.json({ error: "无权修改这个展览" }, { status: 403 });
   const db = getDb();
   const updates: Record<string, string> = { updatedAt: new Date().toISOString() };
   if (payload.title) updates.title = payload.title.trim().slice(0, 40);
@@ -32,5 +38,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const identity = await requireApiUser();
   if (identity instanceof Response) return identity;
   const { id } = await params;
+  if (isSupabaseServerConfigured()) return await supabaseDeleteExhibition(id, identity.userId) ? Response.json({ ok: true }) : Response.json({ error: "没有找到这个展览" }, { status: 404 });
   return await deleteExhibition(id, identity.userId) ? Response.json({ ok: true }) : Response.json({ error: "没有找到这个展览" }, { status: 404 });
 }

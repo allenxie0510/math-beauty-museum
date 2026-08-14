@@ -22,20 +22,65 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
   const userId = requestHeaders.get(USER_ID_HEADER);
   const email = requestHeaders.get(USER_EMAIL_HEADER);
-  if (!userId || !email) return null;
+  if (userId && email) {
+    const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
+    const fullName =
+      encodedFullName &&
+      requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) ===
+        PERCENT_ENCODED_UTF8
+        ? safeDecodeURIComponent(encodedFullName)
+        : null;
 
-  const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
-      ? safeDecodeURIComponent(encodedFullName)
-      : null;
+    return {
+      userId,
+      displayName: fullName ?? email,
+      email,
+      fullName,
+    };
+  }
 
+  return getSupabaseUser(requestHeaders.get("authorization"));
+}
+
+async function getSupabaseUser(
+  authorization: string | null,
+): Promise<ChatGPTUser | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !publishableKey || !authorization?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const response = await fetch(`${url}/auth/v1/user`, {
+    headers: { apikey: publishableKey, authorization },
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const user = (await response.json()) as {
+    id?: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  };
+  if (!user.id || !user.email) return null;
+
+  await fetch(`${url}/rest/v1/rpc/claim_hometown_exhibitions`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      authorization,
+      "content-type": "application/json",
+    },
+    body: "{}",
+    cache: "no-store",
+  }).catch(() => undefined);
+
+  const metadataName = user.user_metadata?.full_name ?? user.user_metadata?.name;
+  const fullName = typeof metadataName === "string" ? metadataName : null;
   return {
-    userId,
-    displayName: fullName ?? email,
-    email,
+    userId: user.id,
+    email: user.email,
     fullName,
+    displayName: fullName ?? user.email,
   };
 }
 

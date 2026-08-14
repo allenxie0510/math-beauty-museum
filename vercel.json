@@ -1,14 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "echo \"No install required\"",
-  "buildCommand": "echo \"Redirect-only deployment\"",
-  "outputDirectory": "public",
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "destination": "https://math-beauty-museum.allenxiedesign.chatgpt.site/",
-      "permanent": false
-    }
-  ]
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build:vercel"
 }

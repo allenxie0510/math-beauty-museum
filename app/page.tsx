@@ -258,12 +258,13 @@ export default function Home() {
         </button>
         <nav aria-label="沉浸空间导航">
           <button onClick={() => scrollToId("hall")}>四展馆</button>
-          <button onClick={() => scrollToId("garden")}>数学花园</button>
           <button onClick={() => scrollToId("workshop")}>互动工坊</button>
+          <button onClick={() => scrollToId("garden")}>数学花园</button>
           <button onClick={() => scrollToId("hometown")}>我的家乡数学馆</button>
         </nav>
         <button
           className={"progress-button " + (gardenProgress >= 5 ? "certificate-ready" : "")}
+          style={{ "--progress-value": `${Math.min(gardenProgress, 5) / 5 * 100}%` } as React.CSSProperties}
           onClick={() => gardenProgress >= 5 ? openCertificate() : scrollToId("garden")}
           aria-label={gardenProgress >= 5 ? "领取已解锁的数学之美证书" : "查看探险家进度"}
         >
@@ -273,8 +274,8 @@ export default function Home() {
       </header>
 
       <Suspense fallback={<MuseumLoading />}><LazyNatureMuseumWorld /></Suspense>
-      <DeferredMathGarden onProgress={updateGardenProgress} />
       <DeferredInteractiveWorkshop />
+      <DeferredMathGarden onProgress={updateGardenProgress} />
       <DeferredHometownMath slug={hometownSlug} previewManifest={hometownPreview} onOpenStudio={() => setStudioOpen(true)} onExploreDemo={exploreMuseumDemo} onDetailChange={() => undefined}/>
 
       {unlockNotice && (

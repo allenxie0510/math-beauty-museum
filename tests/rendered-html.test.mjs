@@ -409,6 +409,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /function carveCuts/);
   assert.match(workshop, /type CutShape = \{ points: CutPoint\[\]; closed: boolean \}/);
   assert.match(workshop, /function polygonArea/);
+  assert.match(workshop, /width \* \.62, height \* \.64/);
+  assert.match(workshop, /visibleCenterY = height \* \.54/);
   assert.match(workshop, /path\.closePath\(\)/);
   assert.match(workshop, /context\.fill\(mappedCutPath\(shape/);
   assert.match(workshop, /finalRadius, true\), "evenodd"/);
@@ -417,6 +419,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /正在圈选 · 松开完成剪裁/);
   assert.match(workshop, /区域已剪掉 · 可以继续圈选/);
   assert.match(workshop, /松开后剪掉内部/);
+  assert.match(workshop, /nextRotation/);
+  assert.match(workshop, /Math\.min\(360/);
+  assert.match(workshop, /旋转欣赏/);
+  assert.match(workshop, /左右拖动/);
   assert.match(workshop, /drawUnfoldedPaper/);
   assert.match(workshop, /\[4, 6, 8, 12\]/);
   assert.match(workshop, /360° ÷/);
@@ -430,6 +436,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.papercut-shell\{border-color:rgba\(28,32,38,.14\);background:#e9ecf0;color:#171a20/);
   assert.match(css, /\.papercut-shell>header\{border-right:1px solid rgba\(28,32,38,.1\);background:#f0f2f5\}/);
   assert.match(css, /\.papercut-shell>aside\{border-left-color:rgba\(28,32,38,.11\);background:#e8ebef\}/);
+  assert.match(css, /\/\* Paper scale, hierarchy and unfolded rotation \*\//);
+  assert.match(css, /\.papercut-draw-hint\{top:92px/);
+  assert.match(css, /\.papercut-shell>aside>\.papercut-repeat-options b\{font:800 36px\/1/);
+  assert.match(css, /\.papercut-preview-stage\.unfolded canvas\{cursor:grab\}/);
   assert.match(page, /<MuseumLoading \/>/);
   assert.match(page, /<DeferredMathGarden/);
   assert.match(page, /rootMargin: "240px 0px"/);

@@ -262,9 +262,11 @@ type PaperCutStage = "cutting" | "unfolding" | "unfolded";
 
 function paperGeometry(width: number, height: number, repeat: number, unfolded: boolean) {
   const centerX = width / 2;
-  const centerY = unfolded ? height / 2 : height * .88;
-  const radius = unfolded ? Math.min(width, height) * .42 : Math.min(width * .42, height * .76);
   const halfAngle = Math.PI / repeat;
+  if (unfolded) return { centerX, centerY: height / 2, radius: Math.min(width, height) * .42, halfAngle };
+  const radius = Math.min(width * .62, height * .64);
+  const visibleCenterY = height * .54;
+  const centerY = visibleCenterY + Math.cos(halfAngle) * radius / 2;
   return { centerX, centerY, radius, halfAngle };
 }
 
@@ -368,7 +370,7 @@ function drawFoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutSha
   context.stroke(path);
 }
 
-function drawUnfoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutShape[], progress: number) {
+function drawUnfoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutShape[], progress: number, rotationDegrees: number) {
   const prepared = preparePaperCanvas(canvas);
   if (!prepared) return;
   const { context, width, height } = prepared;
@@ -378,7 +380,7 @@ function drawUnfoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutS
   for (let index = 0; index < repeat; index += 1) {
     const delay = index / Math.max(1, repeat - 1) * .16;
     const localProgress = Math.max(0, Math.min(1, (easedProgress - delay) / (1 - delay)));
-    const rotation = index * Math.PI * 2 / repeat * localProgress;
+    const rotation = rotationDegrees * Math.PI / 180 + index * Math.PI * 2 / repeat * localProgress;
     context.save();
     context.translate(finalGeometry.centerX, finalGeometry.centerY);
     context.rotate(rotation);
@@ -404,10 +406,13 @@ function drawUnfoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutS
 function PaperCutPreview({ close }: { close: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activePointer = useRef<number | null>(null);
+  const rotationPointer = useRef<number | null>(null);
+  const rotationDrag = useRef({ startX: 0, startValue: 0 });
   const [repeat, setRepeat] = useState(8);
   const [cuts, setCuts] = useState<CutShape[]>([]);
   const [stage, setStage] = useState<PaperCutStage>("cutting");
   const [unfoldProgress, setUnfoldProgress] = useState(0);
+  const [rotationDegrees, setRotationDegrees] = useState(0);
   const hasCuts = cuts.some((shape) => shape.closed && shape.points.length > 2);
   const isDrawing = cuts.some((shape) => !shape.closed);
 
@@ -439,7 +444,9 @@ function PaperCutPreview({ close }: { close: () => void }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const render = () => stage === "cutting" ? drawFoldedPaper(canvas, repeat, cuts) : drawUnfoldedPaper(canvas, repeat, cuts, stage === "unfolded" ? 1 : unfoldProgress);
+    const render = () => stage === "cutting"
+      ? drawFoldedPaper(canvas, repeat, cuts)
+      : drawUnfoldedPaper(canvas, repeat, cuts, stage === "unfolded" ? 1 : unfoldProgress, stage === "unfolded" ? rotationDegrees : 0);
     render();
     if (!("ResizeObserver" in window)) {
       window.addEventListener("resize", render, { passive: true });
@@ -448,13 +455,20 @@ function PaperCutPreview({ close }: { close: () => void }) {
     const observer = new ResizeObserver(render);
     observer.observe(canvas.parentElement ?? canvas);
     return () => observer.disconnect();
-  }, [cuts, repeat, stage, unfoldProgress]);
+  }, [cuts, repeat, rotationDegrees, stage, unfoldProgress]);
 
   const pointFromClient = (canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
     const bounds = canvas.getBoundingClientRect();
     return { x: (clientX - bounds.left) / bounds.width, y: (clientY - bounds.top) / bounds.height };
   };
   const beginCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (stage === "unfolded") {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      rotationPointer.current = event.pointerId;
+      rotationDrag.current = { startX: event.clientX, startValue: rotationDegrees };
+      return;
+    }
     if (stage !== "cutting") return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
@@ -464,6 +478,13 @@ function PaperCutPreview({ close }: { close: () => void }) {
     setCuts((current) => [...current.filter((shape) => shape.closed), { points: [point], closed: false }]);
   };
   const continueCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (stage === "unfolded" && rotationPointer.current === event.pointerId) {
+      event.preventDefault();
+      const width = Math.max(1, event.currentTarget.getBoundingClientRect().width);
+      const nextRotation = rotationDrag.current.startValue + (event.clientX - rotationDrag.current.startX) / width * 360;
+      setRotationDegrees(Math.max(0, Math.min(360, nextRotation)));
+      return;
+    }
     if (activePointer.current !== event.pointerId || stage !== "cutting") return;
     event.preventDefault();
     const nativeEvents = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
@@ -484,6 +505,11 @@ function PaperCutPreview({ close }: { close: () => void }) {
     });
   };
   const endCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (rotationPointer.current === event.pointerId) {
+      rotationPointer.current = null;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      return;
+    }
     if (activePointer.current !== event.pointerId) return;
     const finalPoint = pointFromClient(event.currentTarget, event.clientX, event.clientY);
     setCuts((current) => {
@@ -503,9 +529,11 @@ function PaperCutPreview({ close }: { close: () => void }) {
     setCuts([]);
     setStage("cutting");
     setUnfoldProgress(0);
+    setRotationDegrees(0);
   };
-  const reset = () => { setCuts([]); setStage("cutting"); setUnfoldProgress(0); };
-  const unfold = () => { if (hasCuts && !isDrawing) { activePointer.current = null; setUnfoldProgress(0); setStage("unfolding"); } };
+  const reset = () => { setCuts([]); setStage("cutting"); setUnfoldProgress(0); setRotationDegrees(0); };
+  const unfold = () => { if (hasCuts && !isDrawing) { activePointer.current = null; setRotationDegrees(0); setUnfoldProgress(0); setStage("unfolding"); } };
+  const rotateBy = (amount: number) => setRotationDegrees((current) => Math.max(0, Math.min(360, current + amount)));
 
   return (
     <div className="papercut-backdrop" role="dialog" aria-modal="true" aria-labelledby="papercut-title">
@@ -515,7 +543,7 @@ function PaperCutPreview({ close }: { close: () => void }) {
         <section className={`papercut-preview-stage ${stage}`}>
           <div className="papercut-canvas-wrap">
             <div className="papercut-stage-label"><span>{stage === "cutting" ? "FOLDED PAPER · 折叠状态" : "UNFOLDING · 展开状态"}</span><b>{stage === "cutting" ? `1 / ${repeat} 片` : `${repeat} 次重复`}</b></div>
-            <canvas ref={canvasRef} onPointerDown={beginCut} onPointerMove={continueCut} onPointerUp={endCut} onPointerCancel={endCut} onLostPointerCapture={endCut} aria-label={stage === "cutting" ? "剪纸画布，用鼠标或手指描画封闭轮廓，松开后剪掉内部区域" : "展开后的完整剪纸图案"} />
+            <canvas ref={canvasRef} onPointerDown={beginCut} onPointerMove={continueCut} onPointerUp={endCut} onPointerCancel={endCut} onLostPointerCapture={endCut} aria-label={stage === "cutting" ? "剪纸画布，用鼠标或手指描画封闭轮廓，松开后剪掉内部区域" : stage === "unfolded" ? "展开后的完整剪纸图案，可左右拖动旋转，最大旋转三百六十度" : "正在展开的完整剪纸图案"} />
             {!hasCuts && !isDrawing && stage === "cutting" && <div className="papercut-draw-hint"><i>✂</i><span>按住描画一个封闭轮廓<br />松开后剪掉内部</span></div>}
             {isDrawing && stage === "cutting" && <div className="papercut-cut-confirmation drawing" role="status"><i />正在圈选 · 松开完成剪裁</div>}
             {hasCuts && !isDrawing && stage === "cutting" && <div className="papercut-cut-confirmation" role="status"><i />区域已剪掉 · 可以继续圈选</div>}
@@ -526,6 +554,7 @@ function PaperCutPreview({ close }: { close: () => void }) {
           <span>{stage === "cutting" ? "01 · 选择重复次数" : "02 · 发现重复与对称"}</span>
           <div className="papercut-repeat-options">{[4, 6, 8, 12].map((count) => <button key={count} className={repeat === count ? "active" : ""} onClick={() => chooseRepeat(count)} disabled={stage === "unfolding"}><b>{count}</b><small>重复</small></button>)}</div>
           <p>完整一圈是 360°。重复 {repeat} 次，每一片会旋转 <b>360° ÷ {repeat} = {360 / repeat}°</b>。</p>
+          {stage === "unfolded" && <div className="papercut-rotation-control"><div><span>旋转欣赏</span><strong>{Math.round(rotationDegrees)}° <small>/ 360°</small></strong></div><div><button onClick={() => rotateBy(-15)} disabled={rotationDegrees <= 0} aria-label="逆时针旋转十五度">−15°</button><button onClick={() => setRotationDegrees(0)}>归零</button><button onClick={() => rotateBy(15)} disabled={rotationDegrees >= 360} aria-label="顺时针旋转十五度">+15°</button></div><small>也可以在展开的图案上左右拖动</small></div>}
           {stage === "cutting" ? <><div className="papercut-edit-actions"><button onClick={() => setCuts((current) => current.filter((shape) => shape.closed).slice(0, -1))} disabled={!hasCuts || isDrawing}>撤销一个区域</button><button onClick={reset} disabled={!hasCuts || isDrawing}>重新剪</button></div><button className="papercut-start" onClick={unfold} disabled={!hasCuts || isDrawing}>展开我的剪纸 <i>→</i></button></> : <button className="papercut-start" onClick={reset} disabled={stage === "unfolding"}>{stage === "unfolding" ? "正在展开…" : "再剪一张"}<i>↻</i></button>}
         </aside>
       </div>

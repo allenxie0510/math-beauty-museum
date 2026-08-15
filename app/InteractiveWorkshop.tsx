@@ -277,16 +277,6 @@ function wedgePath(centerX: number, centerY: number, radius: number, halfAngle: 
   return path;
 }
 
-function insideFoldedPaper(point: CutPoint, width: number, height: number, repeat: number) {
-  const { centerX, centerY, radius, halfAngle } = paperGeometry(width, height, repeat, false);
-  const deltaX = point.x * width - centerX;
-  const deltaY = point.y * height - centerY;
-  const distance = Math.hypot(deltaX, deltaY);
-  const angle = Math.atan2(deltaY, deltaX);
-  const angularDistance = Math.atan2(Math.sin(angle + Math.PI / 2), Math.cos(angle + Math.PI / 2));
-  return distance <= radius && Math.abs(angularDistance) <= halfAngle;
-}
-
 function preparePaperCanvas(canvas: HTMLCanvasElement) {
   const bounds = canvas.getBoundingClientRect();
   const width = Math.max(1, Math.round(bounds.width));
@@ -301,10 +291,10 @@ function preparePaperCanvas(canvas: HTMLCanvasElement) {
   return { context, width, height };
 }
 
-function traceCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: number, height: number, editGeometry: ReturnType<typeof paperGeometry>, finalRadius: number) {
+function traceCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: number, height: number, editGeometry: ReturnType<typeof paperGeometry>, finalRadius: number, lineWidth: number) {
   context.lineCap = "round";
   context.lineJoin = "round";
-  context.lineWidth = Math.max(13, Math.min(width, height) * .032);
+  context.lineWidth = lineWidth;
   cuts.forEach((stroke) => {
     if (!stroke.length) return;
     context.beginPath();
@@ -319,6 +309,16 @@ function traceCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: 
     if (stroke.length === 1) context.lineTo((stroke[0].x * width - editGeometry.centerX) / editGeometry.radius * finalRadius + .01, (stroke[0].y * height - editGeometry.centerY) / editGeometry.radius * finalRadius + .01);
     context.stroke();
   });
+}
+
+function carveCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: number, height: number, editGeometry: ReturnType<typeof paperGeometry>, finalRadius: number) {
+  const cutWidth = Math.max(15, Math.min(width, height) * .036);
+  context.globalCompositeOperation = "source-over";
+  context.strokeStyle = "rgba(82,22,15,.5)";
+  traceCuts(context, cuts, width, height, editGeometry, finalRadius, cutWidth + 6);
+  context.globalCompositeOperation = "destination-out";
+  context.strokeStyle = "#000";
+  traceCuts(context, cuts, width, height, editGeometry, finalRadius, cutWidth);
 }
 
 function drawFoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutStroke[]) {
@@ -343,9 +343,8 @@ function drawFoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutStr
   gradient.addColorStop(1, "rgba(49,5,1,.15)");
   context.fillStyle = gradient;
   context.fillRect(0, 0, width, height);
-  context.globalCompositeOperation = "destination-out";
-  context.strokeStyle = "#000";
-  traceCuts(context, cuts, width, height, geometry, geometry.radius);
+  context.translate(geometry.centerX, geometry.centerY);
+  carveCuts(context, cuts, width, height, geometry, geometry.radius);
   context.restore();
   context.strokeStyle = "rgba(91,28,20,.35)";
   context.lineWidth = 1;
@@ -373,9 +372,7 @@ function drawUnfoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutS
     context.fillStyle = index % 2 ? "#c14937" : "#cf5540";
     context.fill(path);
     context.clip(path);
-    context.globalCompositeOperation = "destination-out";
-    context.strokeStyle = "#000";
-    traceCuts(context, cuts, width, height, editGeometry, finalGeometry.radius);
+    carveCuts(context, cuts, width, height, editGeometry, finalGeometry.radius);
     context.restore();
   }
   context.save();
@@ -441,18 +438,17 @@ function PaperCutPreview({ close }: { close: () => void }) {
   };
   const beginCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (stage !== "cutting") return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
     const point = pointFromEvent(event);
-    const bounds = event.currentTarget.getBoundingClientRect();
-    if (!insideFoldedPaper(point, bounds.width, bounds.height, repeat)) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     activePointer.current = event.pointerId;
     setCuts((current) => [...current, [point]]);
   };
   const continueCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (activePointer.current !== event.pointerId || stage !== "cutting") return;
+    event.preventDefault();
     const point = pointFromEvent(event);
-    const bounds = event.currentTarget.getBoundingClientRect();
-    if (!insideFoldedPaper(point, bounds.width, bounds.height, repeat)) return;
     setCuts((current) => {
       if (!current.length) return current;
       const next = current.slice();
@@ -486,8 +482,8 @@ function PaperCutPreview({ close }: { close: () => void }) {
         <section className={`papercut-preview-stage ${stage}`}>
           <div className="papercut-canvas-wrap">
             <div className="papercut-stage-label"><span>{stage === "cutting" ? "FOLDED PAPER · 折叠状态" : "UNFOLDING · 展开状态"}</span><b>{stage === "cutting" ? `1 / ${repeat} 片` : `${repeat} 次重复`}</b></div>
-            <canvas ref={canvasRef} onPointerDown={beginCut} onPointerMove={continueCut} onPointerUp={endCut} onPointerCancel={endCut} aria-label={stage === "cutting" ? "剪纸画布，用鼠标或手指在红色纸张上划动剪裁" : "展开后的完整剪纸图案"} />
-            {!hasCuts && stage === "cutting" && <div className="papercut-draw-hint"><i>✂</i><span>在红纸上按住并划动<br />剪出第一个缺口</span></div>}
+            <canvas ref={canvasRef} onPointerDown={beginCut} onPointerMove={continueCut} onPointerUp={endCut} onPointerCancel={endCut} onLostPointerCapture={endCut} aria-label={stage === "cutting" ? "剪纸画布，用鼠标或手指划过红色纸张实时剪裁" : "展开后的完整剪纸图案"} />
+            {!hasCuts && stage === "cutting" && <div className="papercut-draw-hint"><i>✂</i><span>按住并划过红纸<br />可从纸外向内剪入</span></div>}
             {stage === "unfolding" && <div className="papercut-unfold-status" role="status">纸张正在一层层展开…</div>}
           </div>
         </section>

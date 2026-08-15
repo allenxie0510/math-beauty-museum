@@ -417,6 +417,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /globalCompositeOperation = "destination-out"/);
   assert.match(workshop, /activeFlip/);
   assert.match(workshop, /eased \* Math\.PI \* 2/);
+  assert.match(workshop, /paperCutOpenRef\.current && !paperCutOpen/);
+  assert.match(workshop, /returnRequestRef\.current \+= 1/);
+  assert.match(workshop, /returnAnimation/);
+  assert.match(workshop, /group\.userData\.baseZ = panel\.position\[2\]/);
+  assert.match(workshop, /baseZ \+ Math\.sin\(progress \* Math\.PI\) \* \.035/);
+  assert.match(workshop, /THREE\.MathUtils\.lerp\(returnAnimation\.fromZ, baseZ, eased\)/);
   assert.doesNotMatch(workshop, /gridMaterial/);
   assert.match(workshop, /title: "剪纸"/);
   assert.match(workshop, /即将开放/);
@@ -449,6 +455,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.doesNotMatch(workshop, /旋轮线画笔|对称印花|波形织布机|type="range"/);
   assert.match(css, /\.workshop-world\.workshop-gallery\{height:100svh;min-height:620px;padding:0;overflow:hidden/);
   assert.match(css, /background:#d9dde2/);
+  assert.match(css, /\.workshop-paper-entry span\{grid-column:1;color:#747b84;font-size:8px;font-weight:450/);
+  assert.match(css, /\.workshop-paper-entry b\{font-size:15px\}/);
   assert.match(css, /\.workshop-detail-mode\{overflow:hidden\}/);
   assert.match(css, /\.papercut-canvas-wrap canvas\{[^}]*touch-action:none/);
   assert.match(css, /\/\* Cool-light paper-cutting studio \*\//);

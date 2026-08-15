@@ -42,10 +42,16 @@ function panelTexture(panel: GalleryPanel) {
   return texture;
 }
 
-function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => void; reportError: () => void }) {
+function WorkshopGallery3D({ openPaperCut, paperCutOpen, reportError }: { openPaperCut: () => void; paperCutOpen: boolean; reportError: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(openPaperCut);
+  const paperCutOpenRef = useRef(paperCutOpen);
+  const returnRequestRef = useRef(0);
   useEffect(() => { openRef.current = openPaperCut; }, [openPaperCut]);
+  useEffect(() => {
+    if (paperCutOpenRef.current && !paperCutOpen) returnRequestRef.current += 1;
+    paperCutOpenRef.current = paperCutOpen;
+  }, [paperCutOpen]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -146,6 +152,7 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
       const group = new THREE.Group();
       group.position.set(...panel.position);
       group.userData.phase = index * .71;
+      group.userData.baseZ = panel.position[2];
       const texture = panelTexture(panel);
       textures.push(texture);
       const sideMaterial = new THREE.MeshPhysicalMaterial({ color: panel.color, roughness: .48, metalness: .04, clearcoat: .08, clearcoatRoughness: .72 });
@@ -181,6 +188,8 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
       renderer.domElement.style.cursor = hits.length ? "pointer" : "grab";
     };
     let activeFlip: { group: THREE.Group; startedAt: number } | null = null;
+    let returnAnimation: { group: THREE.Group; startedAt: number; fromZ: number; fromScale: number } | null = null;
+    let handledReturnRequest = returnRequestRef.current;
     const beginPanelFlip = () => {
       if (activeFlip) return;
       activeFlip = { group: panelGroups[0], startedAt: performance.now() };
@@ -206,23 +215,45 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
       if (!visible) return;
       timer.update(timestamp);
       const elapsed = timer.getElapsed();
+      if (handledReturnRequest !== returnRequestRef.current) {
+        handledReturnRequest = returnRequestRef.current;
+        const group = panelGroups[0];
+        returnAnimation = { group, startedAt: performance.now(), fromZ: group.position.z, fromScale: group.scale.x };
+      }
       panelGroups.forEach((group, index) => {
-        if (activeFlip?.group === group) return;
+        if (activeFlip?.group === group || returnAnimation?.group === group) return;
         group.rotation.y = Math.sin(elapsed * .42 + Number(group.userData.phase)) * (index === 0 ? .012 : .007);
       });
       if (activeFlip) {
         const progress = Math.min(1, (performance.now() - activeFlip.startedAt) / 860);
         const eased = progress < .5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
         activeFlip.group.rotation.y = eased * Math.PI * 2;
-        activeFlip.group.position.z = Math.sin(progress * Math.PI) * .08;
-        const pulse = 1 + Math.sin(progress * Math.PI) * .025;
+        const baseZ = Number(activeFlip.group.userData.baseZ);
+        activeFlip.group.position.z = baseZ + Math.sin(progress * Math.PI) * .035;
+        const pulse = 1 + Math.sin(progress * Math.PI) * .012;
         activeFlip.group.scale.setScalar(pulse);
         if (progress >= 1) {
           activeFlip.group.rotation.y = 0;
-          activeFlip.group.position.z = 0;
-          activeFlip.group.scale.setScalar(1);
+          activeFlip.group.position.z = baseZ + .022;
+          activeFlip.group.scale.setScalar(1.006);
           activeFlip = null;
+          renderer.domElement.style.cursor = "pointer";
           openRef.current();
+        }
+      }
+      if (returnAnimation) {
+        const progress = Math.min(1, (performance.now() - returnAnimation.startedAt) / 360);
+        const eased = 1 - (1 - progress) ** 3;
+        const baseZ = Number(returnAnimation.group.userData.baseZ);
+        returnAnimation.group.position.z = THREE.MathUtils.lerp(returnAnimation.fromZ, baseZ, eased);
+        returnAnimation.group.scale.setScalar(THREE.MathUtils.lerp(returnAnimation.fromScale, 1, eased));
+        returnAnimation.group.rotation.y *= 1 - eased;
+        if (progress >= 1) {
+          returnAnimation.group.position.z = baseZ;
+          returnAnimation.group.scale.setScalar(1);
+          returnAnimation.group.rotation.y = 0;
+          returnAnimation = null;
+          renderer.domElement.style.cursor = "pointer";
         }
       }
       controls.update();
@@ -585,7 +616,7 @@ export function InteractiveWorkshop() {
   const reportWebglError = useCallback(() => setWebglError(true), []);
   return (
     <section className="workshop-world workshop-gallery" id="workshop" aria-labelledby="workshop-title">
-      {!webglError && <WorkshopGallery3D key={retryKey} openPaperCut={openPaperCut} reportError={reportWebglError} />}
+      {!webglError && <WorkshopGallery3D key={retryKey} openPaperCut={openPaperCut} paperCutOpen={paperCutOpen} reportError={reportWebglError} />}
       {webglError && <div className="workshop-gallery-fallback"><div className="workshop-fallback-grid">{PANELS.map((panel, index) => <button key={index} className={panel.active ? "active" : ""} style={{ "--panel-color": panel.color } as React.CSSProperties} onClick={() => panel.active && openPaperCut()} disabled={!panel.active}>{panel.active ? "剪纸" : "即将开放"}</button>)}</div><button className="workshop-webgl-retry" onClick={() => { setWebglError(false); setRetryKey((value) => value + 1); }}>重新开启 3D 展厅</button></div>}
       <div className="workshop-gallery-shade" aria-hidden="true" />
       <header className="workshop-gallery-title"><span>MAKE WITH MATHEMATICS · INTERACTIVE WORKSHOP</span><h2 id="workshop-title">互动工坊</h2><p>走近墙上的圆形展板，选择一种数学手艺</p></header>

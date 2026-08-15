@@ -4,6 +4,13 @@ A clean full-stack starter running on
 [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
 Drizzle support.
 
+The public experience currently includes four WebGL exhibition halls, the
+mathematics garden, an interactive creative workshop, and the hometown
+mathematics museum. The workshop is implemented in
+`app/InteractiveWorkshop.tsx`; its three canvas-based tools are lazy-loaded,
+work without WebGL, keep saved recipes on the visitor's device, and export
+artwork as PNG files.
+
 ## Prerequisites
 
 - Node.js `>=22.13.0`

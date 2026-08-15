@@ -36,15 +36,17 @@ test("server-renders the finished mathematics museum", async () => {
   assert.match(html, /下一个展厅：自然数学馆/);
   assert.doesNotMatch(html, /THE LANGUAGE BEHIND BEAUTY · PROLOGUE/);
   assert.match(html, /数学探索花园/);
+  assert.match(html, /互动工坊/);
   assert.match(html, /我的家乡数学馆/);
   assert.doesNotMatch(html, /journey-intro|class="exhibit|互动实验台/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/i);
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, page, layout, css, audio, viewport] = await Promise.all([
+  const [museum, garden, workshop, page, layout, css, audio, viewport] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/InteractiveWorkshop.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -389,6 +391,19 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(page, /lazy\(async \(\) =>/);
   assert.match(page, /import\("\.\/NatureMuseum3D"\)/);
   assert.match(page, /import\("\.\/MathGarden3D"\)/);
+  assert.match(page, /import\("\.\/InteractiveWorkshop"\)/);
+  assert.match(page, /<DeferredInteractiveWorkshop \/>/);
+  assert.match(page, />互动工坊</);
+  for (const tool of ["旋轮线画笔", "对称印花", "波形织布机"]) assert.match(workshop, new RegExp(tool));
+  assert.match(workshop, /\(R − r\) cos t/);
+  assert.match(workshop, /cos\(kθ \+ φ\)/);
+  assert.match(workshop, /sin\(αt \+ δ\)/);
+  assert.match(workshop, /window\.localStorage\.setItem\(STORAGE_KEY/);
+  assert.match(workshop, /Object\.hasOwn\(TOOLS/);
+  assert.match(workshop, /canvas\.toBlob/);
+  assert.match(workshop, /prefers-reduced-motion: reduce/);
+  assert.match(css, /\.workshop-world/);
+  assert.match(css, /\.workshop-shelf/);
   assert.match(page, /<MuseumLoading \/>/);
   assert.match(page, /<DeferredMathGarden/);
   assert.match(page, /rootMargin: "240px 0px"/);
@@ -410,9 +425,11 @@ test("separates the heavy WebGL worlds from the compact page shell", async () =>
   const files = await readdir(chunkDirectory);
   const museumChunk = files.find((file) => file.startsWith("NatureMuseum3D-") && file.endsWith(".js"));
   const gardenChunk = files.find((file) => file.startsWith("MathGarden3D-") && file.endsWith(".js"));
+  const workshopChunk = files.find((file) => file.startsWith("InteractiveWorkshop-") && file.endsWith(".js"));
   const pageChunk = files.find((file) => file.startsWith("page-") && file.endsWith(".js"));
   assert.ok(museumChunk, "the museum should be emitted as its own lazy chunk");
   assert.ok(gardenChunk, "the garden should be emitted as its own lazy chunk");
+  assert.ok(workshopChunk, "the workshop should be emitted as its own lazy chunk");
   assert.ok(pageChunk, "the page entry chunk should exist");
   const pageSize = (await stat(new URL(pageChunk, chunkDirectory))).size;
   assert.ok(pageSize < 32 * 1024, `the initial page shell should stay below 32 KB; received ${pageSize} bytes`);

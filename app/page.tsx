@@ -12,6 +12,11 @@ const LazyMathGardenWorld = lazy(async () => {
   return { default: gardenModule.MathGardenWorld };
 });
 
+const LazyInteractiveWorkshop = lazy(async () => {
+  const workshopModule = await import("./InteractiveWorkshop");
+  return { default: workshopModule.InteractiveWorkshop };
+});
+
 const LazyHometownMathWorld = lazy(async () => {
   const hometownModule = await import("./HometownMathWorld");
   return { default: hometownModule.HometownMathWorld };
@@ -58,6 +63,25 @@ function GardenLoading() {
 
 function HometownLoading() {
   return <section className="hometown-world hometown-loading" id="hometown" aria-busy="true"><div><i>⌁</i><span>正在打开家乡里的数学 · DISCOVERING HOMETOWN MATHEMATICS</span></div></section>;
+}
+
+function WorkshopLoading() {
+  return <section className="workshop-world workshop-loading" id="workshop" aria-busy="true"><div><i>◎</i><span>正在打开互动工坊 · PREPARING THE WORKSHOP</span></div></section>;
+}
+
+function DeferredInteractiveWorkshop() {
+  const trigger = useRef<HTMLElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  useEffect(() => {
+    const section = trigger.current;
+    if (shouldLoad || !section) return;
+    if (!("IntersectionObserver" in window)) { const timer = window.setTimeout(() => setShouldLoad(true), 0); return () => window.clearTimeout(timer); }
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setShouldLoad(true); observer.disconnect(); } }, { rootMargin: "320px 0px" });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+  if (!shouldLoad) return <section ref={trigger} className="workshop-world workshop-loading" id="workshop" aria-busy="true"><div><i>◎</i><span>继续向下，互动工坊将在抵达前开启</span></div></section>;
+  return <Suspense fallback={<WorkshopLoading />}><LazyInteractiveWorkshop /></Suspense>;
 }
 
 function DeferredHometownMath({ slug, previewManifest, onOpenStudio, onExploreDemo, onDetailChange }: { slug?: string | null; previewManifest?: import("./hometown-math/domain/types").HometownSceneManifest | null; onOpenStudio: () => void; onExploreDemo: (demoId: string, exhibitId: string) => void; onDetailChange: (open: boolean) => void }) {
@@ -231,6 +255,7 @@ export default function Home() {
         <nav aria-label="沉浸空间导航">
           <button onClick={() => scrollToId("hall")}>四展馆</button>
           <button onClick={() => scrollToId("garden")}>数学花园</button>
+          <button onClick={() => scrollToId("workshop")}>互动工坊</button>
           <button onClick={() => scrollToId("hometown")}>我的家乡数学馆</button>
         </nav>
         <button
@@ -245,6 +270,7 @@ export default function Home() {
 
       <Suspense fallback={<MuseumLoading />}><LazyNatureMuseumWorld /></Suspense>
       <DeferredMathGarden onProgress={updateGardenProgress} />
+      <DeferredInteractiveWorkshop />
       <DeferredHometownMath slug={hometownSlug} previewManifest={hometownPreview} onOpenStudio={() => setStudioOpen(true)} onExploreDemo={exploreMuseumDemo} onDetailChange={() => undefined}/>
 
       {unlockNotice && (

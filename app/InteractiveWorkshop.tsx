@@ -1,72 +1,293 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { observeElementSize, observeElementVisibility } from "./viewport";
 
-type ToolId = "spiro" | "symmetry" | "waves";
-type RecipeValues = [number, number, number];
-type WorkshopRecipe = { tool: ToolId; values: RecipeValues; color: string };
-type SavedRecipe = { id: string; recipe: WorkshopRecipe };
-type ToolDefinition = {
-  icon: string;
-  name: string;
-  short: string;
-  canvasName: string;
-  formula: string;
-  summary: string;
-  defaults: RecipeValues;
-  controls: Array<{ symbol: string; name: string; explanation: string; min: number; max: number }>;
+type GalleryPanel = {
+  color: string;
+  title: string;
+  subtitle: string;
+  position: [number, number, number];
+  radius: number;
+  active?: boolean;
 };
 
-const COLORS = ["#8f7cff", "#57d9ff", "#ff6fae", "#9ae66e"];
-const STORAGE_KEY = "math-beauty-workshop-recipes-v1";
+const PANELS: GalleryPanel[] = [
+  { color: "#d7513c", title: "剪纸", subtitle: "PAPER CUT", position: [-3.75, 1.18, -4.12], radius: 1.02, active: true },
+  { color: "#e69d52", title: "", subtitle: "", position: [-1.28, 1.18, -4.15], radius: .76 },
+  { color: "#15a7b0", title: "", subtitle: "", position: [1.25, 1.18, -4.15], radius: .82 },
+  { color: "#ef427a", title: "", subtitle: "", position: [3.75, 1.18, -4.15], radius: .68 },
+  { color: "#6f7f32", title: "", subtitle: "", position: [-3.78, -1.4, -4.15], radius: .74 },
+  { color: "#a977a4", title: "", subtitle: "", position: [-1.27, -1.4, -4.15], radius: .88 },
+  { color: "#6bbdb5", title: "", subtitle: "", position: [1.28, -1.4, -4.15], radius: .72 },
+  { color: "#e5bd39", title: "", subtitle: "", position: [3.76, -1.4, -4.15], radius: .84 },
+];
 
-const TOOLS: Record<ToolId, ToolDefinition> = {
-  spiro: {
-    icon: "◎",
-    name: "旋轮线画笔",
-    short: "齿轮滚出的曲线",
-    canvasName: "旋轮线作品",
-    formula: "x = (R − r) cos t + d cos ((R − r)t/r)",
-    summary: "大齿轮 R · 小齿轮 r · 画笔位置 d",
-    defaults: [13, 5, 8],
-    controls: [
-      { symbol: "R", name: "大齿轮", explanation: "R 越大，作品的整体骨架越宽。", min: 8, max: 18 },
-      { symbol: "r", name: "小齿轮", explanation: "r 改变小齿轮的转速，也会改变花瓣数量。", min: 2, max: 9 },
-      { symbol: "d", name: "画笔位置", explanation: "d 是画笔离小齿轮中心的距离。", min: 1, max: 12 },
-    ],
-  },
-  symmetry: {
-    icon: "✣",
-    name: "对称印花",
-    short: "旋转复制一片花瓣",
-    canvasName: "玫瑰线印花",
-    formula: "ρ = a · cos(kθ + φ)",
-    summary: "图案半径 a · 对称次数 k · 旋转角 φ",
-    defaults: [8, 5, 24],
-    controls: [
-      { symbol: "a", name: "图案半径", explanation: "a 决定每一片曲线伸展得有多远。", min: 4, max: 12 },
-      { symbol: "k", name: "对称次数", explanation: "k 改变旋转复制的次数，也改变花瓣数。", min: 2, max: 12 },
-      { symbol: "φ", name: "旋转角", explanation: "φ 让整组花瓣绕中心慢慢旋转。", min: 0, max: 90 },
-    ],
-  },
-  waves: {
-    icon: "∿",
-    name: "波形织布机",
-    short: "两个振动织成轨迹",
-    canvasName: "李萨如波纹",
-    formula: "x = sin(αt + δ),  y = sin(βt)",
-    summary: "横向频率 α · 纵向频率 β · 相位差 δ",
-    defaults: [3, 4, 45],
-    controls: [
-      { symbol: "α", name: "横向频率", explanation: "α 表示画笔左右振动的速度。", min: 1, max: 9 },
-      { symbol: "β", name: "纵向频率", explanation: "β 表示画笔上下振动的速度。", min: 1, max: 9 },
-      { symbol: "δ", name: "相位差", explanation: "δ 改变两次振动从哪里开始相遇。", min: 0, max: 180 },
-    ],
-  },
-};
-const TOOL_IDS = Object.keys(TOOLS) as ToolId[];
+function panelTexture(panel: GalleryPanel) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const context = canvas.getContext("2d");
+  if (!context) return new THREE.CanvasTexture(canvas);
+  context.fillStyle = panel.color;
+  context.fillRect(0, 0, 512, 512);
+  if (panel.active) {
+    context.save();
+    context.translate(256, 205);
+    context.fillStyle = "rgba(247,248,250,.9)";
+    for (let ring = 0; ring < 3; ring += 1) {
+      const count = 7 + ring * 3;
+      for (let index = 0; index < count; index += 1) {
+        const angle = index / count * Math.PI * 2 + ring * .22;
+        const radius = 48 + ring * 44;
+        context.beginPath();
+        context.ellipse(Math.cos(angle) * radius, Math.sin(angle) * radius, 10 + ring * 2, 5 + ring, angle, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+    context.restore();
+    context.fillStyle = "#171a20";
+    context.textAlign = "center";
+    context.font = "700 56px sans-serif";
+    context.fillText(panel.title, 256, 374);
+    context.font = "700 19px sans-serif";
+    context.letterSpacing = "5px";
+    context.fillText(panel.subtitle, 256, 411);
+    context.font = "500 15px sans-serif";
+    context.letterSpacing = "2px";
+    context.fillText("旋转 · 重复 · 对称", 256, 448);
+  } else {
+    context.fillStyle = "rgba(15,16,16,.72)";
+    context.textAlign = "center";
+    context.font = "700 17px sans-serif";
+    context.letterSpacing = "4px";
+    context.fillText("COMING SOON", 256, 266);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
 
-function prepareCanvas(canvas: HTMLCanvasElement) {
+function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => void; reportError: () => void }) {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const openRef = useRef(openPaperCut);
+  useEffect(() => { openRef.current = openPaperCut; }, [openPaperCut]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+    } catch {
+      window.setTimeout(reportError, 0);
+      return;
+    }
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.domElement.setAttribute("aria-label", "浅色互动工坊虚拟展厅，墙上设有圆形互动入口");
+    renderer.domElement.style.touchAction = "pan-y";
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#dfe2e7");
+    scene.fog = new THREE.Fog("#dfe2e7", 13, 24);
+    const camera = new THREE.PerspectiveCamera(44, 1, .1, 60);
+    camera.position.set(0, .15, 8.2);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, -.08, -4.2);
+    controls.enableDamping = true;
+    controls.enablePan = false;
+    controls.enableZoom = false;
+    controls.minAzimuthAngle = -.16;
+    controls.maxAzimuthAngle = .16;
+    controls.minPolarAngle = Math.PI * .47;
+    controls.maxPolarAngle = Math.PI * .53;
+
+    scene.add(new THREE.HemisphereLight("#ffffff", "#59606b", 2.2));
+    const keyLight = new THREE.DirectionalLight("#ffffff", 3.4);
+    keyLight.position.set(-3.5, 7, 5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    scene.add(keyLight);
+    const fillLight = new THREE.PointLight("#cfe8ff", 12, 20, 2);
+    fillLight.position.set(5, 1, 4);
+    scene.add(fillLight);
+
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: "#f1f2f4", roughness: .82, metalness: 0 });
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(15.8, 7.7), wallMaterial);
+    backWall.position.set(0, 0, -4.5);
+    backWall.receiveShadow = true;
+    scene.add(backWall);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(19, 18), new THREE.MeshStandardMaterial({ color: "#c9cdd3", roughness: .72 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, -3.28, -.5);
+    floor.receiveShadow = true;
+    scene.add(floor);
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(19, 18), new THREE.MeshStandardMaterial({ color: "#e5e7eb", roughness: .9 }));
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(0, 3.52, -.5);
+    scene.add(ceiling);
+
+    const gridMaterial = new THREE.MeshStandardMaterial({ color: "#252728", roughness: .65 });
+    for (const x of [-5.3, -2.65, 0, 2.65, 5.3]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(.055, 7.7, .075), gridMaterial);
+      rail.position.set(x, 0, -4.37);
+      scene.add(rail);
+    }
+    for (const y of [-2.7, 0, 2.7]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(15.8, .055, .075), gridMaterial);
+      rail.position.set(0, y, -4.37);
+      scene.add(rail);
+    }
+
+    const panelGroups: THREE.Group[] = [];
+    const hitTargets: THREE.Object3D[] = [];
+    const textures: THREE.Texture[] = [];
+    PANELS.forEach((panel, index) => {
+      const group = new THREE.Group();
+      group.position.set(...panel.position);
+      group.userData.baseY = panel.position[1];
+      group.userData.phase = index * .71;
+      const depth = new THREE.Mesh(new THREE.CylinderGeometry(panel.radius, panel.radius, .18, 64), new THREE.MeshStandardMaterial({ color: "#202221", roughness: .66 }));
+      depth.rotation.x = Math.PI / 2;
+      depth.castShadow = true;
+      group.add(depth);
+      const texture = panelTexture(panel);
+      textures.push(texture);
+      const face = new THREE.Mesh(new THREE.CircleGeometry(panel.radius * .96, 64), new THREE.MeshStandardMaterial({ map: texture, roughness: .7, metalness: 0 }));
+      face.position.z = .1;
+      face.castShadow = true;
+      face.userData.active = !!panel.active;
+      face.userData.panelIndex = index;
+      group.add(face);
+      if (panel.active) hitTargets.push(face);
+      panelGroups.push(group);
+      scene.add(group);
+    });
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let pointerDown = { x: 0, y: 0 };
+    const updatePointer = (event: PointerEvent) => {
+      const bounds = renderer.domElement.getBoundingClientRect();
+      pointer.x = (event.clientX - bounds.left) / bounds.width * 2 - 1;
+      pointer.y = -(event.clientY - bounds.top) / bounds.height * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      return raycaster.intersectObjects(hitTargets, false);
+    };
+    const handlePointerDown = (event: PointerEvent) => { pointerDown = { x: event.clientX, y: event.clientY }; };
+    const handlePointerMove = (event: PointerEvent) => {
+      const hits = updatePointer(event);
+      renderer.domElement.style.cursor = hits.length ? "pointer" : "grab";
+    };
+    const handlePointerUp = (event: PointerEvent) => {
+      const tolerance = event.pointerType === "touch" ? 18 : 7;
+      if (Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) > tolerance) return;
+      if (updatePointer(event).some((hit) => hit.object.userData.active)) openRef.current();
+    };
+    renderer.domElement.addEventListener("pointerdown", handlePointerDown);
+    renderer.domElement.addEventListener("pointermove", handlePointerMove);
+    renderer.domElement.addEventListener("pointerup", handlePointerUp);
+    const handleContextLoss = (event: Event) => { event.preventDefault(); reportError(); };
+    renderer.domElement.addEventListener("webglcontextlost", handleContextLoss);
+
+    let visible = true;
+    let animationFrame = 0;
+    const timer = new THREE.Timer();
+    timer.connect(document);
+    const render = (timestamp?: number) => {
+      animationFrame = 0;
+      if (!visible) return;
+      timer.update(timestamp);
+      const elapsed = timer.getElapsed();
+      panelGroups.forEach((group) => {
+        group.rotation.y = Math.sin(elapsed * .55 + Number(group.userData.phase)) * .028;
+        group.position.y = Number(group.userData.baseY) + Math.sin(elapsed * .7 + Number(group.userData.phase)) * .025;
+      });
+      controls.update();
+      renderer.render(scene, camera);
+      animationFrame = window.requestAnimationFrame(render);
+    };
+    const stopVisibility = observeElementVisibility(mount, (nextVisible) => {
+      visible = nextVisible;
+      if (visible && !animationFrame) animationFrame = window.requestAnimationFrame(render);
+      if (!visible && animationFrame) { window.cancelAnimationFrame(animationFrame); animationFrame = 0; }
+    });
+    const stopSize = observeElementSize(mount, () => {
+      const width = Math.max(1, mount.clientWidth);
+      const height = Math.max(1, mount.clientHeight);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.position.z = width < 720 ? 10.8 : 8.2;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+    });
+
+    return () => {
+      stopVisibility();
+      stopSize();
+      window.cancelAnimationFrame(animationFrame);
+      renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
+      renderer.domElement.removeEventListener("pointermove", handlePointerMove);
+      renderer.domElement.removeEventListener("pointerup", handlePointerUp);
+      renderer.domElement.removeEventListener("webglcontextlost", handleContextLoss);
+      controls.dispose();
+      timer.dispose();
+      textures.forEach((texture) => texture.dispose());
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((material) => material.dispose());
+      });
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, [reportError]);
+
+  return <div className="workshop-gallery-webgl" ref={mountRef} />;
+}
+
+type CutPoint = { x: number; y: number };
+type CutStroke = CutPoint[];
+type PaperCutStage = "cutting" | "unfolding" | "unfolded";
+
+function paperGeometry(width: number, height: number, repeat: number, unfolded: boolean) {
+  const centerX = width / 2;
+  const centerY = unfolded ? height / 2 : height * .88;
+  const radius = unfolded ? Math.min(width, height) * .42 : Math.min(width * .42, height * .76);
+  const halfAngle = Math.PI / repeat;
+  return { centerX, centerY, radius, halfAngle };
+}
+
+function wedgePath(centerX: number, centerY: number, radius: number, halfAngle: number) {
+  const path = new Path2D();
+  path.moveTo(centerX, centerY);
+  path.lineTo(centerX + Math.cos(-Math.PI / 2 - halfAngle) * radius, centerY + Math.sin(-Math.PI / 2 - halfAngle) * radius);
+  path.arc(centerX, centerY, radius, -Math.PI / 2 - halfAngle, -Math.PI / 2 + halfAngle);
+  path.closePath();
+  return path;
+}
+
+function insideFoldedPaper(point: CutPoint, width: number, height: number, repeat: number) {
+  const { centerX, centerY, radius, halfAngle } = paperGeometry(width, height, repeat, false);
+  const deltaX = point.x * width - centerX;
+  const deltaY = point.y * height - centerY;
+  const distance = Math.hypot(deltaX, deltaY);
+  const angle = Math.atan2(deltaY, deltaX);
+  const angularDistance = Math.atan2(Math.sin(angle + Math.PI / 2), Math.cos(angle + Math.PI / 2));
+  return distance <= radius && Math.abs(angularDistance) <= halfAngle;
+}
+
+function preparePaperCanvas(canvas: HTMLCanvasElement) {
   const bounds = canvas.getBoundingClientRect();
   const width = Math.max(1, Math.round(bounds.width));
   const height = Math.max(1, Math.round(bounds.height));
@@ -75,270 +296,228 @@ function prepareCanvas(canvas: HTMLCanvasElement) {
   canvas.height = Math.round(height * pixelRatio);
   const context = canvas.getContext("2d");
   if (!context) return null;
-  context.scale(pixelRatio, pixelRatio);
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
-  const gradient = context.createRadialGradient(width * .5, height * .5, 0, width * .5, height * .5, Math.max(width, height) * .7);
-  gradient.addColorStop(0, "#171a2d");
-  gradient.addColorStop(.48, "#0d101c");
-  gradient.addColorStop(1, "#06080e");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, width, height);
-  context.strokeStyle = "rgba(255,255,255,.035)";
-  context.lineWidth = 1;
-  for (let x = 24; x < width; x += 36) {
-    context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
-  }
-  for (let y = 24; y < height; y += 36) {
-    context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
-  }
   return { context, width, height };
 }
 
-function setArtworkStroke(context: CanvasRenderingContext2D, color: string, lineWidth = 1.35) {
-  context.strokeStyle = color;
-  context.lineWidth = lineWidth;
+function traceCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: number, height: number, editGeometry: ReturnType<typeof paperGeometry>, finalRadius: number) {
   context.lineCap = "round";
   context.lineJoin = "round";
-  context.shadowColor = color;
-  context.shadowBlur = 10;
-  context.globalAlpha = .92;
-}
-
-function drawSpirograph(context: CanvasRenderingContext2D, width: number, height: number, values: RecipeValues, color: string, progress: number) {
-  const [outer, inner, pen] = values;
-  const turns = Math.min(60, inner * 2);
-  const totalSteps = 1700;
-  const steps = Math.max(2, Math.round(totalSteps * progress));
-  const scale = Math.min(width, height) * .38 / Math.max(outer - inner + pen, 1);
-  context.save(); context.translate(width / 2, height / 2); context.beginPath();
-  for (let index = 0; index <= steps; index += 1) {
-    const angle = index / totalSteps * Math.PI * 2 * turns;
-    const x = (outer - inner) * Math.cos(angle) + pen * Math.cos((outer - inner) / inner * angle);
-    const y = (outer - inner) * Math.sin(angle) - pen * Math.sin((outer - inner) / inner * angle);
-    if (index === 0) context.moveTo(x * scale, y * scale); else context.lineTo(x * scale, y * scale);
-  }
-  setArtworkStroke(context, color); context.stroke(); context.restore();
-}
-
-function drawSymmetry(context: CanvasRenderingContext2D, width: number, height: number, values: RecipeValues, color: string, progress: number) {
-  const [radius, symmetry, rotation] = values;
-  const totalSteps = 1200;
-  const steps = Math.max(2, Math.round(totalSteps * progress));
-  const scale = Math.min(width, height) * .038 * radius;
-  context.save(); context.translate(width / 2, height / 2);
-  for (let layer = 0; layer < 4; layer += 1) {
+  context.lineWidth = Math.max(13, Math.min(width, height) * .032);
+  cuts.forEach((stroke) => {
+    if (!stroke.length) return;
     context.beginPath();
-    for (let index = 0; index <= steps; index += 1) {
-      const angle = index / totalSteps * Math.PI * 2;
-      const rho = Math.cos(symmetry * angle + rotation * Math.PI / 180 + layer * .12) * (1 - layer * .11);
-      const x = Math.cos(angle) * rho * scale;
-      const y = Math.sin(angle) * rho * scale;
-      if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
-    }
-    setArtworkStroke(context, color, 1.25 - layer * .14);
-    context.globalAlpha = .88 - layer * .16;
+    stroke.forEach((point, index) => {
+      const sourceX = point.x * width - editGeometry.centerX;
+      const sourceY = point.y * height - editGeometry.centerY;
+      const x = sourceX / editGeometry.radius * finalRadius;
+      const y = sourceY / editGeometry.radius * finalRadius;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    if (stroke.length === 1) context.lineTo((stroke[0].x * width - editGeometry.centerX) / editGeometry.radius * finalRadius + .01, (stroke[0].y * height - editGeometry.centerY) / editGeometry.radius * finalRadius + .01);
     context.stroke();
-  }
-  context.restore();
+  });
 }
 
-function drawWaves(context: CanvasRenderingContext2D, width: number, height: number, values: RecipeValues, color: string, progress: number) {
-  const [horizontal, vertical, phase] = values;
-  const totalSteps = 1300;
-  const steps = Math.max(2, Math.round(totalSteps * progress));
-  const scaleX = width * .34;
-  const scaleY = height * .34;
-  context.save(); context.translate(width / 2, height / 2);
-  for (let strand = -5; strand <= 5; strand += 1) {
-    context.beginPath();
-    for (let index = 0; index <= steps; index += 1) {
-      const time = index / totalSteps * Math.PI * 2;
-      const offset = strand * .026;
-      const x = Math.sin(horizontal * time + phase * Math.PI / 180 + offset * 4) * scaleX;
-      const y = Math.sin(vertical * time + offset) * scaleY + strand * 2.4;
-      if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
-    }
-    setArtworkStroke(context, color, strand === 0 ? 1.45 : .8);
-    context.globalAlpha = strand === 0 ? .92 : .24;
-    context.stroke();
-  }
-  context.restore();
-}
-
-function drawArtwork(canvas: HTMLCanvasElement, recipe: WorkshopRecipe, progress: number) {
-  const prepared = prepareCanvas(canvas);
+function drawFoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutStroke[]) {
+  const prepared = preparePaperCanvas(canvas);
   if (!prepared) return;
   const { context, width, height } = prepared;
-  if (recipe.tool === "spiro") drawSpirograph(context, width, height, recipe.values, recipe.color, progress);
-  if (recipe.tool === "symmetry") drawSymmetry(context, width, height, recipe.values, recipe.color, progress);
-  if (recipe.tool === "waves") drawWaves(context, width, height, recipe.values, recipe.color, progress);
+  const geometry = paperGeometry(width, height, repeat, false);
+  const path = wedgePath(geometry.centerX, geometry.centerY, geometry.radius, geometry.halfAngle);
+  context.save();
+  context.shadowColor = "rgba(12,15,20,.25)";
+  context.shadowBlur = 24;
+  context.shadowOffsetX = 12;
+  context.shadowOffsetY = 17;
+  context.fillStyle = "#c94f3b";
+  context.fill(path);
+  context.restore();
+  context.save();
+  context.clip(path);
+  const gradient = context.createLinearGradient(geometry.centerX - geometry.radius * .45, 0, geometry.centerX + geometry.radius * .45, 0);
+  gradient.addColorStop(0, "rgba(255,255,255,.2)");
+  gradient.addColorStop(.42, "rgba(255,255,255,0)");
+  gradient.addColorStop(1, "rgba(49,5,1,.15)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+  context.globalCompositeOperation = "destination-out";
+  context.strokeStyle = "#000";
+  traceCuts(context, cuts, width, height, geometry, geometry.radius);
+  context.restore();
+  context.strokeStyle = "rgba(91,28,20,.35)";
+  context.lineWidth = 1;
+  context.stroke(path);
 }
 
-function WorkshopRange({ symbol, name, explanation, min, max, value, onChange }: { symbol: string; name: string; explanation: string; min: number; max: number; value: number; onChange: (value: number) => void }) {
-  return <label className="workshop-range"><span><b><i>{symbol}</i>{name}</b><strong>{value}</strong></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} aria-label={`${name}，公式变量 ${symbol}`} /><small>{explanation}</small></label>;
-}
-
-function isSavedRecipe(value: unknown): value is SavedRecipe {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<SavedRecipe>;
-  return typeof candidate.id === "string" && !!candidate.recipe && typeof candidate.recipe.tool === "string" && Object.hasOwn(TOOLS, candidate.recipe.tool) && Array.isArray(candidate.recipe.values) && candidate.recipe.values.length === 3 && candidate.recipe.values.every((entry) => typeof entry === "number" && Number.isFinite(entry)) && COLORS.includes(candidate.recipe.color);
-}
-
-function storeSavedRecipes(recipes: SavedRecipe[]) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
-    return true;
-  } catch {
-    return false;
+function drawUnfoldedPaper(canvas: HTMLCanvasElement, repeat: number, cuts: CutStroke[], progress: number) {
+  const prepared = preparePaperCanvas(canvas);
+  if (!prepared) return;
+  const { context, width, height } = prepared;
+  const finalGeometry = paperGeometry(width, height, repeat, true);
+  const editGeometry = paperGeometry(width, height, repeat, false);
+  const easedProgress = 1 - Math.pow(1 - Math.min(1, progress), 3);
+  for (let index = 0; index < repeat; index += 1) {
+    const delay = index / Math.max(1, repeat - 1) * .16;
+    const localProgress = Math.max(0, Math.min(1, (easedProgress - delay) / (1 - delay)));
+    const rotation = index * Math.PI * 2 / repeat * localProgress;
+    context.save();
+    context.translate(finalGeometry.centerX, finalGeometry.centerY);
+    context.rotate(rotation);
+    if (index % 2) context.scale(-1, 1);
+    const path = wedgePath(0, 0, finalGeometry.radius, finalGeometry.halfAngle);
+    context.shadowColor = progress < 1 ? "rgba(16,18,24,.2)" : "rgba(16,18,24,.08)";
+    context.shadowBlur = progress < 1 ? 12 : 4;
+    context.fillStyle = index % 2 ? "#c14937" : "#cf5540";
+    context.fill(path);
+    context.clip(path);
+    context.globalCompositeOperation = "destination-out";
+    context.strokeStyle = "#000";
+    traceCuts(context, cuts, width, height, editGeometry, finalGeometry.radius);
+    context.restore();
   }
+  context.save();
+  context.translate(finalGeometry.centerX, finalGeometry.centerY);
+  context.fillStyle = "#b43d2d";
+  context.beginPath();
+  context.arc(0, 0, Math.max(5, finalGeometry.radius * .025), 0, Math.PI * 2);
+  context.fill();
+  context.restore();
 }
 
-export function InteractiveWorkshop() {
+function PaperCutPreview({ close }: { close: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [recipe, setRecipe] = useState<WorkshopRecipe>({ tool: "spiro", values: [...TOOLS.spiro.defaults], color: COLORS[0] });
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [drawProgress, setDrawProgress] = useState(0);
-  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
-  const [notice, setNotice] = useState("拖动一个变量，观察公式怎样改变作品");
-  const definition = TOOLS[recipe.tool];
-  const isAnimating = isPlaying && drawProgress < 1;
+  const activePointer = useRef<number | null>(null);
+  const [repeat, setRepeat] = useState(8);
+  const [cuts, setCuts] = useState<CutStroke[]>([]);
+  const [stage, setStage] = useState<PaperCutStage>("cutting");
+  const [unfoldProgress, setUnfoldProgress] = useState(0);
+  const hasCuts = cuts.some((stroke) => stroke.length > 0);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as unknown;
-        if (Array.isArray(stored)) setSavedRecipes(stored.filter(isSavedRecipe).slice(0, 6));
-      } catch {
-        try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* Storage may be disabled. */ }
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    document.body.classList.add("workshop-detail-mode");
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.classList.remove("workshop-detail-mode");
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [close]);
 
   useEffect(() => {
-    if (!isPlaying || drawProgress >= 1) return;
+    if (stage !== "unfolding") return;
     let frame = 0;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      frame = window.requestAnimationFrame(() => setDrawProgress(1));
-      return () => window.cancelAnimationFrame(frame);
-    }
-    const startedAt = performance.now() - drawProgress * 1150;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const startedAt = performance.now();
     const animate = (now: number) => {
-      const next = Math.min(1, (now - startedAt) / 1150);
-      setDrawProgress(next);
+      const next = reduceMotion ? 1 : Math.min(1, (now - startedAt) / 1350);
+      setUnfoldProgress(next);
       if (next < 1) frame = window.requestAnimationFrame(animate);
+      else setStage("unfolded");
     };
     frame = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frame);
-  }, [drawProgress, isPlaying]);
+  }, [stage]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const render = () => drawArtwork(canvas, recipe, isPlaying ? drawProgress : 1);
+    const render = () => stage === "cutting" ? drawFoldedPaper(canvas, repeat, cuts) : drawUnfoldedPaper(canvas, repeat, cuts, stage === "unfolded" ? 1 : unfoldProgress);
     render();
     if (!("ResizeObserver" in window)) {
       window.addEventListener("resize", render, { passive: true });
       return () => window.removeEventListener("resize", render);
     }
     const observer = new ResizeObserver(render);
-    observer.observe(canvas);
+    observer.observe(canvas.parentElement ?? canvas);
     return () => observer.disconnect();
-  }, [drawProgress, isPlaying, recipe]);
+  }, [cuts, repeat, stage, unfoldProgress]);
 
-  const restartDrawing = (message: string) => {
-    setIsPlaying(true); setDrawProgress(0); setNotice(message);
+  const pointFromEvent = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return { x: (event.clientX - bounds.left) / bounds.width, y: (event.clientY - bounds.top) / bounds.height };
   };
-  const selectTool = (tool: ToolId) => {
-    setRecipe((current) => ({ tool, values: [...TOOLS[tool].defaults], color: current.color }));
-    restartDrawing(`已换成${TOOLS[tool].name}，试着改变一个变量`);
+  const beginCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (stage !== "cutting") return;
+    const point = pointFromEvent(event);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!insideFoldedPaper(point, bounds.width, bounds.height, repeat)) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    activePointer.current = event.pointerId;
+    setCuts((current) => [...current, [point]]);
   };
-  const handleToolKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, tool: ToolId) => {
-    const currentIndex = TOOL_IDS.indexOf(tool);
-    let nextIndex = currentIndex;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (currentIndex + 1) % TOOL_IDS.length;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (currentIndex - 1 + TOOL_IDS.length) % TOOL_IDS.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = TOOL_IDS.length - 1;
-    else return;
-    event.preventDefault();
-    const nextTool = TOOL_IDS[nextIndex];
-    selectTool(nextTool);
-    window.requestAnimationFrame(() => document.getElementById(`workshop-tab-${nextTool}`)?.focus());
+  const continueCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointer.current !== event.pointerId || stage !== "cutting") return;
+    const point = pointFromEvent(event);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!insideFoldedPaper(point, bounds.width, bounds.height, repeat)) return;
+    setCuts((current) => {
+      if (!current.length) return current;
+      const next = current.slice();
+      const stroke = [...next[next.length - 1]];
+      const previous = stroke[stroke.length - 1];
+      if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < .004) return current;
+      stroke.push(point);
+      next[next.length - 1] = stroke;
+      return next;
+    });
   };
-  const updateValue = (index: number, value: number) => {
-    setRecipe((current) => { const values = [...current.values] as RecipeValues; values[index] = value; return { ...current, values }; });
-    restartDrawing(`${definition.controls[index].symbol} 已变成 ${value}，画布正在重新计算`);
+  const endCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointer.current !== event.pointerId) return;
+    activePointer.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
-  const updateColor = (color: string) => {
-    setRecipe((current) => ({ ...current, color })); restartDrawing("颜色变了，数学规则保持不变");
+  const chooseRepeat = (count: number) => {
+    setRepeat(count);
+    setCuts([]);
+    setStage("cutting");
+    setUnfoldProgress(0);
   };
-  const randomize = () => {
-    const values = definition.controls.map((control) => Math.floor(Math.random() * (control.max - control.min + 1)) + control.min) as RecipeValues;
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    setRecipe((current) => ({ ...current, values, color })); restartDrawing("发现一组新的数学规则");
-  };
-  const replayDrawing = () => {
-    if (isAnimating) { setIsPlaying(false); setDrawProgress(1); setNotice("作品已完成绘制"); return; }
-    restartDrawing("正在重播这件作品的生成过程");
-  };
-  const saveRecipe = () => {
-    const saved: SavedRecipe = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, recipe: { ...recipe, values: [...recipe.values] } };
-    const next = [saved, ...savedRecipes].slice(0, 6);
-    setSavedRecipes(next); setNotice(storeSavedRecipes(next) ? "作品配方已放入你的陈列架" : "浏览器不允许长期保存，但本次参观中仍可取回作品");
-  };
-  const loadRecipe = (saved: SavedRecipe) => {
-    setRecipe({ ...saved.recipe, values: [...saved.recipe.values] }); restartDrawing(`已从陈列架取回${TOOLS[saved.recipe.tool].name}`);
-  };
-  const removeRecipe = (id: string) => {
-    const next = savedRecipes.filter((saved) => saved.id !== id);
-    setSavedRecipes(next); storeSavedRecipes(next); setNotice("这张作品配方已从陈列架移除");
-  };
-  const downloadArtwork = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url; link.download = `数学美学展-${definition.name}.png`; link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000); setNotice("作品图片已生成，可以分享给朋友了");
-    }, "image/png");
-  };
+  const reset = () => { setCuts([]); setStage("cutting"); setUnfoldProgress(0); };
+  const unfold = () => { if (hasCuts) { activePointer.current = null; setUnfoldProgress(0); setStage("unfolding"); } };
 
   return (
-    <section className="workshop-world" id="workshop" aria-labelledby="workshop-title">
-      <div className="workshop-orbit workshop-orbit-a" aria-hidden="true" /><div className="workshop-orbit workshop-orbit-b" aria-hidden="true" />
-      <header className="workshop-intro">
-        <span>MAKE WITH MATHEMATICS · 互动工坊</span><h2 id="workshop-title">把公式变成<br /><em>你的作品</em></h2>
-        <p>这里没有标准答案。选择一支数学画笔，改变公式中的变量，看看只属于你的图案怎样诞生。</p>
-        <ol aria-label="工坊创作步骤"><li><b>01</b> 选择工具</li><li><b>02</b> 改变规则</li><li><b>03</b> 收下作品</li></ol>
-      </header>
-      <div className="workshop-studio">
-        <div className="workshop-toolbar" role="tablist" aria-label="选择数学创作工具">
-          {TOOL_IDS.map((tool) => { const item = TOOLS[tool]; const active = recipe.tool === tool; return <button key={tool} id={`workshop-tab-${tool}`} className={active ? "active" : ""} role="tab" aria-selected={active} aria-controls="workshop-canvas-panel" tabIndex={active ? 0 : -1} onClick={() => selectTool(tool)} onKeyDown={(event) => handleToolKeyDown(event, tool)}><i>{item.icon}</i><span>{item.name}<small>{item.short}</small></span></button>; })}
-        </div>
-        <div className="workshop-canvas-wrap" id="workshop-canvas-panel" role="tabpanel" aria-labelledby={`workshop-tab-${recipe.tool}`}>
-          <div className="workshop-canvas-heading"><span>LIVE CANVAS · 实时画布</span><b>{definition.canvasName}</b></div>
-          <canvas ref={canvasRef} aria-label={`${definition.canvasName}实时预览`}>你的浏览器暂时无法显示画布，但仍可使用右侧控件认识公式。</canvas>
-          <div className="workshop-canvas-actions"><button onClick={replayDrawing}>{isAnimating ? "立即完成" : "重播生成"}</button><button onClick={randomize}>给我一个惊喜</button><button onClick={downloadArtwork}>保存为图片 ↓</button></div>
-          <p className="workshop-live-notice" aria-live="polite"><i style={{ background: recipe.color }} />{notice}</p>
-        </div>
-        <aside className="workshop-controls" aria-label={`${definition.name}变量控制台`}>
-          <div className="workshop-formula"><span>正在使用的规则</span><strong>{definition.formula}</strong><p>{definition.summary}</p></div>
-          {definition.controls.map((control, index) => <WorkshopRange key={control.symbol} {...control} value={recipe.values[index]} onChange={(value) => updateValue(index, value)} />)}
-          <fieldset className="workshop-palette"><legend>选择线条颜色</legend><div>{COLORS.map((color) => <button key={color} className={recipe.color === color ? "active" : ""} style={{ "--swatch": color } as React.CSSProperties} onClick={() => updateColor(color)} aria-label={`选择颜色 ${color}`} aria-pressed={recipe.color === color} />)}</div></fieldset>
-          <button className="workshop-save" type="button" onClick={saveRecipe}><span>收藏这组规则</span><i>放入作品架 ↗</i></button>
+    <div className="papercut-backdrop" role="dialog" aria-modal="true" aria-labelledby="papercut-title">
+      <div className="papercut-shell">
+        <button className="papercut-close" onClick={close} aria-label="关闭剪纸互动">×</button>
+        <header><span>PAPER CUT · 旋转与对称</span><h2 id="papercut-title">折一折，剪一剪，<br />看看图案怎样重复</h2><p>在折好的红纸上划出缺口。展开时，同一个形状会围绕中心旋转、镜像并重复。</p></header>
+        <section className={`papercut-preview-stage ${stage}`}>
+          <div className="papercut-canvas-wrap">
+            <div className="papercut-stage-label"><span>{stage === "cutting" ? "FOLDED PAPER · 折叠状态" : "UNFOLDING · 展开状态"}</span><b>{stage === "cutting" ? `1 / ${repeat} 片` : `${repeat} 次重复`}</b></div>
+            <canvas ref={canvasRef} onPointerDown={beginCut} onPointerMove={continueCut} onPointerUp={endCut} onPointerCancel={endCut} aria-label={stage === "cutting" ? "剪纸画布，用鼠标或手指在红色纸张上划动剪裁" : "展开后的完整剪纸图案"} />
+            {!hasCuts && stage === "cutting" && <div className="papercut-draw-hint"><i>✂</i><span>在红纸上按住并划动<br />剪出第一个缺口</span></div>}
+            {stage === "unfolding" && <div className="papercut-unfold-status" role="status">纸张正在一层层展开…</div>}
+          </div>
+        </section>
+        <aside>
+          <span>{stage === "cutting" ? "01 · 选择重复次数" : "02 · 发现重复与对称"}</span>
+          <div className="papercut-repeat-options">{[4, 6, 8, 12].map((count) => <button key={count} className={repeat === count ? "active" : ""} onClick={() => chooseRepeat(count)} disabled={stage === "unfolding"}><b>{count}</b><small>重复</small></button>)}</div>
+          <p>完整一圈是 360°。重复 {repeat} 次，每一片会旋转 <b>360° ÷ {repeat} = {360 / repeat}°</b>。</p>
+          {stage === "cutting" ? <><div className="papercut-edit-actions"><button onClick={() => setCuts((current) => current.slice(0, -1))} disabled={!hasCuts}>撤销一刀</button><button onClick={reset} disabled={!hasCuts}>重新剪</button></div><button className="papercut-start" onClick={unfold} disabled={!hasCuts}>展开我的剪纸 <i>→</i></button></> : <button className="papercut-start" onClick={reset} disabled={stage === "unfolding"}>{stage === "unfolding" ? "正在展开…" : "再剪一张"}<i>↻</i></button>}
         </aside>
       </div>
-      <section className="workshop-shelf" aria-labelledby="workshop-shelf-title">
-        <div><span>YOUR RECIPE SHELF</span><h3 id="workshop-shelf-title">我的作品配方</h3><p>配方只保存在这台设备中，不会上传你的信息。</p></div>
-        <div className="workshop-shelf-items">
-          {savedRecipes.length === 0 && <p className="workshop-shelf-empty">还没有作品。调好喜欢的图案后，点击“收藏这组规则”。</p>}
-          {savedRecipes.map((saved, index) => <article key={saved.id}><button className="workshop-recipe-load" onClick={() => loadRecipe(saved)}><i style={{ "--recipe-color": saved.recipe.color } as React.CSSProperties}>{TOOLS[saved.recipe.tool].icon}</i><span><b>作品 {String(savedRecipes.length - index).padStart(2, "0")}</b><small>{TOOLS[saved.recipe.tool].name} · {saved.recipe.values.join(" / ")}</small></span></button><button className="workshop-recipe-remove" onClick={() => removeRecipe(saved.id)} aria-label={`移除作品 ${savedRecipes.length - index}`}>×</button></article>)}
-        </div>
-      </section>
-      <footer className="workshop-note"><span>数学不是只用来计算</span><p>当规则可以被看见、触摸和改变，公式也会成为一种创作语言。</p></footer>
+    </div>
+  );
+}
+
+export function InteractiveWorkshop() {
+  const [paperCutOpen, setPaperCutOpen] = useState(false);
+  const [webglError, setWebglError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+  const openPaperCut = useCallback(() => setPaperCutOpen(true), []);
+  const closePaperCut = useCallback(() => setPaperCutOpen(false), []);
+  const reportWebglError = useCallback(() => setWebglError(true), []);
+  return (
+    <section className="workshop-world workshop-gallery" id="workshop" aria-labelledby="workshop-title">
+      {!webglError && <WorkshopGallery3D key={retryKey} openPaperCut={openPaperCut} reportError={reportWebglError} />}
+      {webglError && <div className="workshop-gallery-fallback"><div className="workshop-fallback-grid">{PANELS.map((panel, index) => <button key={index} className={panel.active ? "active" : ""} style={{ "--panel-color": panel.color } as React.CSSProperties} onClick={() => panel.active && openPaperCut()} disabled={!panel.active}>{panel.active ? "剪纸" : "即将开放"}</button>)}</div><button className="workshop-webgl-retry" onClick={() => { setWebglError(false); setRetryKey((value) => value + 1); }}>重新开启 3D 展厅</button></div>}
+      <div className="workshop-gallery-shade" aria-hidden="true" />
+      <header className="workshop-gallery-title"><span>MAKE WITH MATHEMATICS · INTERACTIVE WORKSHOP</span><h2 id="workshop-title">互动工坊</h2><p>走近墙上的圆形展板，选择一种数学手艺</p></header>
+      <button className="workshop-paper-entry" onClick={openPaperCut}><span>当前开放</span><b>进入剪纸工坊</b><i>↗</i></button>
+      <div className="workshop-gallery-hint"><i>◎</i><span>拖动视角探索空间 · 点击红色展板进入</span></div>
+      {paperCutOpen && <PaperCutPreview close={closePaperCut} />}
     </section>
   );
 }

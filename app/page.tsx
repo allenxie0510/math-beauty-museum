@@ -189,13 +189,17 @@ export default function Home() {
 
   useEffect(() => {
     const body = document.body;
-    const setGardenTheme = (active: boolean) => body.classList.toggle("garden-nav-theme", active);
     const updateTheme = () => {
       const garden = document.getElementById("garden");
-      if (!garden) return setGardenTheme(false);
-      const bounds = garden.getBoundingClientRect();
+      const workshop = document.getElementById("workshop");
       const viewportCenter = window.innerHeight * 0.5;
-      setGardenTheme(bounds.top <= viewportCenter && bounds.bottom >= viewportCenter);
+      const containsCenter = (element: HTMLElement | null) => {
+        if (!element) return false;
+        const bounds = element.getBoundingClientRect();
+        return bounds.top <= viewportCenter && bounds.bottom >= viewportCenter;
+      };
+      body.classList.toggle("garden-nav-theme", containsCenter(garden));
+      body.classList.toggle("workshop-nav-theme", containsCenter(workshop));
     };
     updateTheme();
     window.addEventListener("scroll", updateTheme, { passive: true });
@@ -203,7 +207,7 @@ export default function Home() {
     return () => {
       window.removeEventListener("scroll", updateTheme);
       window.removeEventListener("resize", updateTheme);
-      body.classList.remove("garden-nav-theme");
+      body.classList.remove("garden-nav-theme", "workshop-nav-theme");
     };
   }, []);
 

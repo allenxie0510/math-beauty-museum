@@ -7,9 +7,10 @@ Drizzle support.
 The public experience currently includes four WebGL exhibition halls, the
 mathematics garden, an interactive creative workshop, and the hometown
 mathematics museum. The workshop is implemented in
-`app/InteractiveWorkshop.tsx`; its three canvas-based tools are lazy-loaded,
-work without WebGL, keep saved recipes on the visitor's device, and export
-artwork as PNG files.
+`app/InteractiveWorkshop.tsx`: a lazy-loaded, cool-gray Three.js gallery uses
+circular wall displays as activity entrances. Its first activity is a
+pointer- and touch-driven paper-cutting canvas with selectable radial repeats
+and an animated unfold; a functional non-WebGL entrance remains available.
 
 ## Prerequisites
 

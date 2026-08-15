@@ -420,6 +420,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /background:#dfe2e7/);
   assert.match(css, /\.workshop-detail-mode\{overflow:hidden\}/);
   assert.match(css, /\.papercut-canvas-wrap canvas\{[^}]*touch-action:none/);
+  assert.match(css, /\/\* Cool-light paper-cutting studio \*\//);
+  assert.match(css, /\.papercut-shell\{border-color:rgba\(28,32,38,.14\);background:#e9ecf0;color:#171a20/);
+  assert.match(css, /\.papercut-shell>header\{border-right:1px solid rgba\(28,32,38,.1\);background:#f0f2f5\}/);
+  assert.match(css, /\.papercut-shell>aside\{border-left-color:rgba\(28,32,38,.11\);background:#e8ebef\}/);
   assert.match(page, /<MuseumLoading \/>/);
   assert.match(page, /<DeferredMathGarden/);
   assert.match(page, /rootMargin: "240px 0px"/);

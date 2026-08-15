@@ -8,102 +8,37 @@ import { observeElementSize, observeElementVisibility } from "./viewport";
 type GalleryPanel = {
   color: string;
   title: string;
-  subtitle: string;
   position: [number, number, number];
-  radius: number;
   active?: boolean;
 };
 
+const PANEL_RADIUS = .84;
 const PANELS: GalleryPanel[] = [
-  { color: "#c94838", title: "剪纸", subtitle: "PAPER CUT", position: [-1.88, 1.22, -4.05], radius: .96, active: true },
-  { color: "#c58952", title: "", subtitle: "", position: [.18, 1.22, -4.08], radius: .72 },
-  { color: "#298f98", title: "", subtitle: "", position: [2.16, 1.22, -4.08], radius: .78 },
-  { color: "#c74e77", title: "", subtitle: "", position: [4.12, 1.22, -4.08], radius: .66 },
-  { color: "#71804a", title: "", subtitle: "", position: [-1.88, -1.28, -4.08], radius: .72 },
-  { color: "#91718f", title: "", subtitle: "", position: [.18, -1.28, -4.08], radius: .82 },
-  { color: "#599d97", title: "", subtitle: "", position: [2.16, -1.28, -4.08], radius: .7 },
-  { color: "#c9a83b", title: "", subtitle: "", position: [4.12, -1.28, -4.08], radius: .8 },
+  { color: "#c94b3a", title: "剪纸", position: [-1.2, 1.25, -4.05], active: true },
+  { color: "#bc8754", title: "", position: [1.18, 1.25, -4.08] },
+  { color: "#368e97", title: "", position: [3.56, 1.25, -4.08] },
+  { color: "#727e4e", title: "", position: [-1.2, -1.25, -4.08] },
+  { color: "#92738f", title: "", position: [1.18, -1.25, -4.08] },
+  { color: "#c4a33e", title: "", position: [3.56, -1.25, -4.08] },
 ];
 
 function panelTexture(panel: GalleryPanel) {
-  const canvas = document.createElement("canvas");
-  const textureSize = 1024;
-  canvas.width = textureSize;
-  canvas.height = textureSize;
-  const context = canvas.getContext("2d");
-  if (!context) return new THREE.CanvasTexture(canvas);
-  context.fillStyle = panel.color;
-  context.fillRect(0, 0, textureSize, textureSize);
-  if (panel.active) {
-    context.save();
-    context.translate(512, 390);
-    context.globalCompositeOperation = "destination-out";
-
-    // A high-resolution, genuinely cut-out floral rosette: petals, leaves and
-    // small bridge openings read as paper craft rather than a generic icon.
-    for (let index = 0; index < 12; index += 1) {
-      const angle = index / 12 * Math.PI * 2;
-      context.save();
-      context.rotate(angle);
-      context.beginPath();
-      context.moveTo(0, -72);
-      context.bezierCurveTo(-38, -116, -32, -190, 0, -238);
-      context.bezierCurveTo(32, -190, 38, -116, 0, -72);
-      context.closePath();
-      context.fill();
-      context.beginPath();
-      context.moveTo(30, -256);
-      context.quadraticCurveTo(77, -298, 119, -261);
-      context.quadraticCurveTo(73, -230, 30, -256);
-      context.closePath();
-      context.fill();
-      context.restore();
-    }
-    for (let index = 0; index < 8; index += 1) {
-      const angle = index / 8 * Math.PI * 2 + Math.PI / 8;
-      context.save();
-      context.rotate(angle);
-      context.beginPath();
-      context.moveTo(0, -28);
-      context.quadraticCurveTo(-34, -61, 0, -106);
-      context.quadraticCurveTo(34, -61, 0, -28);
-      context.closePath();
-      context.fill();
-      context.restore();
-    }
-    context.beginPath();
-    for (let point = 0; point < 16; point += 1) {
-      const angle = point / 16 * Math.PI * 2 - Math.PI / 2;
-      const radius = point % 2 === 0 ? 56 : 25;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-      if (point === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
-    }
-    context.closePath();
-    context.fill();
-    context.restore();
-
-    context.fillStyle = "#f7f8fa";
-    context.textAlign = "center";
-    context.font = "650 94px sans-serif";
-    context.fillText(panel.title, 512, 772);
-    context.font = "700 28px sans-serif";
-    context.letterSpacing = "10px";
-    context.fillText(panel.subtitle, 512, 834);
-    context.font = "400 24px sans-serif";
-    context.letterSpacing = "6px";
-    context.fillText("折叠 · 重复 · 对称", 512, 891);
-  } else {
-    context.fillStyle = "rgba(20,23,27,.66)";
-    context.textAlign = "center";
-    context.font = "650 25px sans-serif";
-    context.letterSpacing = "8px";
-    context.fillText("COMING SOON", 512, 526);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
+  const leaves = Array.from({ length: 12 }, (_, index) => (
+    `<g transform="rotate(${index * 30} 1024 790)"><path d="M1024 676C953 610 964 493 1024 414C1084 493 1095 610 1024 676Z"/><path d="M1067 379C1134 303 1237 320 1288 389C1208 442 1127 430 1067 379Z"/></g>`
+  )).join("");
+  const innerPetals = Array.from({ length: 8 }, (_, index) => (
+    `<path transform="rotate(${index * 45 + 22.5} 1024 790)" d="M1024 752C976 701 981 623 1024 568C1067 623 1072 701 1024 752Z"/>`
+  )).join("");
+  const content = panel.active
+    ? `<g fill="#f7f8fa">${leaves}${innerPetals}<path d="M1024 708L1049 764L1110 748L1077 802L1125 842L1062 847L1055 910L1015 861L961 894L977 833L921 808L982 791Z"/><text x="1024" y="1515" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Noto Sans CJK SC',sans-serif" font-size="180" font-weight="650" letter-spacing="8">${panel.title}</text></g>`
+    : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><rect width="2048" height="2048" fill="${panel.color}"/>${content}</svg>`;
+  const texture = new THREE.TextureLoader().load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.center.set(.5, .5);
+  texture.rotation = Math.PI / 2;
   return texture;
 }
 
@@ -128,7 +63,7 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.VSMShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.12;
     renderer.domElement.setAttribute("aria-label", "浅色互动工坊虚拟展厅，墙上设有圆形互动入口");
     renderer.domElement.style.touchAction = "pan-y";
     mount.appendChild(renderer.domElement);
@@ -149,11 +84,12 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
     controls.minPolarAngle = Math.PI * .47;
     controls.maxPolarAngle = Math.PI * .53;
 
-    scene.add(new THREE.HemisphereLight("#ffffff", "#77808b", 1.7));
-    const keyLight = new THREE.DirectionalLight("#fffdf8", 2.6);
+    scene.add(new THREE.HemisphereLight("#ffffff", "#68717d", 1.35));
+    const keyLight = new THREE.DirectionalLight("#fffdf8", 3.2);
     keyLight.position.set(-4.5, 7.5, 6.5);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(2048, 2048);
+    const shadowMapSize = window.innerWidth > 1100 && renderer.capabilities.maxTextureSize >= 4096 ? 4096 : 2048;
+    keyLight.shadow.mapSize.set(shadowMapSize, shadowMapSize);
     keyLight.shadow.camera.left = -9;
     keyLight.shadow.camera.right = 9;
     keyLight.shadow.camera.top = 6;
@@ -163,21 +99,21 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
     keyLight.shadow.radius = 3;
     scene.add(keyLight);
 
-    const galleryFill = new THREE.RectAreaLight("#d9e8f5", 7.5, 6.5, 4.2);
+    const galleryFill = new THREE.RectAreaLight("#d9e8f5", 10.5, 6.5, 4.2);
     galleryFill.position.set(4.2, .7, 3.5);
     galleryFill.lookAt(1.2, 0, -4.2);
     scene.add(galleryFill);
-    const warmFill = new THREE.RectAreaLight("#fff8ed", 5.8, 4.8, 3.4);
+    const warmFill = new THREE.RectAreaLight("#fff8ed", 7.8, 4.8, 3.4);
     warmFill.position.set(-3.8, 1.2, 2.8);
     warmFill.lookAt(-.8, .4, -4.2);
     scene.add(warmFill);
 
-    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: "#e7e9ec", roughness: .9, metalness: 0, clearcoat: .02 });
+    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: "#e5e7ea", roughness: .82, metalness: 0, clearcoat: .035, clearcoatRoughness: .9 });
     const backWall = new THREE.Mesh(new THREE.PlaneGeometry(18.2, 8.2), wallMaterial);
     backWall.position.set(1.12, 0, -4.5);
     backWall.receiveShadow = true;
     scene.add(backWall);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(22, 20), new THREE.MeshPhysicalMaterial({ color: "#c9ced4", roughness: .54, metalness: 0, clearcoat: .08, clearcoatRoughness: .72 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(22, 20), new THREE.MeshPhysicalMaterial({ color: "#bfc5cc", roughness: .44, metalness: 0, clearcoat: .16, clearcoatRoughness: .66 }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(1.1, -3.18, -.4);
     floor.receiveShadow = true;
@@ -187,36 +123,17 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
     ceiling.position.set(1.1, 3.75, -.4);
     scene.add(ceiling);
 
-    // Subtle architectural wall bays replace the former black grid. Their
-    // shallow relief catches the real lights without drawing attention away.
-    const bayXs = [-1.88, .18, 2.16, 4.12];
-    bayXs.forEach((x, index) => {
-      const bay = new THREE.Mesh(
-        new THREE.BoxGeometry(1.78, 5.65, .13),
-        new THREE.MeshPhysicalMaterial({ color: index % 2 ? "#eff0f2" : "#f4f5f6", roughness: .88, clearcoat: .025 }),
-      );
-      bay.position.set(x, -.02, -4.39);
-      bay.receiveShadow = true;
-      scene.add(bay);
-      const cove = new THREE.Mesh(
-        new THREE.BoxGeometry(1.28, .045, .08),
-        new THREE.MeshStandardMaterial({ color: "#f8f9fa", emissive: "#f8f9fa", emissiveIntensity: .4, roughness: .82 }),
-      );
-      cove.position.set(x, 3.04, -4.16);
-      scene.add(cove);
-    });
-
-    const activeSpot = new THREE.SpotLight("#fff8ef", 52, 16, .31, .82, 2);
-    activeSpot.position.set(-2.65, 4.1, 3.1);
-    activeSpot.target.position.set(-1.88, .7, -4.05);
+    const activeSpot = new THREE.SpotLight("#fff8ef", 68, 16, .31, .82, 2);
+    activeSpot.position.set(-2.2, 4.2, 3.1);
+    activeSpot.target.position.set(-1.2, .62, -4.05);
     activeSpot.castShadow = true;
     activeSpot.shadow.mapSize.set(2048, 2048);
     activeSpot.shadow.bias = -.00025;
     activeSpot.shadow.normalBias = .02;
     activeSpot.shadow.radius = 4;
     scene.add(activeSpot, activeSpot.target);
-    for (const [x, color] of [[.18, "#f5f6f7"], [2.16, "#eef7f7"], [4.12, "#fff7ed"]] as Array<[number, string]>) {
-      const spot = new THREE.SpotLight(color, 22, 15, .27, .86, 2);
+    for (const [x, color] of [[1.18, "#eef7f7"], [3.56, "#fff7ed"]] as Array<[number, string]>) {
+      const spot = new THREE.SpotLight(color, 31, 15, .29, .88, 2);
       spot.position.set(x - .35, 4.2, 2.1);
       spot.target.position.set(x, .25, -4.05);
       scene.add(spot, spot.target);
@@ -229,35 +146,21 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
       const group = new THREE.Group();
       group.position.set(...panel.position);
       group.userData.phase = index * .71;
-      const mountingDisk = new THREE.Mesh(
-        new THREE.CylinderGeometry(panel.radius * 1.075, panel.radius * 1.075, .12, 96),
-        new THREE.MeshPhysicalMaterial({ color: "#c9cdd2", roughness: .36, metalness: .3 }),
-      );
-      mountingDisk.rotation.x = Math.PI / 2;
-      mountingDisk.position.z = -.055;
-      mountingDisk.castShadow = true;
-      mountingDisk.receiveShadow = true;
-      group.add(mountingDisk);
-      const depth = new THREE.Mesh(new THREE.CylinderGeometry(panel.radius, panel.radius, .24, 96), new THREE.MeshPhysicalMaterial({ color: "#dadde0", roughness: .3, metalness: .28 }));
-      depth.rotation.x = Math.PI / 2;
-      depth.castShadow = true;
-      group.add(depth);
       const texture = panelTexture(panel);
       textures.push(texture);
-      const face = new THREE.Mesh(new THREE.CircleGeometry(panel.radius * .96, 96), new THREE.MeshPhysicalMaterial({ map: texture, roughness: .68, metalness: 0, clearcoat: .06, clearcoatRoughness: .68, transparent: true, alphaTest: .08 }));
-      face.position.z = .126;
-      face.castShadow = true;
-      face.userData.active = !!panel.active;
-      face.userData.panelIndex = index;
-      group.add(face);
-      const rim = new THREE.Mesh(
-        new THREE.TorusGeometry(panel.radius * .985, .035, 16, 96),
-        new THREE.MeshPhysicalMaterial({ color: "#eceef0", roughness: .27, metalness: .48 }),
+      const sideMaterial = new THREE.MeshPhysicalMaterial({ color: panel.color, roughness: .48, metalness: .04, clearcoat: .08, clearcoatRoughness: .72 });
+      const faceMaterial = new THREE.MeshPhysicalMaterial({ color: "#ffffff", map: texture, roughness: .48, metalness: .04, clearcoat: .08, clearcoatRoughness: .72 });
+      const disk = new THREE.Mesh(
+        new THREE.CylinderGeometry(PANEL_RADIUS, PANEL_RADIUS, .2, 128, 1, false),
+        [sideMaterial, faceMaterial, sideMaterial],
       );
-      rim.position.z = .143;
-      rim.castShadow = true;
-      group.add(rim);
-      if (panel.active) hitTargets.push(face);
+      disk.rotation.x = Math.PI / 2;
+      disk.castShadow = true;
+      disk.receiveShadow = true;
+      disk.userData.active = !!panel.active;
+      disk.userData.panelIndex = index;
+      group.add(disk);
+      if (panel.active) hitTargets.push(disk);
       panelGroups.push(group);
       scene.add(group);
     });
@@ -311,8 +214,8 @@ function WorkshopGallery3D({ openPaperCut, reportError }: { openPaperCut: () => 
         const progress = Math.min(1, (performance.now() - activeFlip.startedAt) / 860);
         const eased = progress < .5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
         activeFlip.group.rotation.y = eased * Math.PI * 2;
-        activeFlip.group.position.z = Math.sin(progress * Math.PI) * .48;
-        const pulse = 1 + Math.sin(progress * Math.PI) * .055;
+        activeFlip.group.position.z = Math.sin(progress * Math.PI) * .08;
+        const pulse = 1 + Math.sin(progress * Math.PI) * .025;
         activeFlip.group.scale.setScalar(pulse);
         if (progress >= 1) {
           activeFlip.group.rotation.y = 0;

@@ -399,6 +399,18 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /className="workshop-gallery-webgl"/);
   assert.match(workshop, /new THREE\.CircleGeometry/);
   assert.match(workshop, /new THREE\.CylinderGeometry/);
+  assert.match(workshop, /new THREE\.TorusGeometry/);
+  assert.match(workshop, /THREE\.VSMShadowMap/);
+  assert.match(workshop, /THREE\.ACESFilmicToneMapping/);
+  assert.match(workshop, /keyLight\.shadow\.mapSize\.set\(2048, 2048\)/);
+  assert.match(workshop, /new THREE\.RectAreaLight/);
+  assert.match(workshop, /new THREE\.SpotLight/);
+  assert.match(workshop, /globalCompositeOperation = "destination-out"/);
+  assert.match(workshop, /context\.bezierCurveTo/);
+  assert.match(workshop, /transparent: true, alphaTest: \.08/);
+  assert.match(workshop, /activeFlip/);
+  assert.match(workshop, /eased \* Math\.PI \* 2/);
+  assert.doesNotMatch(workshop, /gridMaterial/);
   assert.match(workshop, /title: "剪纸"/);
   assert.match(workshop, /即将开放/);
   assert.match(workshop, /webglcontextlost/);
@@ -429,7 +441,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(workshop, /旋轮线画笔|对称印花|波形织布机|type="range"/);
   assert.match(css, /\.workshop-world\.workshop-gallery\{height:100svh;min-height:620px;padding:0;overflow:hidden/);
-  assert.match(css, /background:#dfe2e7/);
+  assert.match(css, /background:#d9dde2/);
   assert.match(css, /\.workshop-detail-mode\{overflow:hidden\}/);
   assert.match(css, /\.papercut-canvas-wrap canvas\{[^}]*touch-action:none/);
   assert.match(css, /\/\* Cool-light paper-cutting studio \*\//);
@@ -439,6 +451,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\/\* Paper scale, hierarchy and unfolded rotation \*\//);
   assert.match(css, /\.papercut-draw-hint\{top:92px/);
   assert.match(css, /\.papercut-shell>aside>\.papercut-repeat-options b\{font:800 36px\/1/);
+  assert.match(css, /\.papercut-shell>aside>span\{color:#20242a;font-weight:760\}/);
+  assert.match(css, /\.papercut-shell>aside>\.papercut-repeat-options small\{font-weight:400\}/);
+  assert.match(css, /\.papercut-shell>aside>\.papercut-repeat-options button\.active\{border-color:#171a20;background:#171a20;color:#fff/);
   assert.match(css, /\.papercut-preview-stage\.unfolded canvas\{cursor:grab\}/);
   assert.match(page, /<MuseumLoading \/>/);
   assert.match(page, /<DeferredMathGarden/);

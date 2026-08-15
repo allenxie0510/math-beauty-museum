@@ -464,8 +464,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.doesNotMatch(workshop, /旋轮线画笔|对称印花|波形织布机|type="range"/);
   assert.match(css, /\.workshop-world\.workshop-gallery\{height:100svh;min-height:620px;padding:0;overflow:hidden/);
   assert.match(css, /background:#d9dde2/);
-  assert.match(css, /\.workshop-paper-entry span\{grid-column:1;color:#747b84;font-size:8px;font-weight:450/);
-  assert.match(css, /\.workshop-paper-entry b\{font-size:15px\}/);
+  assert.match(css, /\.workshop-paper-entry\{[^}]*grid-template-columns:1fr auto 1fr/);
+  assert.match(css, /\.workshop-paper-entry span\{grid-column:2;grid-row:1;color:#747b84;font-size:8px;font-weight:450/);
+  assert.match(css, /\.workshop-paper-entry b\{grid-column:2;grid-row:2;font-size:15px\}/);
+  assert.match(css, /\.workshop-paper-entry i\{grid-column:3;grid-row:1\/3;justify-self:end/);
   assert.match(css, /\.workshop-nav-theme \.progress-button span\{color:#252a31;background:radial-gradient/);
   assert.match(css, /conic-gradient\(#69717b 0 var\(--progress-value\),#cbd0d6 var\(--progress-value\) 100%\)/);
   assert.match(css, /\.garden-nav-theme \.progress-button span\{color:#173341;background:radial-gradient/);

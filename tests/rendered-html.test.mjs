@@ -408,6 +408,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /context\.translate\(geometry\.centerX, geometry\.centerY\)/);
   assert.match(workshop, /function carveCuts/);
   assert.match(workshop, /globalCompositeOperation = "destination-out"/);
+  assert.match(workshop, /getCoalescedEvents/);
+  assert.match(workshop, /已剪开 · 可以继续剪/);
   assert.match(workshop, /可从纸外向内剪入/);
   assert.match(workshop, /drawUnfoldedPaper/);
   assert.match(workshop, /\[4, 6, 8, 12\]/);

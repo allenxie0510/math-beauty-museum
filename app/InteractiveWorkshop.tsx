@@ -294,6 +294,7 @@ function preparePaperCanvas(canvas: HTMLCanvasElement) {
 function traceCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: number, height: number, editGeometry: ReturnType<typeof paperGeometry>, finalRadius: number, lineWidth: number) {
   context.lineCap = "round";
   context.lineJoin = "round";
+  context.setLineDash([]);
   context.lineWidth = lineWidth;
   cuts.forEach((stroke) => {
     if (!stroke.length) return;
@@ -312,10 +313,7 @@ function traceCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: 
 }
 
 function carveCuts(context: CanvasRenderingContext2D, cuts: CutStroke[], width: number, height: number, editGeometry: ReturnType<typeof paperGeometry>, finalRadius: number) {
-  const cutWidth = Math.max(15, Math.min(width, height) * .036);
-  context.globalCompositeOperation = "source-over";
-  context.strokeStyle = "rgba(82,22,15,.5)";
-  traceCuts(context, cuts, width, height, editGeometry, finalRadius, cutWidth + 6);
+  const cutWidth = Math.max(24, Math.min(54, Math.min(width, height) * .052));
   context.globalCompositeOperation = "destination-out";
   context.strokeStyle = "#000";
   traceCuts(context, cuts, width, height, editGeometry, finalRadius, cutWidth);
@@ -391,7 +389,7 @@ function PaperCutPreview({ close }: { close: () => void }) {
   const [cuts, setCuts] = useState<CutStroke[]>([]);
   const [stage, setStage] = useState<PaperCutStage>("cutting");
   const [unfoldProgress, setUnfoldProgress] = useState(0);
-  const hasCuts = cuts.some((stroke) => stroke.length > 0);
+  const hasCuts = cuts.some((stroke) => stroke.length > 1);
 
   useEffect(() => {
     document.body.classList.add("workshop-detail-mode");
@@ -432,15 +430,15 @@ function PaperCutPreview({ close }: { close: () => void }) {
     return () => observer.disconnect();
   }, [cuts, repeat, stage, unfoldProgress]);
 
-  const pointFromEvent = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    return { x: (event.clientX - bounds.left) / bounds.width, y: (event.clientY - bounds.top) / bounds.height };
+  const pointFromClient = (canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
+    const bounds = canvas.getBoundingClientRect();
+    return { x: (clientX - bounds.left) / bounds.width, y: (clientY - bounds.top) / bounds.height };
   };
   const beginCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (stage !== "cutting") return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
-    const point = pointFromEvent(event);
+    const point = pointFromClient(event.currentTarget, event.clientX, event.clientY);
     event.currentTarget.setPointerCapture(event.pointerId);
     activePointer.current = event.pointerId;
     setCuts((current) => [...current, [point]]);
@@ -448,14 +446,17 @@ function PaperCutPreview({ close }: { close: () => void }) {
   const continueCut = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (activePointer.current !== event.pointerId || stage !== "cutting") return;
     event.preventDefault();
-    const point = pointFromEvent(event);
+    const nativeEvents = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
+    const points = nativeEvents.map((sample) => pointFromClient(event.currentTarget, sample.clientX, sample.clientY));
     setCuts((current) => {
       if (!current.length) return current;
       const next = current.slice();
       const stroke = [...next[next.length - 1]];
-      const previous = stroke[stroke.length - 1];
-      if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < .004) return current;
-      stroke.push(point);
+      points.forEach((point) => {
+        const previous = stroke[stroke.length - 1];
+        if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) >= .002) stroke.push(point);
+      });
+      if (stroke.length === next[next.length - 1].length) return current;
       next[next.length - 1] = stroke;
       return next;
     });
@@ -484,6 +485,7 @@ function PaperCutPreview({ close }: { close: () => void }) {
             <div className="papercut-stage-label"><span>{stage === "cutting" ? "FOLDED PAPER · 折叠状态" : "UNFOLDING · 展开状态"}</span><b>{stage === "cutting" ? `1 / ${repeat} 片` : `${repeat} 次重复`}</b></div>
             <canvas ref={canvasRef} onPointerDown={beginCut} onPointerMove={continueCut} onPointerUp={endCut} onPointerCancel={endCut} onLostPointerCapture={endCut} aria-label={stage === "cutting" ? "剪纸画布，用鼠标或手指划过红色纸张实时剪裁" : "展开后的完整剪纸图案"} />
             {!hasCuts && stage === "cutting" && <div className="papercut-draw-hint"><i>✂</i><span>按住并划过红纸<br />可从纸外向内剪入</span></div>}
+            {hasCuts && stage === "cutting" && <div className="papercut-cut-confirmation" role="status"><i />已剪开 · 可以继续剪</div>}
             {stage === "unfolding" && <div className="papercut-unfold-status" role="status">纸张正在一层层展开…</div>}
           </div>
         </section>

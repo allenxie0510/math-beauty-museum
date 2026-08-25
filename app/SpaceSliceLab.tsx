@@ -229,14 +229,32 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       result.contours.forEach((contour) => {
         const points = contour.closed && contour.points3D.length > 2 ? [...contour.points3D, contour.points3D[0]] : contour.points3D;
         const nudged = points.map((point) => point.clone().addScaledVector(n, .006));
-        const glow = new THREE.Line(new THREE.BufferGeometry().setFromPoints(nudged), new THREE.LineBasicMaterial({ color: "#0b6e88", transparent: true, opacity: isReveal ? .3 : .14 }));
-        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(nudged), new THREE.LineBasicMaterial({ color: isReveal ? "#0e5f78" : "#278da5", transparent: true, opacity: isReveal ? 1 : .72 }));
-        glow.scale.setScalar(1.006);
-        glow.renderOrder = 6; line.renderOrder = 7;
-        sectionRoot.add(glow, line);
-        if (isReveal && contour.closed && contour.points2D.length > 2 && currentShape !== "cone") {
+        const curve = new THREE.CurvePath<THREE.Vector3>();
+        for (let index = 1; index < nudged.length; index += 1) curve.add(new THREE.LineCurve3(nudged[index - 1], nudged[index]));
+        if (curve.curves.length) {
+          const stroke = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, Math.max(16, curve.curves.length * 3), isReveal ? .026 : .016, 7, false),
+            new THREE.MeshBasicMaterial({
+              color: isReveal ? "#064d63" : "#137b94",
+              transparent: true,
+              opacity: isReveal ? .98 : .68,
+              depthTest: false,
+              depthWrite: false,
+            }),
+          );
+          stroke.renderOrder = 7;
+          sectionRoot.add(stroke);
+        }
+        if (contour.closed && contour.points2D.length > 2) {
           const shape2D = new THREE.Shape(contour.points2D);
-          const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape2D), new THREE.MeshBasicMaterial({ color: "#257f97", transparent: true, opacity: .66, side: THREE.DoubleSide, depthWrite: false }));
+          const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape2D), new THREE.MeshBasicMaterial({
+            color: isReveal ? "#176b82" : "#2e91a7",
+            transparent: true,
+            opacity: isReveal ? .72 : .24,
+            side: THREE.DoubleSide,
+            depthTest: false,
+            depthWrite: false,
+          }));
           fill.position.copy(origin).addScaledVector(n, .003);
           const matrix = new THREE.Matrix4().makeBasis(u, v, n);
           fill.quaternion.setFromRotationMatrix(matrix);
@@ -407,11 +425,13 @@ function SectionView({ result, revealing }: { result: SectionResult | null; reve
     const minX = Math.min(...all.map((point) => point.x)), maxX = Math.max(...all.map((point) => point.x));
     const minY = Math.min(...all.map((point) => point.y)), maxY = Math.max(...all.map((point) => point.y));
     const width = Math.max(.2, maxX - minX), height = Math.max(.2, maxY - minY);
-    const padding = Math.max(width, height) * .18;
-    const viewBox = `${minX - padding} ${-maxY - padding} ${width + padding * 2} ${height + padding * 2}`;
+    const extent = Math.max(width, height);
+    const size = extent * 1.46;
+    const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2;
+    const viewBox = `${centerX - size / 2} ${-centerY - size / 2} ${size} ${size}`;
     const paths = result.contours.map((contour) => {
       const points = contour.points2D.map((point) => `${point.x.toFixed(4)},${(-point.y).toFixed(4)}`).join(" L ");
-      return `M ${points}${contour.closed ? " Z" : ""}`;
+      return { d: `M ${points}${contour.closed ? " Z" : ""}`, closed: contour.closed };
     });
     return { viewBox, paths };
   }, [result]);
@@ -419,7 +439,7 @@ function SectionView({ result, revealing }: { result: SectionResult | null; reve
     <div className={`section-view ${result ? "has-result" : ""} ${revealing ? "is-revealing" : ""}`}>
       <div className="section-view-top"><span>截面镜</span><small>SECTION VIEW</small></div>
       <div className="section-view-canvas">
-        {!drawing ? <span className="section-question">?</span> : <svg viewBox={drawing.viewBox} role="img" aria-label={`二维截面：${result?.classification.label}`} preserveAspectRatio="xMidYMid meet">{drawing.paths.map((path, index) => <path key={index} d={path} className="section-path" pathLength="1" />)}</svg>}
+        {!drawing ? <span className="section-question">?</span> : <svg viewBox={drawing.viewBox} role="img" aria-label={`二维截面：${result?.classification.label}`} preserveAspectRatio="xMidYMid meet">{drawing.paths.map((path, index) => <path key={index} d={path.d} className={`section-path ${path.closed ? "closed" : "open"}`} pathLength="1" />)}</svg>}
       </div>
       <strong>{result?.classification.label ?? "等待切开"}</strong>
     </div>

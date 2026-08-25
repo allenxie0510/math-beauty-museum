@@ -113,9 +113,7 @@ function stitchSegments(segments: Segment[]) {
   const visited = new Set<string>();
   const paths: Array<{ points: THREE.Vector3[]; closed: boolean }> = [];
   const edgeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`;
-  edges.forEach(([a, b], initialEdge) => {
-    if (visited.has(initialEdge)) return;
-    const start = (adjacency.get(a)?.size ?? 0) === 1 ? a : (adjacency.get(b)?.size ?? 0) === 1 ? b : a;
+  const trace = (start: string) => {
     const keys = [start];
     let previous = "";
     let current = start;
@@ -132,6 +130,15 @@ function stitchSegments(segments: Segment[]) {
       keys.push(current);
     }
     if (keys.length >= 2) paths.push({ points: keys.map((key) => points.get(key)!.clone()), closed });
+  };
+
+  // Open curves must start at a degree-one endpoint. Starting in the middle
+  // consumes half the chain and leaves the other half as many short fragments.
+  adjacency.forEach((neighbors, point) => {
+    if (neighbors.size === 1 && [...neighbors].some((neighbor) => !visited.has(edgeKey(point, neighbor)))) trace(point);
+  });
+  edges.forEach(([a], edge) => {
+    if (!visited.has(edge)) trace(a);
   });
   return paths;
 }

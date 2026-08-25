@@ -330,3 +330,7 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
 @media(pointer:coarse){.slice-quick-controls button{width:44px;height:44px}.space-slice-shape-tabs button{min-height:58px}.slice-reset,.slice-reveal-button{min-height:46px}}
 /* Stronger contrast for revealed cross-sections. */
 .section-path{fill:rgba(23,102,125,.28);stroke:#105f78;stroke-width:.052}
+/* Square section mirror with complete, correctly filled contours. */
+.section-view-canvas{width:100%;height:auto;aspect-ratio:1}
+.section-path.open{fill:none}
+@media(max-width:620px){.section-view-canvas{height:auto}}

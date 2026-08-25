@@ -229,14 +229,14 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       result.contours.forEach((contour) => {
         const points = contour.closed && contour.points3D.length > 2 ? [...contour.points3D, contour.points3D[0]] : contour.points3D;
         const nudged = points.map((point) => point.clone().addScaledVector(n, .006));
-        const glow = new THREE.Line(new THREE.BufferGeometry().setFromPoints(nudged), new THREE.LineBasicMaterial({ color: "#6ce9ff", transparent: true, opacity: isReveal ? .34 : .12 }));
-        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(nudged), new THREE.LineBasicMaterial({ color: isReveal ? "#ffffff" : "#43caef", transparent: true, opacity: isReveal ? 1 : .5 }));
+        const glow = new THREE.Line(new THREE.BufferGeometry().setFromPoints(nudged), new THREE.LineBasicMaterial({ color: "#0b6e88", transparent: true, opacity: isReveal ? .3 : .14 }));
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(nudged), new THREE.LineBasicMaterial({ color: isReveal ? "#0e5f78" : "#278da5", transparent: true, opacity: isReveal ? 1 : .72 }));
         glow.scale.setScalar(1.006);
         glow.renderOrder = 6; line.renderOrder = 7;
         sectionRoot.add(glow, line);
         if (isReveal && contour.closed && contour.points2D.length > 2 && currentShape !== "cone") {
           const shape2D = new THREE.Shape(contour.points2D);
-          const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape2D), new THREE.MeshBasicMaterial({ color: "#8ceaff", transparent: true, opacity: .54, side: THREE.DoubleSide, depthWrite: false }));
+          const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape2D), new THREE.MeshBasicMaterial({ color: "#257f97", transparent: true, opacity: .66, side: THREE.DoubleSide, depthWrite: false }));
           fill.position.copy(origin).addScaledVector(n, .003);
           const matrix = new THREE.Matrix4().makeBasis(u, v, n);
           fill.quaternion.setFromRotationMatrix(matrix);

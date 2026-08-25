@@ -227,30 +227,15 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       clearGroup(sectionRoot);
       const { n, u, v, origin } = planeBasis(result.normal, result.offset);
       result.contours.forEach((contour) => {
-        const points = contour.closed && contour.points3D.length > 2 ? [...contour.points3D, contour.points3D[0]] : contour.points3D;
-        const nudged = points.map((point) => point.clone().addScaledVector(n, .006));
-        const curve = new THREE.CurvePath<THREE.Vector3>();
-        for (let index = 1; index < nudged.length; index += 1) curve.add(new THREE.LineCurve3(nudged[index - 1], nudged[index]));
-        if (curve.curves.length) {
-          const stroke = new THREE.Mesh(
-            new THREE.TubeGeometry(curve, Math.max(16, curve.curves.length * 3), isReveal ? .026 : .016, 7, false),
-            new THREE.MeshBasicMaterial({
-              color: isReveal ? "#064d63" : "#137b94",
-              transparent: true,
-              opacity: isReveal ? .98 : .68,
-              depthTest: false,
-              depthWrite: false,
-            }),
-          );
-          stroke.renderOrder = 7;
-          sectionRoot.add(stroke);
-        }
-        if (contour.closed && contour.points2D.length > 2) {
+        if (contour.points2D.length > 2) {
+          // Open conics come from the finite double cone's uncapped side mesh.
+          // ShapeGeometry closes their endpoints with the corresponding base
+          // chord, which is the actual filled section of the finite solid.
           const shape2D = new THREE.Shape(contour.points2D);
           const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape2D), new THREE.MeshBasicMaterial({
-            color: isReveal ? "#176b82" : "#2e91a7",
+            color: isReveal ? "#12677f" : "#318fa4",
             transparent: true,
-            opacity: isReveal ? .72 : .24,
+            opacity: isReveal ? .78 : .3,
             side: THREE.DoubleSide,
             depthTest: false,
             depthWrite: false,
@@ -431,7 +416,7 @@ function SectionView({ result, revealing }: { result: SectionResult | null; reve
     const viewBox = `${centerX - size / 2} ${-centerY - size / 2} ${size} ${size}`;
     const paths = result.contours.map((contour) => {
       const points = contour.points2D.map((point) => `${point.x.toFixed(4)},${(-point.y).toFixed(4)}`).join(" L ");
-      return { d: `M ${points}${contour.closed ? " Z" : ""}`, closed: contour.closed };
+      return { d: `M ${points} Z`, closed: contour.closed };
     });
     return { viewBox, paths };
   }, [result]);

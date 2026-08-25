@@ -332,5 +332,5 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
 .section-path{fill:rgba(23,102,125,.28);stroke:#105f78;stroke-width:.052}
 /* Square section mirror with complete, correctly filled contours. */
 .section-view-canvas{width:100%;height:auto;aspect-ratio:1}
-.section-path.open{fill:none}
+.section-path,.section-path.open{fill:rgba(18,103,127,.38);stroke:none}
 @media(max-width:620px){.section-view-canvas{height:auto}}

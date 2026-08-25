@@ -417,8 +417,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(spaceSlice, /空间切片实验室/);
   assert.match(spaceSlice, /new THREE\.PlaneGeometry/);
   assert.match(spaceSlice, /new THREE\.TorusGeometry/);
-  assert.match(spaceSlice, /new THREE\.TubeGeometry/);
-  assert.match(spaceSlice, /opacity: isReveal \? \.72 : \.24/);
+  assert.doesNotMatch(spaceSlice, /new THREE\.TubeGeometry/);
+  assert.match(spaceSlice, /opacity: isReveal \? \.78 : \.3/);
   assert.match(spaceSlice, /path\.closed \? "closed" : "open"/);
   assert.match(spaceSlice, /role="tablist"/);
   assert.match(spaceSlice, /切开看看/);
@@ -429,7 +429,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(sliceGeometry, /type: "parabola"/);
   assert.match(sliceGeometry, /type: "hyperbola"/);
   assert.match(css, /\.section-view-canvas\{width:100%;height:auto;aspect-ratio:1\}/);
-  assert.match(css, /\.section-path\.open\{fill:none\}/);
+  assert.match(css, /\.section-path,\.section-path\.open\{fill:rgba\(18,103,127,\.38\);stroke:none\}/);
   assert.match(css, /\.space-slice-lab/);
   assert.match(workshop, /new THREE\.TextureLoader\(\)\.load\(`data:image\/svg\+xml/);
   assert.match(workshop, /width="2048" height="2048"/);

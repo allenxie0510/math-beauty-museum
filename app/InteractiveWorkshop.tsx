@@ -4,18 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeElementSize, observeElementVisibility } from "./viewport";
+import { SpaceSliceLab } from "./SpaceSliceLab";
 
 type GalleryPanel = {
   color: string;
   title: string;
   position: [number, number, number];
-  active?: boolean;
+  id?: "paper" | "slice";
 };
 
 const PANEL_RADIUS = .84;
 const PANELS: GalleryPanel[] = [
-  { color: "#c94b3a", title: "剪纸", position: [-1.2, 1.25, -4.05], active: true },
-  { color: "#bc8754", title: "", position: [1.18, 1.25, -4.08] },
+  { color: "#c94b3a", title: "剪纸", position: [-1.2, 1.25, -4.05], id: "paper" },
+  { color: "#6aaeba", title: "空间切片", position: [1.18, 1.25, -4.08], id: "slice" },
   { color: "#368e97", title: "", position: [3.56, 1.25, -4.08] },
   { color: "#727e4e", title: "", position: [-1.2, -1.25, -4.08] },
   { color: "#92738f", title: "", position: [1.18, -1.25, -4.08] },
@@ -29,9 +30,9 @@ function panelTexture(panel: GalleryPanel) {
   const innerPetals = Array.from({ length: 8 }, (_, index) => (
     `<path transform="rotate(${index * 45 + 22.5} 1024 790)" d="M1024 752C976 701 981 623 1024 568C1067 623 1072 701 1024 752Z"/>`
   )).join("");
-  const content = panel.active
-    ? `<g fill="#f7f8fa">${leaves}${innerPetals}<path d="M1024 708L1049 764L1110 748L1077 802L1125 842L1062 847L1055 910L1015 861L961 894L977 833L921 808L982 791Z"/><text x="1024" y="1515" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Noto Sans CJK SC',sans-serif" font-size="180" font-weight="650" letter-spacing="8">${panel.title}</text></g>`
-    : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
+  const paperContent = `<g fill="#f7f8fa">${leaves}${innerPetals}<path d="M1024 708L1049 764L1110 748L1077 802L1125 842L1062 847L1055 910L1015 861L961 894L977 833L921 808L982 791Z"/><text x="1024" y="1515" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Noto Sans CJK SC',sans-serif" font-size="180" font-weight="650" letter-spacing="8">${panel.title}</text></g>`;
+  const sliceContent = `<g fill="none" stroke="#f7f8fa" stroke-linejoin="round"><path d="M640 650L1025 430L1408 650L1024 873Z" stroke-width="34"/><path d="M640 650V1085L1024 1312V873M1408 650V1085L1024 1312" stroke-width="34"/><path d="M510 946L1535 672L1535 850L510 1124Z" fill="#d9fbff" fill-opacity=".5" stroke-width="24"/><circle cx="1024" cy="900" r="44" fill="#f7f8fa" stroke-width="0"/><text x="1024" y="1570" text-anchor="middle" fill="#f7f8fa" stroke="none" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Noto Sans CJK SC',sans-serif" font-size="152" font-weight="650" letter-spacing="4">${panel.title}</text></g>`;
+  const content = panel.id === "paper" ? paperContent : panel.id === "slice" ? sliceContent : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><rect width="2048" height="2048" fill="${panel.color}"/>${content}</svg>`;
   const texture = new THREE.TextureLoader().load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -42,16 +43,19 @@ function panelTexture(panel: GalleryPanel) {
   return texture;
 }
 
-function WorkshopGallery3D({ openPaperCut, paperCutOpen, reportError }: { openPaperCut: () => void; paperCutOpen: boolean; reportError: () => void }) {
+function WorkshopGallery3D({ openDetail, detailOpen, reportError }: { openDetail: (id: "paper" | "slice") => void; detailOpen: "paper" | "slice" | null; reportError: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const openRef = useRef(openPaperCut);
-  const paperCutOpenRef = useRef(paperCutOpen);
-  const returnRequestRef = useRef(0);
-  useEffect(() => { openRef.current = openPaperCut; }, [openPaperCut]);
+  const openRef = useRef(openDetail);
+  const detailOpenRef = useRef(detailOpen);
+  const returnRequestRef = useRef({ version: 0, panelIndex: 0 });
+  useEffect(() => { openRef.current = openDetail; }, [openDetail]);
   useEffect(() => {
-    if (paperCutOpenRef.current && !paperCutOpen) returnRequestRef.current += 1;
-    paperCutOpenRef.current = paperCutOpen;
-  }, [paperCutOpen]);
+    if (detailOpenRef.current && !detailOpen) {
+      const panelIndex = Math.max(0, PANELS.findIndex((panel) => panel.id === detailOpenRef.current));
+      returnRequestRef.current = { version: returnRequestRef.current.version + 1, panelIndex };
+    }
+    detailOpenRef.current = detailOpen;
+  }, [detailOpen]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -164,10 +168,11 @@ function WorkshopGallery3D({ openPaperCut, paperCutOpen, reportError }: { openPa
       disk.rotation.x = Math.PI / 2;
       disk.castShadow = true;
       disk.receiveShadow = true;
-      disk.userData.active = !!panel.active;
+      disk.userData.active = !!panel.id;
+      disk.userData.detailId = panel.id;
       disk.userData.panelIndex = index;
       group.add(disk);
-      if (panel.active) hitTargets.push(disk);
+      if (panel.id) hitTargets.push(disk);
       panelGroups.push(group);
       scene.add(group);
     });
@@ -187,18 +192,19 @@ function WorkshopGallery3D({ openPaperCut, paperCutOpen, reportError }: { openPa
       const hits = updatePointer(event);
       renderer.domElement.style.cursor = hits.length ? "pointer" : "grab";
     };
-    let activeFlip: { group: THREE.Group; startedAt: number } | null = null;
+    let activeFlip: { group: THREE.Group; panelIndex: number; startedAt: number } | null = null;
     let returnAnimation: { group: THREE.Group; startedAt: number; fromZ: number; fromScale: number } | null = null;
-    let handledReturnRequest = returnRequestRef.current;
-    const beginPanelFlip = () => {
+    let handledReturnRequest = returnRequestRef.current.version;
+    const beginPanelFlip = (panelIndex: number) => {
       if (activeFlip) return;
-      activeFlip = { group: panelGroups[0], startedAt: performance.now() };
+      activeFlip = { group: panelGroups[panelIndex], panelIndex, startedAt: performance.now() };
       renderer.domElement.style.cursor = "wait";
     };
     const handlePointerUp = (event: PointerEvent) => {
       const tolerance = event.pointerType === "touch" ? 18 : 7;
       if (Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) > tolerance) return;
-      if (updatePointer(event).some((hit) => hit.object.userData.active)) beginPanelFlip();
+      const hit = updatePointer(event).find((entry) => entry.object.userData.active);
+      if (hit) beginPanelFlip(Number(hit.object.userData.panelIndex));
     };
     renderer.domElement.addEventListener("pointerdown", handlePointerDown);
     renderer.domElement.addEventListener("pointermove", handlePointerMove);
@@ -215,9 +221,9 @@ function WorkshopGallery3D({ openPaperCut, paperCutOpen, reportError }: { openPa
       if (!visible) return;
       timer.update(timestamp);
       const elapsed = timer.getElapsed();
-      if (handledReturnRequest !== returnRequestRef.current) {
-        handledReturnRequest = returnRequestRef.current;
-        const group = panelGroups[0];
+      if (handledReturnRequest !== returnRequestRef.current.version) {
+        handledReturnRequest = returnRequestRef.current.version;
+        const group = panelGroups[returnRequestRef.current.panelIndex];
         returnAnimation = { group, startedAt: performance.now(), fromZ: group.position.z, fromScale: group.scale.x };
       }
       panelGroups.forEach((group, index) => {
@@ -233,12 +239,14 @@ function WorkshopGallery3D({ openPaperCut, paperCutOpen, reportError }: { openPa
         const pulse = 1 + Math.sin(progress * Math.PI) * .012;
         activeFlip.group.scale.setScalar(pulse);
         if (progress >= 1) {
+          const panelIndex = activeFlip.panelIndex;
           activeFlip.group.rotation.y = 0;
           activeFlip.group.position.z = baseZ + .022;
           activeFlip.group.scale.setScalar(1.006);
           activeFlip = null;
           renderer.domElement.style.cursor = "pointer";
-          openRef.current();
+          const detailId = PANELS[panelIndex].id;
+          if (detailId) openRef.current(detailId);
         }
       }
       if (returnAnimation) {
@@ -608,21 +616,25 @@ function PaperCutPreview({ close }: { close: () => void }) {
 }
 
 export function InteractiveWorkshop() {
-  const [paperCutOpen, setPaperCutOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState<"paper" | "slice" | null>(null);
   const [webglError, setWebglError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const openPaperCut = useCallback(() => setPaperCutOpen(true), []);
-  const closePaperCut = useCallback(() => setPaperCutOpen(false), []);
+  const openDetail = useCallback((id: "paper" | "slice") => setDetailOpen(id), []);
+  const closeDetail = useCallback(() => setDetailOpen(null), []);
   const reportWebglError = useCallback(() => setWebglError(true), []);
   return (
     <section className="workshop-world workshop-gallery" id="workshop" aria-labelledby="workshop-title">
-      {!webglError && <WorkshopGallery3D key={retryKey} openPaperCut={openPaperCut} paperCutOpen={paperCutOpen} reportError={reportWebglError} />}
-      {webglError && <div className="workshop-gallery-fallback"><div className="workshop-fallback-grid">{PANELS.map((panel, index) => <button key={index} className={panel.active ? "active" : ""} style={{ "--panel-color": panel.color } as React.CSSProperties} onClick={() => panel.active && openPaperCut()} disabled={!panel.active}>{panel.active ? "剪纸" : "即将开放"}</button>)}</div><button className="workshop-webgl-retry" onClick={() => { setWebglError(false); setRetryKey((value) => value + 1); }}>重新开启 3D 展厅</button></div>}
+      {!webglError && <WorkshopGallery3D key={retryKey} openDetail={openDetail} detailOpen={detailOpen} reportError={reportWebglError} />}
+      {webglError && <div className="workshop-gallery-fallback"><div className="workshop-fallback-grid">{PANELS.map((panel, index) => <button key={index} className={panel.id ? "active" : ""} style={{ "--panel-color": panel.color } as React.CSSProperties} onClick={() => panel.id && openDetail(panel.id)} disabled={!panel.id}>{panel.id ? panel.title : "即将开放"}</button>)}</div><button className="workshop-webgl-retry" onClick={() => { setWebglError(false); setRetryKey((value) => value + 1); }}>重新开启 3D 展厅</button></div>}
       <div className="workshop-gallery-shade" aria-hidden="true" />
       <header className="workshop-gallery-title"><span>MAKE WITH MATHEMATICS · INTERACTIVE WORKSHOP</span><h2 id="workshop-title">互动工坊</h2><p>走近墙上的圆形展板，选择一种数学手艺</p></header>
-      <button className="workshop-paper-entry" onClick={openPaperCut}><span>当前开放</span><b>进入剪纸工坊</b><i>↗</i></button>
-      <div className="workshop-gallery-hint"><i>◎</i><span>拖动视角探索空间 · 点击红色展板进入</span></div>
-      {paperCutOpen && <PaperCutPreview close={closePaperCut} />}
+      <div className="workshop-entry-list">
+        <button className="workshop-paper-entry" onClick={() => openDetail("paper")}><span>当前开放</span><b>进入剪纸工坊</b><i>↗</i></button>
+        <button className="workshop-paper-entry workshop-space-entry" onClick={() => openDetail("slice")}><span>NEW · 空间几何</span><b>进入空间切片</b><i>↗</i></button>
+      </div>
+      <div className="workshop-gallery-hint"><i>◎</i><span>拖动视角探索空间 · 点击圆形展板进入</span></div>
+      {detailOpen === "paper" && <PaperCutPreview close={closeDetail} />}
+      {detailOpen === "slice" && <SpaceSliceLab close={closeDetail} />}
     </section>
   );
 }

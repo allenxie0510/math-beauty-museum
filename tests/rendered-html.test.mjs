@@ -43,10 +43,12 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, workshop, page, layout, css, audio, viewport] = await Promise.all([
+  const [museum, garden, workshop, spaceSlice, sliceGeometry, page, layout, css, audio, viewport] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/InteractiveWorkshop.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/SpaceSliceLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/space-slice/geometry.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -409,7 +411,20 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /new THREE\.CylinderGeometry/);
   assert.doesNotMatch(workshop, /new THREE\.(CircleGeometry|TorusGeometry)/);
   assert.match(workshop, /const PANEL_RADIUS = \.84/);
-  assert.equal((workshop.match(/title: ""/g) ?? []).length, 5);
+  assert.equal((workshop.match(/title: ""/g) ?? []).length, 4);
+  assert.match(workshop, /title: "空间切片"/);
+  assert.match(workshop, /<SpaceSliceLab close=/);
+  assert.match(spaceSlice, /空间切片实验室/);
+  assert.match(spaceSlice, /new THREE\.PlaneGeometry/);
+  assert.match(spaceSlice, /new THREE\.TorusGeometry/);
+  assert.match(spaceSlice, /role="tablist"/);
+  assert.match(spaceSlice, /切开看看/);
+  assert.match(spaceSlice, /sessionStorage\.setItem\("space-slice-discoveries"/);
+  assert.match(sliceGeometry, /function intersectTriangle/);
+  assert.match(sliceGeometry, /function stitchSegments/);
+  assert.match(sliceGeometry, /type: "parabola"/);
+  assert.match(sliceGeometry, /type: "hyperbola"/);
+  assert.match(css, /\.space-slice-lab/);
   assert.match(workshop, /new THREE\.TextureLoader\(\)\.load\(`data:image\/svg\+xml/);
   assert.match(workshop, /width="2048" height="2048"/);
   assert.match(workshop, /font-size="128"/);
@@ -426,8 +441,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /globalCompositeOperation = "destination-out"/);
   assert.match(workshop, /activeFlip/);
   assert.match(workshop, /eased \* Math\.PI \* 2/);
-  assert.match(workshop, /paperCutOpenRef\.current && !paperCutOpen/);
-  assert.match(workshop, /returnRequestRef\.current \+= 1/);
+  assert.match(workshop, /detailOpenRef\.current && !detailOpen/);
+  assert.match(workshop, /returnRequestRef\.current\.version \+ 1/);
+  assert.match(workshop, /panelIndex = Math\.max\(0, PANELS\.findIndex/);
   assert.match(workshop, /returnAnimation/);
   assert.match(workshop, /group\.userData\.baseZ = panel\.position\[2\]/);
   assert.match(workshop, /baseZ \+ Math\.sin\(progress \* Math\.PI\) \* \.035/);

@@ -6,6 +6,7 @@ import { HometownMathOverlay } from "./HometownMathOverlay";
 import { DEFAULT_HOMETOWN_MANIFEST } from "./hometown-math/domain/default-manifest";
 import { buildLearningContent } from "./hometown-math/domain/registry";
 import type { HometownSceneManifest } from "./hometown-math/domain/types";
+import { observeMathAction } from "./math-observer-events";
 
 type Props = {
   slug?: string | null;
@@ -111,11 +112,19 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [carouselPaused, setCarouselPaused] = useState(false);
   const [webglFailed, setWebglFailed] = useState(false);
+  const seenExhibitsRef = useRef(new Set<string>());
   const handleWebglError = useCallback(() => setWebglFailed(true), []);
   const exhibits = useMemo(() => allExhibits(manifest), [manifest]);
   const selected = exhibits.find((item) => item.id === selectedId) ?? null;
   const selectedZone = selected ? manifest.zones.find((zone) => zone.id === selected.zoneId) : null;
-  const select = useCallback((id: string) => { setSelectedId(id); setRevealStep(0); }, []);
+  const select = useCallback((id: string) => {
+    setSelectedId(id); setRevealStep(0);
+    if (seenExhibitsRef.current.has(id)) return;
+    seenExhibitsRef.current.add(id);
+    const item = exhibits.find((candidate) => candidate.id === id);
+    const zone = item ? manifest.zones.find((candidate) => candidate.id === item.zoneId) : null;
+    observeMathAction({ id: `hometown-exhibit-${id}`, scene: "hometown", action: "hometown_exhibit_discovered", outcome: "discovery", importance: .84, once: true, suggestedCue: `先看原照片，再让结构显现。你能在照片里指出${item?.conceptLabel ?? "数学规律"}藏在哪里吗？`, context: { exhibit: id, title: item?.title ?? id, zone: zone?.name ?? "家乡数学", concept: item?.conceptLabel ?? "", formula: item?.learning.formula ?? "" } });
+  }, [exhibits, manifest.zones]);
   const close = useCallback(() => { setSelectedId(null); setTouring(false); }, []);
 
   useEffect(() => {
@@ -146,7 +155,12 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
     setTourIndex(next);
     select(manifest.tourPath[next]);
   }, [manifest.tourPath, select, tourIndex]);
-  const startTour = () => { setTouring(true); setTourIndex(0); select(manifest.tourPath[0]); };
+  const startTour = () => { setTouring(true); setTourIndex(0); observeMathAction({ id: "hometown-guided-tour", scene: "hometown", action: "hometown_strategy_changed_to_guided_tour", outcome: "discovery", importance: .74, once: true, suggestedCue: "导览会带你依次找证据。每一站先自己猜，再点显现结构。" }); select(manifest.tourPath[0]); };
+  const reveal = (step: number) => {
+    setRevealStep(step);
+    if (!selected || step < 1) return;
+    observeMathAction({ id: `hometown-reveal-${selected.id}-${step}`, scene: "hometown", action: step === 3 ? "hometown_math_reading_completed" : step === 2 ? "hometown_evidence_revealed" : "hometown_structure_revealed", outcome: step === 3 ? "success" : "discovery", importance: step === 3 ? .94 : .72, once: true, suggestedCue: step === 3 ? `你把照片、测量和公式连起来了。现在用一句话说说，${selected.learning.formula}描述了什么。` : step === 2 ? "证据已经标出来了。比较标记前后，你的第一眼判断改变了吗？" : undefined, context: { exhibit: selected.id, title: selected.title, step, concept: selected.conceptLabel, formula: selected.learning.formula } });
+  };
 
   return (
     <section className="hometown-world" id="hometown" aria-label="我的家乡数学馆">
@@ -184,7 +198,7 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
             </div>
             <div className="hometown-evidence-marker" style={{ opacity: revealStep >= 2 ? 1 : 0 }}><i/><span>{selected.learning.measurementDetail}</span></div>
             <div className="hometown-reveal-steps" aria-label="数学显影步骤">
-              {["原照片", "显现结构", "寻找证据", "读懂数学"].map((label, index) => <button key={label} className={revealStep === index ? "active" : ""} onClick={() => setRevealStep(index)}><i>{index + 1}</i><span>{label}</span></button>)}
+              {["原照片", "显现结构", "寻找证据", "读懂数学"].map((label, index) => <button key={label} className={revealStep === index ? "active" : ""} onClick={() => reveal(index)}><i>{index + 1}</i><span>{label}</span></button>)}
             </div>
           </div>
           <aside className="hometown-story-card" style={{ "--hometown-accent": selectedZone.accent } as React.CSSProperties}>
@@ -200,7 +214,7 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
               <div className="hometown-applications"><b>生活中的应用</b><p>{selected.learning.applications.map((application) => <span key={application}>{application}</span>)}</p></div>
               <div className="hometown-explore-prompt"><b>你也可以这样探索</b><p>{selected.learning.explorePrompt}</p></div>
             </section>
-            <button onClick={() => { const exhibitId = selected.id; close(); onExploreDemo(selected.interactiveDemoId, exhibitId); }}>去互动实验里试一试 <i>↗</i></button>
+            <button onClick={() => { const exhibitId = selected.id; observeMathAction({ id: `hometown-demo-${exhibitId}`, scene: "hometown", action: "hometown_interactive_experiment_selected", outcome: "success", importance: .88, once: true, suggestedCue: "现在把照片里的猜想带进实验。只改变一个条件，看看规律还成立吗？", context: { exhibit: exhibitId, demo: selected.interactiveDemoId, concept: selected.conceptLabel } }); close(); onExploreDemo(selected.interactiveDemoId, exhibitId); }}>去互动实验里试一试 <i>↗</i></button>
             {touring && <nav aria-label="课堂导览控制"><button disabled={tourIndex === 0} onClick={() => nextTour(-1)}>← 上一站</button><span>{tourIndex + 1} / {manifest.tourPath.length}</span><button disabled={tourIndex === manifest.tourPath.length - 1} onClick={() => nextTour(1)}>下一站 →</button></nav>}
           </aside>
         </div>

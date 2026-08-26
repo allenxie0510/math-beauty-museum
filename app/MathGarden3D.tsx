@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
+import { observeMathAction } from "./math-observer-events";
 
 type GardenId = "flower" | "tree" | "butterfly" | "vine" | "building" | "pond" | "shell" | "mobius" | "euler";
 type GardenSettings = Record<string, number>;
@@ -421,6 +422,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   const [settings,setSettings]=useState<GardenSettings>(DEFAULT_SETTINGS);
   const [pondPlaying,setPondPlaying]=useState(false);
   const [pondTrackId,setPondTrackId]=useState<PondTrackId>("mozart");
+  const discoveriesRef=useRef<Set<GardenId>>(new Set());
   const pondAudioContext=useRef<AudioContext|null>(null);
   const pondAudio=useRef<HTMLAudioElement|null>(null);
   const pondAudioSource=useRef<MediaElementAudioSourceNode|null>(null);
@@ -437,7 +439,14 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
     const observer=new IntersectionObserver(([entry])=>{if(entry.isIntersecting&&entry.intersectionRatio>=.01){setGardenCanvasReady(true);observer.disconnect()}},{threshold:.01});
     observer.observe(section);return()=>observer.disconnect();
   },[gardenCanvasReady]);
-  const select=useCallback((id:GardenId)=>{setSelectedId(id);setDiscoveries(prev=>{const next=new Set(prev);next.add(id);return next})},[]);
+  const select=useCallback((id:GardenId)=>{
+    setSelectedId(id);
+    if(discoveriesRef.current.has(id))return;
+    const item=GARDEN_ITEMS.find(candidate=>candidate.id===id);
+    const next=new Set(discoveriesRef.current);next.add(id);discoveriesRef.current=next;setDiscoveries(next);
+    const milestone=[3,5,GARDEN_ITEMS.length].includes(next.size);
+    observeMathAction({id:`garden-discovery-${id}`,scene:"garden",action:milestone?"garden_discovery_milestone":"garden_item_discovered",outcome:milestone?"success":"discovery",importance:milestone ? .94 : .82,once:true,suggestedCue:milestone?`你已经发现 ${next.size} 个数学生命体。试着说说，它们都在用什么方式重复。`:`你找到了${item?.name??"一个数学生命体"}。先动一个参数，看公式里的哪个量和它一起变化。`,context:{item:id,name:item?.name??id,formula:item?.formula??"",discoveryCount:next.size,total:GARDEN_ITEMS.length}});
+  },[]);
   const stopPondSound=useCallback((updateState=true)=>{
     if(pondAudio.current){pondAudio.current.pause();pondAudio.current.src=""}
     pondAudio.current=null;
@@ -464,9 +473,14 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
       pondAudioContext.current=context;pondAnalyser.current=analyser;pondAudio.current=audio;pondAudioSource.current=source;
       await resumeAudioContext(context);
       await audio.play();setPondTrackId(track.id);setPondPlaying(true);
+      observeMathAction({id:`garden-music-${track.id}`,scene:"garden",action:"garden_music_visualization_started",outcome:"discovery",importance:.84,once:true,suggestedCue:"声音正在变成水柱的高低。听到强拍时，看看哪一圈最先抬高。",context:{track:track.name,mood:track.mood}});
     }catch(error){console.error("Garden music playback failed",error);stopPondSound()}
   },[stopPondSound]);
   const togglePondSound=()=>{if(pondPlaying)stopPondSound();else void startPondTrack(pondTrackId)};
+  const finishGardenControl=(item:GardenItem,control:GardenItem["controls"][number],value:number)=>{
+    const reachedGolden=control.key==="flowerRatio"&&Math.abs(value-1.618)<.0005;
+    observeMathAction({id:reachedGolden?"garden-golden-ratio-reached":`garden-control-${item.id}-${control.key}`,scene:"garden",action:reachedGolden?"garden_target_reached":"garden_parameter_adjusted",outcome:reachedGolden?"success":"exploring",importance:reachedGolden ? .96 : .43,once:reachedGolden,suggestedCue:reachedGolden?"你对准了 1.618。现在比较前后两朵花，花瓣之间的空隙是不是更均匀？":undefined,context:{item:item.id,parameter:control.key,value}});
+  };
   useEffect(()=>{const pauseWhenHidden=()=>{if(document.hidden)stopPondSound()};document.addEventListener("visibilitychange",pauseWhenHidden);return()=>document.removeEventListener("visibilitychange",pauseWhenHidden)},[stopPondSound]);
   useEffect(()=>()=>stopPondSound(false),[stopPondSound]);
 
@@ -495,7 +509,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         <div className="garden-formula"><span>隐藏规律</span><strong>{selected.formula}</strong></div>
         <p className="garden-explanation">{selected.explanation}</p>
         <div className="garden-try-title"><span>试试看改变它</span><i>参数会实时作用于 3D 物体</i></div>
-        {selected.controls.map(control=>{const value=Number(settings[control.key]);const isGoldenRatio=control.key==="flowerRatio";const atGoldenRatio=isGoldenRatio&&Math.abs(value-1.618)<.0005;return <label className="garden-control" key={control.key}><span>{control.label}<b>{value.toFixed(control.step<.01?3:control.step<.1?2:control.step<1?1:0)}{control.suffix}</b></span><input type="range" aria-label={control.label} min={control.min} max={control.max} step={control.step} value={value} onChange={e=>setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}/>{isGoldenRatio&&<small className={`golden-ratio-target ${atGoldenRatio?"reached":""}`}><i>目标值 φ = 1.618</i><strong>{atGoldenRatio?"✓ 已达到黄金比例":"拖动滑杆对准目标值"}</strong></small>}</label>})}
+        {selected.controls.map(control=>{const value=Number(settings[control.key]);const isGoldenRatio=control.key==="flowerRatio";const atGoldenRatio=isGoldenRatio&&Math.abs(value-1.618)<.0005;return <label className="garden-control" key={control.key}><span>{control.label}<b>{value.toFixed(control.step<.01?3:control.step<.1?2:control.step<1?1:0)}{control.suffix}</b></span><input type="range" aria-label={control.label} min={control.min} max={control.max} step={control.step} value={value} onChange={e=>setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))} onPointerUp={()=>finishGardenControl(selected,control,value)} onKeyUp={()=>finishGardenControl(selected,control,value)}/>{isGoldenRatio&&<small className={`golden-ratio-target ${atGoldenRatio?"reached":""}`}><i>目标值 φ = 1.618</i><strong>{atGoldenRatio?"✓ 已达到黄金比例":"拖动滑杆对准目标值"}</strong></small>}</label>})}
         {selected.id==="pond"&&<div className="pond-music-control">
           <label className="pond-track-select"><span>喷泉音乐</span><select aria-label="选择喷泉音乐" value={pondTrackId} onChange={event=>{const nextTrackId=event.target.value as PondTrackId;setPondTrackId(nextTrackId);if(pondPlaying)void startPondTrack(nextTrackId)}}>{POND_TRACKS.map(track=><option key={track.id} value={track.id}>{track.name} · {track.mood}</option>)}</select></label>
           <button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"音乐正在驱动喷泉":"启动音乐可视化"}<small>实时频谱控制水柱高度与声波圆环</small></span></button>

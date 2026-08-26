@@ -6,7 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
-import { cueMathObserver } from "./math-observer-events";
+import { observeMathAction } from "./math-observer-events";
 
 type HallKey = "nature" | "architecture" | "sound" | "cosmos";
 type VisualKind =
@@ -2858,6 +2858,8 @@ export function NatureMuseumWorld() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settings, setSettings] = useState<MuseumSettings>({ ...DEFAULT_SETTINGS });
   const [discoveries, setDiscoveries] = useState<Set<string>>(() => new Set());
+  const discoveriesRef = useRef<Set<string>>(new Set());
+  const controlAttemptsRef = useRef<Record<string, number>>({});
   const [activeControlKey, setActiveControlKey] = useState<string | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [transition, setTransition] = useState<"idle" | "leaving" | "entering">("idle");
@@ -2880,13 +2882,8 @@ export function NatureMuseumWorld() {
       "看不见的声音，也能留下形状。先改变一个参数。",
       "观察宇宙时，换一个尺度，规律才会出现。",
     ];
-    cueMathObserver({ id: `observer-hall-${HALLS[hallIndex].key}`, message: messages[hallIndex], once: true, priority: 2 });
+    observeMathAction({ id: `nature-hall-${HALLS[hallIndex].key}`, scene: "hall", action: "nature_hall_entered", outcome: "discovery", importance: .7, suggestedCue: messages[hallIndex], once: true, context: { hall: HALLS[hallIndex].key, hallName: HALLS[hallIndex].name } });
   }, [hallIndex, transition]);
-
-  useEffect(() => {
-    if (!selected) return;
-    cueMathObserver({ id: `observer-first-exhibit-${hallIndex}`, message: "先只动一个参数。停一下，再判断是什么改变了。", once: true });
-  }, [hallIndex, selected]);
 
   const select = useCallback((id: string, targetHallIndex: number) => {
     const item = HALLS[targetHallIndex]?.items.find((candidate) => candidate.id === id);
@@ -2894,7 +2891,22 @@ export function NatureMuseumWorld() {
     setSelectedId(id);
     setIsAutoPlaying(false);
     setActiveControlKey(item?.controls[0]?.key ?? null);
-    setDiscoveries((previous) => new Set(previous).add(id));
+    if (!discoveriesRef.current.has(id)) {
+      const next = new Set(discoveriesRef.current); next.add(id); discoveriesRef.current = next; setDiscoveries(next);
+      const hallItems = HALLS[targetHallIndex]?.items ?? [];
+      const hallCount = hallItems.filter((candidate) => next.has(candidate.id)).length;
+      const complete = hallCount === hallItems.length;
+      observeMathAction({
+        id: `nature-discovery-${id}`,
+        scene: "hall",
+        action: complete ? "nature_hall_completed" : "nature_exhibit_discovered",
+        outcome: complete ? "success" : "discovery",
+        importance: complete ? .96 : .84,
+        suggestedCue: complete ? `这个展厅的三个规律都找到了。比较一下，它们都靠什么让复杂变得有秩序？` : "先只动一个参数。停一下，再判断是什么改变了。",
+        once: true,
+        context: { hall: HALLS[targetHallIndex]?.key ?? "unknown", item: id, name: item?.name ?? id, formula: item?.formula ?? "", hallDiscoveryCount: hallCount },
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -2989,6 +3001,30 @@ export function NatureMuseumWorld() {
       selected.controls.forEach((control) => { next[control.key] = control.defaultValue; });
       return next;
     });
+  };
+
+  const finishControlAdjustment = (item: MuseumItem, control: MuseumControl, value: number) => {
+    const key = `${item.id}:${control.key}`;
+    const attempt = (controlAttemptsRef.current[key] ?? 0) + 1;
+    controlAttemptsRef.current[key] = attempt;
+    const reached = control.target !== undefined && Math.abs(value - control.target) < control.step / 2 + .001;
+    observeMathAction({
+      id: reached ? `nature-target-${key}` : `nature-control-${key}`,
+      scene: "hall",
+      action: reached ? "nature_parameter_target_reached" : attempt >= 3 ? "nature_parameter_strategy_repeated" : "nature_parameter_adjusted",
+      outcome: reached ? "success" : attempt >= 3 ? "stuck" : "exploring",
+      importance: reached ? .96 : attempt >= 3 ? .7 : .42,
+      attempt,
+      once: reached,
+      suggestedCue: reached ? `你把${control.label}对准目标了。别急着继续，先说出图形最明显的变化。` : attempt >= 3 ? `你已经连续调整了${control.label}。试试先把它调回中间，再只动另一个参数。` : undefined,
+      context: { item: item.id, parameter: control.key, value, target: control.target ?? null, reached },
+    });
+  };
+
+  const toggleAutoPlay = () => {
+    const next = !isAutoPlaying;
+    setIsAutoPlaying(next);
+    if (selected && next) observeMathAction({ id: `nature-auto-${selected.id}`, scene: "hall", action: "nature_strategy_changed_to_auto_demo", outcome: "discovery", importance: .73, suggestedCue: "自动演示会同时改变参数。先盯住一个变量，看它到哪里时图形变化最大。", once: true, context: { item: selected.id } });
   };
 
   useEffect(() => {
@@ -3157,7 +3193,7 @@ export function NatureMuseumWorld() {
                 <div className="nature-lab-try">
                   <span>控制台 · 变量与图形同步变化</span>
                   <div className="nature-console-actions">
-                    <button className={isAutoPlaying ? "active" : ""} type="button" aria-pressed={isAutoPlaying} onClick={() => setIsAutoPlaying((playing) => !playing)}>{isAutoPlaying ? "暂停动画" : "自动演示"}</button>
+                    <button className={isAutoPlaying ? "active" : ""} type="button" aria-pressed={isAutoPlaying} onClick={toggleAutoPlay}>{isAutoPlaying ? "暂停动画" : "自动演示"}</button>
                     <button type="button" onClick={resetSelected}>恢复默认</button>
                   </div>
                 </div>
@@ -3183,6 +3219,8 @@ export function NatureMuseumWorld() {
                             setActiveControlKey(control.key);
                             setSettings((previous) => ({ ...previous, [control.key]: Number(event.target.value) }));
                           }}
+                          onPointerUp={() => finishControlAdjustment(selected, control, setting)}
+                          onKeyUp={() => finishControlAdjustment(selected, control, setting)}
                         />
                         {control.target !== undefined && <small className={reached ? "reached" : ""}>{control.targetLabel} {control.target}{control.suffix} {reached ? "· 已对准" : "· 试着对准它"}</small>}
                       </label>

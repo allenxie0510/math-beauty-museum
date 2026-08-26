@@ -43,9 +43,10 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, mascotAsset] = await Promise.all([
+  const [museum, garden, hometown, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, mascotAsset] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HometownMathWorld.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/InteractiveWorkshop.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SpaceSliceLab.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/space-slice/geometry.ts", import.meta.url), "utf8"),
@@ -423,7 +424,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /title: "空间切片"/);
   assert.match(workshop, /color: "#368e97", title: "空间切片"/);
   assert.match(workshop, /<SpaceSliceLab close=/);
-  assert.match(workshop, /observer-open-slice/);
+  assert.match(workshop, /workshop_game_opened/);
+  assert.match(workshop, /paper_pattern_revealed/);
   assert.match(spaceSlice, /空间切片实验室/);
   assert.match(spaceSlice, /new THREE\.PlaneGeometry/);
   assert.match(spaceSlice, /new THREE\.TorusGeometry/);
@@ -463,11 +465,15 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /\/api\/observer\/decide/);
   assert.match(observer, /\/api\/observer\/speech/);
   assert.match(observer, /math-observer-participation/);
+  assert.match(observer, /math-observer-cooldown-seconds/);
+  assert.match(observer, /math-observer-settings/);
+  assert.match(observer, /pendingActionRef/);
+  assert.match(observer, /affectCooldown: false, countSession: false/);
   assert.match(observer, /activeInteractionRef/);
   assert.match(observerEvents, /math-observer-cue/);
   assert.match(observerEvents, /math-observer-action/);
   assert.match(observerPolicy, /quiet: \{ threshold: \.84/);
-  assert.match(observerPolicy, /balanced: \{ threshold: \.68/);
+  assert.match(observerPolicy, /balanced: \{ threshold: \.68, multiplier: 1, cooldownMs: 15000/);
   assert.match(observerPolicy, /active: \{ threshold: \.53/);
   assert.match(observerDecide, /compatible-mode\/v1\/chat\/completions/);
   assert.match(observerDecide, /action.*silent\|speak/);
@@ -475,7 +481,13 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observerSpeech, /multimodal-generation\/generation/);
   assert.match(observerSpeech, /SpeechSynthesizer/);
   assert.match(observerSpeech, /cosyvoice-/);
-  assert.match(museum, /observer-hall-\$\{HALLS\[hallIndex\]\.key\}/);
+  assert.match(museum, /nature_hall_entered/);
+  assert.match(museum, /nature_parameter_target_reached/);
+  assert.match(garden, /garden_item_discovered/);
+  assert.match(garden, /garden_target_reached/);
+  assert.match(hometown, /hometown_exhibit_discovered/);
+  assert.match(hometown, /hometown_math_reading_completed/);
+  assert.match(css, /\.math-observer-settings/);
   assert.equal(mascotAsset[25], 6, "math observer mascot must keep a true RGBA alpha channel");
   assert.match(workshop, /new THREE\.TextureLoader\(\)\.load\(`data:image\/svg\+xml/);
   assert.match(workshop, /width="2048" height="2048"/);

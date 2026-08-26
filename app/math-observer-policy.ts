@@ -9,9 +9,9 @@ export type MathObserverProfile = {
 };
 
 export const MATH_OBSERVER_PROFILES: Record<MathObserverParticipation, MathObserverProfile> = {
-  quiet: { threshold: .84, multiplier: .76, cooldownMs: 75000, maxSessionCues: 5, idleMs: 46000 },
-  balanced: { threshold: .68, multiplier: 1, cooldownMs: 35000, maxSessionCues: 12, idleMs: 30000 },
-  active: { threshold: .53, multiplier: 1.22, cooldownMs: 18000, maxSessionCues: 24, idleMs: 22000 },
+  quiet: { threshold: .84, multiplier: .76, cooldownMs: 30000, maxSessionCues: 5, idleMs: 46000 },
+  balanced: { threshold: .68, multiplier: 1, cooldownMs: 15000, maxSessionCues: 12, idleMs: 30000 },
+  active: { threshold: .53, multiplier: 1.22, cooldownMs: 8000, maxSessionCues: 24, idleMs: 22000 },
 };
 
 const OUTCOME_WEIGHT: Record<NonNullable<MathObserverAction["outcome"]>, number> = {

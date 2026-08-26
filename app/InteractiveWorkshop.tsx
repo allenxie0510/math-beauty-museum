@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 import { SpaceSliceLab } from "./SpaceSliceLab";
-import { cueMathObserver } from "./math-observer-events";
+import { observeMathAction } from "./math-observer-events";
 
 type GalleryPanel = {
   color: string;
@@ -462,6 +462,7 @@ function PaperCutPreview({ close }: { close: () => void }) {
   const activePointer = useRef<number | null>(null);
   const rotationPointer = useRef<number | null>(null);
   const rotationDrag = useRef({ startX: 0, startValue: 0 });
+  const reportedCutCount = useRef(0);
   const [repeat, setRepeat] = useState(8);
   const [cuts, setCuts] = useState<CutShape[]>([]);
   const [stage, setStage] = useState<PaperCutStage>("cutting");
@@ -469,6 +470,37 @@ function PaperCutPreview({ close }: { close: () => void }) {
   const [rotationDegrees, setRotationDegrees] = useState(0);
   const hasCuts = cuts.some((shape) => shape.closed && shape.points.length > 2);
   const isDrawing = cuts.some((shape) => !shape.closed);
+
+  useEffect(() => {
+    const count = cuts.filter((shape) => shape.closed && shape.points.length > 2).length;
+    if (count > reportedCutCount.current) {
+      observeMathAction({
+        id: `paper-cut-${repeat}-${count}`,
+        scene: "workshop-paper",
+        action: "paper_cut_completed",
+        outcome: count === 1 ? "discovery" : "exploring",
+        importance: count === 1 ? .72 : .48,
+        attempt: count,
+        suggestedCue: count === 1 ? "这个小缺口会被重复很多次。展开前，先猜猜它会围成什么。" : undefined,
+        context: { repeat, cutCount: count, symmetryAngle: 360 / repeat },
+      });
+    }
+    reportedCutCount.current = count;
+  }, [cuts, repeat]);
+
+  useEffect(() => {
+    if (stage !== "unfolded") return;
+    const cutCount = cuts.filter((shape) => shape.closed && shape.points.length > 2).length;
+    observeMathAction({
+      id: `paper-pattern-revealed-${repeat}-${cutCount}`,
+      scene: "workshop-paper",
+      action: "paper_pattern_revealed",
+      outcome: "success",
+      importance: .9,
+      suggestedCue: `你刚才画的一小片，被旋转复制了 ${repeat} 次。找找哪些缺口正好关于圆心对称。`,
+      context: { repeat, cutCount, symmetryAngle: 360 / repeat },
+    });
+  }, [cuts, repeat, stage]);
 
   useEffect(() => {
     document.body.classList.add("workshop-detail-mode");
@@ -579,6 +611,15 @@ function PaperCutPreview({ close }: { close: () => void }) {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   const chooseRepeat = (count: number) => {
+    if (count !== repeat) observeMathAction({
+      id: `paper-repeat-${count}`,
+      scene: "workshop-paper",
+      action: "paper_repeat_strategy_changed",
+      outcome: "discovery",
+      importance: .72,
+      suggestedCue: `现在每一片会旋转 ${360 / count} 度。重复次数变了，对称的密度也会变。`,
+      context: { previousRepeat: repeat, repeat: count, symmetryAngle: 360 / count },
+    });
     setRepeat(count);
     setCuts([]);
     setStage("cutting");
@@ -622,9 +663,16 @@ export function InteractiveWorkshop() {
   const [retryKey, setRetryKey] = useState(0);
   const openDetail = useCallback((id: "paper" | "slice") => {
     setDetailOpen(id);
-    cueMathObserver(id === "slice"
-      ? { id: "observer-open-slice", message: "先拖动光片，不急着切开。看实时截面怎样变化。", once: true, priority: 2 }
-      : { id: "observer-open-paper", message: "先圈出一个小形状，再展开看它怎样重复。", once: true, priority: 2 });
+    observeMathAction({
+      id: `workshop-open-${id}`,
+      scene: id === "slice" ? "workshop-slice" : "workshop-paper",
+      action: "workshop_game_opened",
+      outcome: "discovery",
+      importance: .72,
+      suggestedCue: id === "slice" ? "先拖动光片，不急着切开。看实时截面怎样变化。" : "先圈出一个小形状，再展开看它怎样重复。",
+      once: true,
+      context: { game: id },
+    });
   }, []);
   const closeDetail = useCallback(() => setDetailOpen(null), []);
   const reportWebglError = useCallback(() => setWebglError(true), []);

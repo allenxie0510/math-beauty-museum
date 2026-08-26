@@ -35,6 +35,8 @@ const IDLE_CUES: Record<string, string> = {
 const PARTICIPATION_ORDER: MathObserverParticipation[] = ["quiet", "balanced", "active"];
 const PARTICIPATION_LABEL: Record<MathObserverParticipation, string> = { quiet: "安静", balanced: "平衡", active: "积极" };
 const PARTICIPATION_MARK: Record<MathObserverParticipation, string> = { quiet: "·", balanced: "··", active: "···" };
+const MIN_COOLDOWN_SECONDS = 6;
+const MAX_COOLDOWN_SECONDS = 60;
 
 type ObserverDecision = { action?: "silent" | "speak"; cueId?: string; text?: string; priority?: number };
 
@@ -79,11 +81,14 @@ export function MathObserver() {
   const [speaking, setSpeaking] = useState(false);
   const [lastMessage, setLastMessage] = useState(WELCOME.message);
   const [participation, setParticipation] = useState<MathObserverParticipation>("balanced");
+  const [cooldownSeconds, setCooldownSeconds] = useState(MATH_OBSERVER_PROFILES.balanced.cooldownMs / 1000);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const unlockedRef = useRef(false);
   const mutedRef = useRef(false);
   const speakingRef = useRef(false);
   const requestingSpeechRef = useRef(false);
   const participationRef = useRef<MathObserverParticipation>("balanced");
+  const cooldownMsRef = useRef(MATH_OBSERVER_PROFILES.balanced.cooldownMs);
   const lastMessageRef = useRef(WELCOME.message);
   const lastSpokenAtRef = useRef(0);
   const lastInteractionAtRef = useRef(0);
@@ -97,6 +102,8 @@ export function MathObserver() {
   const audioUrlsRef = useRef(new Map<string, string>());
   const decisionControllerRef = useRef<AbortController | null>(null);
   const timersRef = useRef(new Set<number>());
+  const pendingActionRef = useRef<MathObserverAction | null>(null);
+  const pendingActionTimerRef = useRef<number | null>(null);
   const considerActionRef = useRef<(action: MathObserverAction) => void>(() => undefined);
 
   const stopSpeech = useCallback(() => {
@@ -166,12 +173,16 @@ export function MathObserver() {
     }
   }, [browserSpeech, stopSpeech]);
 
-  const deliverCue = useCallback(async (cue: MathObserverCue, force = false) => {
+  const deliverCue = useCallback(async (
+    cue: MathObserverCue,
+    force = false,
+    options: { affectCooldown?: boolean; countSession?: boolean } = {},
+  ) => {
     if (!unlockedRef.current || mutedRef.current) return false;
     if (cue.once && spokenIdsRef.current.has(cue.id) && !force) return false;
     const profile = MATH_OBSERVER_PROFILES[participationRef.current];
     const now = performance.now();
-    const customCooldown = cue.cooldownMs ?? profile.cooldownMs;
+    const customCooldown = cue.cooldownMs ?? cooldownMsRef.current;
     if (!force && (speakingRef.current || requestingSpeechRef.current || now - lastSpokenAtRef.current < customCooldown)) return false;
     if (!force && sessionCueCountRef.current >= profile.maxSessionCues) return false;
     if (!force && recentMessagesRef.current.includes(cue.message)) return false;
@@ -182,12 +193,31 @@ export function MathObserver() {
     const started = await playSpeech(cue.message, force);
     if (!started) return false;
     spokenIdsRef.current.add(cue.id);
-    lastSpokenAtRef.current = performance.now();
-    sessionCueCountRef.current += 1;
+    if (options.affectCooldown !== false) lastSpokenAtRef.current = performance.now();
+    if (options.countSession !== false) sessionCueCountRef.current += 1;
     recentMessagesRef.current = [...recentMessagesRef.current.slice(-7), cue.message];
     recentCueIdsRef.current = [...recentCueIdsRef.current.slice(-11), cue.id];
     return true;
   }, [playSpeech, stopSpeech]);
+
+  const queueAction = useCallback((action: MathObserverAction, waitMs: number) => {
+    const current = pendingActionRef.current;
+    const level = participationRef.current;
+    if (!current || observerActionScore(action, level) >= observerActionScore(current, level)) pendingActionRef.current = action;
+    if (pendingActionTimerRef.current !== null) {
+      window.clearTimeout(pendingActionTimerRef.current);
+      timersRef.current.delete(pendingActionTimerRef.current);
+    }
+    const timer = window.setTimeout(() => {
+      timersRef.current.delete(timer);
+      pendingActionTimerRef.current = null;
+      const pending = pendingActionRef.current;
+      pendingActionRef.current = null;
+      if (pending) considerActionRef.current(pending);
+    }, Math.max(250, waitMs));
+    pendingActionTimerRef.current = timer;
+    timersRef.current.add(timer);
+  }, []);
 
   const considerAction = useCallback(async (action: MathObserverAction) => {
     action = { ...action, occurredAt: action.occurredAt ?? Date.now() };
@@ -199,13 +229,14 @@ export function MathObserver() {
     const score = observerActionScore(action, level);
     if (!observerShouldConsider(action, level)) return;
     if (sessionCueCountRef.current >= profile.maxSessionCues) return;
-    if (performance.now() - lastSpokenAtRef.current < profile.cooldownMs) return;
-    if (activeInteractionRef.current || performance.now() - lastInteractionAtRef.current < 900) {
-      const timer = window.setTimeout(() => {
-        timersRef.current.delete(timer);
-        considerActionRef.current(action);
-      }, 1050);
-      timersRef.current.add(timer);
+    const now = performance.now();
+    const cooldownRemaining = Math.max(0, cooldownMsRef.current - (now - lastSpokenAtRef.current));
+    if (cooldownRemaining > 0) {
+      queueAction(action, cooldownRemaining + 120);
+      return;
+    }
+    if (activeInteractionRef.current || now - lastInteractionAtRef.current < 900 || speakingRef.current || requestingSpeechRef.current) {
+      queueAction(action, 1050);
       return;
     }
 
@@ -238,7 +269,7 @@ export function MathObserver() {
       if ((error as Error).name === "AbortError" || !action.suggestedCue) return;
       await deliverCue({ id: action.id, message: action.suggestedCue, once: action.once, priority: score >= .86 ? 3 : 1 });
     }
-  }, [deliverCue]);
+  }, [deliverCue, queueAction]);
   considerActionRef.current = considerAction;
 
   useEffect(() => {
@@ -247,9 +278,14 @@ export function MathObserver() {
       const storedMuted = localStorage.getItem("math-observer-muted") === "true";
       const storedLevel = localStorage.getItem("math-observer-participation") as MathObserverParticipation | null;
       const nextLevel = PARTICIPATION_ORDER.includes(storedLevel as MathObserverParticipation) ? storedLevel as MathObserverParticipation : "balanced";
+      const storedCooldown = Number(localStorage.getItem("math-observer-cooldown-seconds"));
+      const nextCooldown = Number.isFinite(storedCooldown) && storedCooldown >= MIN_COOLDOWN_SECONDS && storedCooldown <= MAX_COOLDOWN_SECONDS
+        ? storedCooldown
+        : MATH_OBSERVER_PROFILES[nextLevel].cooldownMs / 1000;
       mutedRef.current = storedMuted;
       participationRef.current = nextLevel;
-      preferenceTimer = window.setTimeout(() => { setMuted(storedMuted); setParticipation(nextLevel); }, 0);
+      cooldownMsRef.current = nextCooldown * 1000;
+      preferenceTimer = window.setTimeout(() => { setMuted(storedMuted); setParticipation(nextLevel); setCooldownSeconds(nextCooldown); }, 0);
     } catch { /* Device preferences are optional. */ }
 
     const unlock = () => {
@@ -258,7 +294,7 @@ export function MathObserver() {
       setReady(true);
       const timer = window.setTimeout(() => {
         timersRef.current.delete(timer);
-        deliverCue(WELCOME, true);
+        deliverCue(WELCOME, true, { affectCooldown: false, countSession: false });
       }, 420);
       timersRef.current.add(timer);
     };
@@ -282,6 +318,8 @@ export function MathObserver() {
       decisionControllerRef.current?.abort();
       timersRef.current.forEach((timer) => window.clearTimeout(timer));
       timersRef.current.clear();
+      pendingActionTimerRef.current = null;
+      pendingActionRef.current = null;
       stopSpeech();
       audioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       audioUrlsRef.current.clear();
@@ -360,12 +398,18 @@ export function MathObserver() {
     else deliverCue({ id: "observer-unmuted", message: "我在。需要时，我会提醒你。", priority: 3 }, true);
   };
 
-  const cycleParticipation = () => {
-    const index = PARTICIPATION_ORDER.indexOf(participationRef.current);
-    const next = PARTICIPATION_ORDER[(index + 1) % PARTICIPATION_ORDER.length];
+  const selectParticipation = (next: MathObserverParticipation) => {
     participationRef.current = next;
     setParticipation(next);
     try { localStorage.setItem("math-observer-participation", next); } catch { /* Preference remains in memory. */ }
+  };
+
+  const changeCooldown = (seconds: number) => {
+    const next = Math.max(MIN_COOLDOWN_SECONDS, Math.min(MAX_COOLDOWN_SECONDS, seconds));
+    cooldownMsRef.current = next * 1000;
+    setCooldownSeconds(next);
+    try { localStorage.setItem("math-observer-cooldown-seconds", String(next)); } catch { /* Preference remains in memory. */ }
+    if (pendingActionRef.current) queueAction(pendingActionRef.current, Math.max(250, next * 1000 - (performance.now() - lastSpokenAtRef.current) + 120));
   };
 
   const replay = () => deliverCue({ id: "observer-replay", message: lastMessageRef.current, priority: 3 }, true);
@@ -376,7 +420,14 @@ export function MathObserver() {
         <span className="math-observer-halo" aria-hidden="true" />
         <Image src="/math-observer-xiaoguan.png" alt="数学观察员小观" width={512} height={512} unoptimized />
       </button>
-      <button className="math-observer-level" type="button" onClick={cycleParticipation} title={`参与度：${PARTICIPATION_LABEL[participation]}`} aria-label={`小观参与度：${PARTICIPATION_LABEL[participation]}，点击切换`} data-level={participation}>{PARTICIPATION_MARK[participation]}</button>
+      <div className="math-observer-preferences">
+        <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小观参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}>{PARTICIPATION_MARK[participation]}</button>
+        {settingsOpen && <div className="math-observer-settings" role="group" aria-label="小观参与设置">
+          <span>参与度</span>
+          <div>{PARTICIPATION_ORDER.map((level) => <button key={level} type="button" className={participation === level ? "active" : ""} aria-pressed={participation === level} onClick={() => selectParticipation(level)}>{PARTICIPATION_LABEL[level]}</button>)}</div>
+          <label><span>提示间隔 <b>{cooldownSeconds} 秒</b></span><input type="range" min={MIN_COOLDOWN_SECONDS} max={MAX_COOLDOWN_SECONDS} step="1" value={cooldownSeconds} onChange={(event) => changeCooldown(Number(event.target.value))} /></label>
+        </div>}
+      </div>
       <button className="math-observer-audio" type="button" onClick={toggleMuted} aria-label={muted ? "开启小观的语音" : "关闭小观的语音"}>{muted ? "🔇" : "🔊"}</button>
       <span className="math-observer-live" role="status" aria-live="polite">{speaking ? lastMessage : `小观参与度：${PARTICIPATION_LABEL[participation]}`}</span>
     </aside>

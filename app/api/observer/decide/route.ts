@@ -51,10 +51,13 @@ export async function POST(request: Request) {
     ? JSON.parse(JSON.stringify(payload.currentScene).slice(0, 1200)) as Record<string, unknown>
     : { scene: event.scene };
   const eventId = typeof event.id === "string" ? event.id : "observer-cue";
+  const eventAction = typeof event.action === "string" ? event.action : "";
   const system = [
     "你是儿童数学美学馆的数学观察员“小观”。你的首要能力是克制：用户正在顺利探索时保持安静，只在关键发现、连续受挫、明确空闲或安全问题时开口。",
     "你只能依据给出的事件判断，不得虚构用户行为或数学结论。可以沿用 suggestedCue 中的事实，但要让表达自然、口语化。",
     "若开口，只说一句中文，8到28个汉字；只提出一个问题或一个下一步；不直接泄露挑战答案；避免空泛夸奖、播音腔和连续打扰。",
+    "数学花园中的选择、再次查看、参数调整、目标达成或音乐可视化事件，表示前端冷却检查已经通过；除非与 recentCueIds 完全重复，否则应开口，具体回应用户刚做的操作，再给一个简短观察方向；不要只说自己在花园里。",
+    "当 action 是 paper_pattern_revealed 时必须开口：先真诚肯定孩子刚完成的创作，再轻轻邀请他观察一个规律；保持积极、温暖，每次换一种自然说法。",
     "recentCueIds 中出现过的主题不得重复。参与度 quiet 应非常少说，balanced 适度，active 可更主动但仍不打断操作。",
     "只返回JSON：{\"action\":\"silent|speak\",\"cue_id\":\"短标识\",\"text\":\"\",\"reason\":\"短原因\",\"priority\":0到1}。",
   ].join("\n");
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: config.observerModel,
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
-        temperature: .2,
+        temperature: eventAction === "paper_pattern_revealed" ? .68 : .28,
         max_tokens: 160,
       }),
     });

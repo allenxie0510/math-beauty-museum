@@ -314,6 +314,15 @@ type CutPoint = { x: number; y: number };
 type CutShape = { points: CutPoint[]; closed: boolean };
 type PaperCutStage = "cutting" | "unfolding" | "unfolded";
 
+const PAPER_REVEAL_ENCOURAGEMENTS = [
+  "太有创造力了！你画的小缺口真的变成了一圈独特图案。",
+  "展开成功！这是你亲手创造的对称图案，仔细看看它的节奏。",
+  "好漂亮的变化！一个小形状经过旋转，竟然组成了完整花纹。",
+  "你的猜想开花了！看看哪一处重复最让你惊喜。",
+  "这张剪纸很有你的想法！找找图案里最特别的对称位置。",
+  "做得真棒！你刚刚把一个小动作变成了有规律的美。",
+];
+
 function paperGeometry(width: number, height: number, repeat: number, unfolded: boolean) {
   const centerX = width / 2;
   const halfAngle = Math.PI / repeat;
@@ -463,6 +472,7 @@ function PaperCutPreview({ close }: { close: () => void }) {
   const rotationPointer = useRef<number | null>(null);
   const rotationDrag = useRef({ startX: 0, startValue: 0 });
   const reportedCutCount = useRef(0);
+  const unfoldAttempt = useRef(0);
   const [repeat, setRepeat] = useState(8);
   const [cuts, setCuts] = useState<CutShape[]>([]);
   const [stage, setStage] = useState<PaperCutStage>("cutting");
@@ -491,14 +501,15 @@ function PaperCutPreview({ close }: { close: () => void }) {
   useEffect(() => {
     if (stage !== "unfolded") return;
     const cutCount = cuts.filter((shape) => shape.closed && shape.points.length > 2).length;
+    const attempt = Math.max(1, unfoldAttempt.current);
     observeMathAction({
-      id: `paper-pattern-revealed-${repeat}-${cutCount}`,
+      id: `paper-pattern-revealed-${attempt}`,
       scene: "workshop-paper",
       action: "paper_pattern_revealed",
       outcome: "success",
-      importance: .9,
-      suggestedCue: `你刚才画的一小片，被旋转复制了 ${repeat} 次。找找哪些缺口正好关于圆心对称。`,
-      context: { repeat, cutCount, symmetryAngle: 360 / repeat },
+      importance: .98,
+      suggestedCue: PAPER_REVEAL_ENCOURAGEMENTS[(attempt - 1) % PAPER_REVEAL_ENCOURAGEMENTS.length],
+      context: { repeat, cutCount, symmetryAngle: 360 / repeat, unfoldAttempt: attempt, responseTone: "positive_encouragement" },
     });
   }, [cuts, repeat, stage]);
 
@@ -627,7 +638,7 @@ function PaperCutPreview({ close }: { close: () => void }) {
     setRotationDegrees(0);
   };
   const reset = () => { setCuts([]); setStage("cutting"); setUnfoldProgress(0); setRotationDegrees(0); };
-  const unfold = () => { if (hasCuts && !isDrawing) { activePointer.current = null; setRotationDegrees(0); setUnfoldProgress(0); setStage("unfolding"); } };
+  const unfold = () => { if (hasCuts && !isDrawing) { unfoldAttempt.current += 1; activePointer.current = null; setRotationDegrees(0); setUnfoldProgress(0); setStage("unfolding"); } };
   const rotateBy = (amount: number) => setRotationDegrees((current) => Math.max(0, Math.min(360, current + amount)));
 
   return (

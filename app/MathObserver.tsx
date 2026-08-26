@@ -332,18 +332,20 @@ export function MathObserver() {
     const level = participationRef.current;
     const profile = MATH_OBSERVER_PROFILES[level];
     const score = observerActionScore(action, level);
-    if (!observerShouldConsider(action, level)) return;
-    if (sessionCueCountRef.current >= profile.maxSessionCues) return;
+    const immediate = action.action === "paper_pattern_revealed";
+    if (!immediate && !observerShouldConsider(action, level)) return;
+    if (!immediate && sessionCueCountRef.current >= profile.maxSessionCues) return;
     const now = performance.now();
     const cooldownRemaining = Math.max(0, cooldownMsRef.current - (now - lastSpokenAtRef.current));
-    if (cooldownRemaining > 0) {
+    if (!immediate && cooldownRemaining > 0) {
       queueAction(action, cooldownRemaining + 120);
       return;
     }
-    if (activeInteractionRef.current || now - lastInteractionAtRef.current < 900 || speakingRef.current || requestingSpeechRef.current) {
+    if (!immediate && (activeInteractionRef.current || now - lastInteractionAtRef.current < 900 || speakingRef.current || requestingSpeechRef.current)) {
       queueAction(action, 1050);
       return;
     }
+    if (immediate) stopSpeech();
 
     decisionControllerRef.current?.abort();
     const controller = new AbortController();
@@ -371,12 +373,12 @@ export function MathObserver() {
         message: decision.text,
         once: action.once,
         priority: (decision.priority ?? 0) >= .82 ? 3 : (decision.priority ?? 0) >= .62 ? 2 : 1,
-      });
+      }, immediate);
     } catch (error) {
       if ((error as Error).name === "AbortError" || sceneVersion !== sceneVersionRef.current || actionScene !== activeSceneRef.current || !action.suggestedCue) return;
-      await deliverCue({ id: action.id, message: action.suggestedCue, once: action.once, priority: score >= .86 ? 3 : 1 });
+      await deliverCue({ id: action.id, message: action.suggestedCue, once: action.once, priority: score >= .86 ? 3 : 1 }, immediate);
     }
-  }, [deliverCue, queueAction]);
+  }, [deliverCue, queueAction, stopSpeech]);
   useEffect(() => { considerActionRef.current = considerAction; }, [considerAction]);
 
   useEffect(() => {

@@ -423,6 +423,8 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   const [pondPlaying,setPondPlaying]=useState(false);
   const [pondTrackId,setPondTrackId]=useState<PondTrackId>("mozart");
   const discoveriesRef=useRef<Set<GardenId>>(new Set());
+  const selectionCountRef=useRef<Record<string,number>>({});
+  const controlAttemptsRef=useRef<Record<string,number>>({});
   const pondAudioContext=useRef<AudioContext|null>(null);
   const pondAudio=useRef<HTMLAudioElement|null>(null);
   const pondAudioSource=useRef<MediaElementAudioSourceNode|null>(null);
@@ -440,10 +442,15 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
     observer.observe(section);return()=>observer.disconnect();
   },[gardenCanvasReady]);
   const select=useCallback((id:GardenId)=>{
-    setMathObserverScene("garden",{view:"discovery",item:id});
-    setSelectedId(id);
-    if(discoveriesRef.current.has(id))return;
     const item=GARDEN_ITEMS.find(candidate=>candidate.id===id);
+    const selectionCount=(selectionCountRef.current[id]??0)+1;
+    selectionCountRef.current[id]=selectionCount;
+    setMathObserverScene("garden",{view:"discovery",item:id,name:item?.name??id,formula:item?.formula??""});
+    setSelectedId(id);
+    if(discoveriesRef.current.has(id)){
+      observeMathAction({id:`garden-revisit-${id}-${selectionCount}`,scene:"garden",action:"garden_item_revisited",outcome:"discovery",importance:.72,suggestedCue:`你又回到了${item?.name??"这个数学生命体"}。这次只动一个参数，看看公式里的哪个量和它一起变化。`,context:{item:id,name:item?.name??id,formula:item?.formula??"",selectionCount}});
+      return;
+    }
     const next=new Set(discoveriesRef.current);next.add(id);discoveriesRef.current=next;setDiscoveries(next);
     const milestone=[3,5,GARDEN_ITEMS.length].includes(next.size);
     observeMathAction({id:`garden-discovery-${id}`,scene:"garden",action:milestone?"garden_discovery_milestone":"garden_item_discovered",outcome:milestone?"success":"discovery",importance:milestone ? .94 : .82,once:true,suggestedCue:milestone?`你已经发现 ${next.size} 个数学生命体。试着说说，它们都在用什么方式重复。`:`你找到了${item?.name??"一个数学生命体"}。先动一个参数，看公式里的哪个量和它一起变化。`,context:{item:id,name:item?.name??id,formula:item?.formula??"",discoveryCount:next.size,total:GARDEN_ITEMS.length}});
@@ -480,7 +487,15 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   const togglePondSound=()=>{if(pondPlaying)stopPondSound();else void startPondTrack(pondTrackId)};
   const finishGardenControl=(item:GardenItem,control:GardenItem["controls"][number],value:number)=>{
     const reachedGolden=control.key==="flowerRatio"&&Math.abs(value-1.618)<.0005;
-    observeMathAction({id:reachedGolden?"garden-golden-ratio-reached":`garden-control-${item.id}-${control.key}`,scene:"garden",action:reachedGolden?"garden_target_reached":"garden_parameter_adjusted",outcome:reachedGolden?"success":"exploring",importance:reachedGolden ? .96 : .43,once:reachedGolden,suggestedCue:reachedGolden?"你对准了 1.618。现在比较前后两朵花，花瓣之间的空隙是不是更均匀？":undefined,context:{item:item.id,parameter:control.key,value}});
+    const attemptKey=`${item.id}:${control.key}`;
+    const attempt=(controlAttemptsRef.current[attemptKey]??0)+1;
+    controlAttemptsRef.current[attemptKey]=attempt;
+    const suggestedCue=reachedGolden
+      ? "你对准了 1.618，观察得很准！比较前后两朵花，花瓣空隙是不是更均匀？"
+      : attempt>=3
+        ? `你一直在认真调整${control.label}。先停在当前值，只观察${item.name}最明显的一处变化。`
+        : `你改变了${control.label}。比较调整前后，${item.name}最明显的变化在哪里？`;
+    observeMathAction({id:reachedGolden?"garden-golden-ratio-reached":`garden-control-${item.id}-${control.key}-${attempt}`,scene:"garden",action:reachedGolden?"garden_target_reached":"garden_parameter_adjusted",outcome:reachedGolden?"success":attempt>=3?"stuck":"exploring",importance:reachedGolden ? .96 : .78,attempt,once:reachedGolden,suggestedCue,context:{item:item.id,name:item.name,formula:item.formula,parameter:control.key,parameterLabel:control.label,value,attempt}});
   };
   useEffect(()=>{const pauseWhenHidden=()=>{if(document.hidden)stopPondSound()};document.addEventListener("visibilitychange",pauseWhenHidden);return()=>document.removeEventListener("visibilitychange",pauseWhenHidden)},[stopPondSound]);
   useEffect(()=>()=>stopPondSound(false),[stopPondSound]);

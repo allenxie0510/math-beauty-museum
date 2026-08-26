@@ -177,6 +177,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     let solidMeshes: THREE.Mesh[] = [];
     let currentShape = shapeRef.current;
     let normal = DEFAULT_NORMALS[currentShape].clone();
+    const orientation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
     let offset = DEFAULT_OFFSETS[currentShape];
     let revealed = false;
     let sectionDirty = true;
@@ -197,26 +198,34 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     const hitHandle = new THREE.Mesh(new THREE.SphereGeometry(.3, 16, 10), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitHandle.userData.handle = "move";
     planeGroup.add(hitHandle);
-    const ringMaterialA = new THREE.MeshBasicMaterial({ color: "#706bd7", transparent: true, opacity: .72, depthWrite: false });
-    const ringMaterialB = new THREE.MeshBasicMaterial({ color: "#28aeca", transparent: true, opacity: .72, depthWrite: false });
-    const ringX = new THREE.Mesh(new THREE.TorusGeometry(1.52, .032, 12, 92), ringMaterialA);
+    const ringMaterialA = new THREE.MeshBasicMaterial({ color: "#706bd7", transparent: true, opacity: .54, depthWrite: false });
+    const ringMaterialB = new THREE.MeshBasicMaterial({ color: "#28aeca", transparent: true, opacity: .54, depthWrite: false });
+    const ringX = new THREE.Mesh(new THREE.TorusGeometry(1.52, .018, 10, 92), ringMaterialA);
     ringX.rotation.y = Math.PI / 2;
-    ringX.userData.handle = "rotate";
-    const ringY = new THREE.Mesh(new THREE.TorusGeometry(1.72, .032, 12, 92), ringMaterialB);
+    const ringY = new THREE.Mesh(new THREE.TorusGeometry(1.72, .018, 10, 92), ringMaterialB);
     ringY.rotation.x = Math.PI / 2;
-    ringY.userData.handle = "rotate";
+    const ringXActive = new THREE.Mesh(new THREE.TorusGeometry(1.52, .052, 12, 92), new THREE.MeshBasicMaterial({ color: "#6254cf", transparent: true, opacity: .94, depthTest: false, depthWrite: false }));
+    ringXActive.rotation.y = Math.PI / 2;
+    ringXActive.visible = false;
+    ringXActive.renderOrder = 8;
+    const ringYActive = new THREE.Mesh(new THREE.TorusGeometry(1.72, .052, 12, 92), new THREE.MeshBasicMaterial({ color: "#159fbd", transparent: true, opacity: .94, depthTest: false, depthWrite: false }));
+    ringYActive.rotation.x = Math.PI / 2;
+    ringYActive.visible = false;
+    ringYActive.renderOrder = 8;
     const ringHitMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
     const ringHitX = new THREE.Mesh(new THREE.TorusGeometry(1.52, .14, 8, 72), ringHitMaterial);
     ringHitX.rotation.y = Math.PI / 2;
     ringHitX.userData.handle = "rotate";
+    ringHitX.userData.axis = "x";
     const ringHitY = new THREE.Mesh(new THREE.TorusGeometry(1.72, .14, 8, 72), ringHitMaterial.clone());
     ringHitY.rotation.x = Math.PI / 2;
     ringHitY.userData.handle = "rotate";
-    planeGroup.add(ringX, ringY, ringHitX, ringHitY);
+    ringHitY.userData.axis = "y";
+    planeGroup.add(ringX, ringY, ringXActive, ringYActive, ringHitX, ringHitY);
     scene.add(planeGroup);
 
     const updatePlaneTransform = () => {
-      planeGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+      planeGroup.quaternion.copy(orientation);
       planeGroup.position.copy(normal).multiplyScalar(offset);
       const limit = OFFSET_LIMITS[currentShape];
       planeCallbackRef.current({ normal: [normal.x, normal.y, normal.z], offset, limit });
@@ -268,6 +277,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       solidMeshes = solid.meshes;
       currentShape = nextShape;
       normal = DEFAULT_NORMALS[nextShape].clone();
+      orientation.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
       offset = DEFAULT_OFFSETS[nextShape];
       revealed = false;
       clearGroup(sectionRoot);
@@ -281,9 +291,10 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       updatePlaneTransform();
     };
     const rotate = (yaw: number, pitch: number) => {
-      normal.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      orientation.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
       const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
-      normal.applyAxisAngle(cameraRight, pitch).normalize();
+      orientation.premultiply(new THREE.Quaternion().setFromAxisAngle(cameraRight, pitch)).normalize();
+      normal.set(0, 0, 1).applyQuaternion(orientation).normalize();
       revealed = false;
       updatePlaneTransform();
     };
@@ -293,6 +304,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     continueRef.current = () => { revealed = false; sectionDirty = true; };
     resetRef.current = () => {
       normal = DEFAULT_NORMALS[currentShape].clone();
+      orientation.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
       offset = DEFAULT_OFFSETS[currentShape];
       revealed = false;
       controls.reset();
@@ -305,12 +317,28 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    let drag: null | { mode: "move" | "rotate"; x: number; y: number; offset: number; normal: THREE.Vector3 } = null;
-    const pointerHits = (event: PointerEvent) => {
+    type RingAxis = "x" | "y";
+    type DragState =
+      | { mode: "move"; x: number; y: number; offset: number }
+      | { mode: "rotate"; axis: RingAxis; axisWorld: THREE.Vector3; center: THREE.Vector3; plane: THREE.Plane; startVector: THREE.Vector3; orientation: THREE.Quaternion };
+    let drag: DragState | null = null;
+    const setRingHighlight = (axis: RingAxis | null) => {
+      ringXActive.visible = axis === "x";
+      ringYActive.visible = axis === "y";
+    };
+    const updatePointerRay = (event: PointerEvent) => {
       const bounds = renderer.domElement.getBoundingClientRect();
       pointer.set((event.clientX - bounds.left) / bounds.width * 2 - 1, -(event.clientY - bounds.top) / bounds.height * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
+    };
+    const pointerHits = (event: PointerEvent) => {
+      updatePointerRay(event);
       return raycaster.intersectObjects([hitHandle, ringHitX, ringHitY], false);
+    };
+    const applyPointerFeedback = (hit?: THREE.Intersection<THREE.Object3D>) => {
+      const axis = hit?.object.userData.axis as RingAxis | undefined;
+      setRingHighlight(axis ?? null);
+      renderer.domElement.style.cursor = hit?.object.userData.handle === "move" ? "ns-resize" : hit ? "grab" : "default";
     };
     const handlePointerDown = (event: PointerEvent) => {
       if (revealed || (event.pointerType === "mouse" && event.button !== 0)) return;
@@ -319,25 +347,49 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       event.preventDefault();
       renderer.domElement.setPointerCapture(event.pointerId);
       const mode = hit.object.userData.handle as "move" | "rotate";
-      drag = { mode, x: event.clientX, y: event.clientY, offset, normal: normal.clone() };
+      if (mode === "move") {
+        drag = { mode, x: event.clientX, y: event.clientY, offset };
+        setRingHighlight(null);
+      } else {
+        const axis = hit.object.userData.axis as RingAxis;
+        const axisWorld = new THREE.Vector3(axis === "x" ? 1 : 0, axis === "y" ? 1 : 0, 0).applyQuaternion(orientation).normalize();
+        const center = planeGroup.position.clone();
+        const startVector = hit.point.clone().sub(center).projectOnPlane(axisWorld).normalize();
+        drag = {
+          mode,
+          axis,
+          axisWorld,
+          center,
+          plane: new THREE.Plane().setFromNormalAndCoplanarPoint(axisWorld, center),
+          startVector,
+          orientation: orientation.clone(),
+        };
+        setRingHighlight(axis);
+      }
       controls.enabled = false;
       renderer.domElement.style.cursor = "grabbing";
     };
     const handlePointerMove = (event: PointerEvent) => {
       if (!drag) {
-        renderer.domElement.style.cursor = !revealed && pointerHits(event).length ? "grab" : "default";
+        applyPointerFeedback(!revealed ? pointerHits(event)[0] : undefined);
         return;
       }
       event.preventDefault();
-      const bounds = renderer.domElement.getBoundingClientRect();
       if (drag.mode === "move") {
+        const bounds = renderer.domElement.getBoundingClientRect();
         const delta = -(event.clientY - drag.y) / Math.max(1, bounds.height) * 4.6 + (event.clientX - drag.x) / Math.max(1, bounds.width) * .55;
         offset = THREE.MathUtils.clamp(drag.offset + delta, -OFFSET_LIMITS[currentShape], OFFSET_LIMITS[currentShape]);
       } else {
-        normal.copy(drag.normal);
-        normal.applyAxisAngle(new THREE.Vector3(0, 1, 0), (event.clientX - drag.x) / Math.max(1, bounds.width) * Math.PI * 1.45);
-        const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
-        normal.applyAxisAngle(cameraRight, (event.clientY - drag.y) / Math.max(1, bounds.height) * Math.PI * 1.35).normalize();
+        updatePointerRay(event);
+        const point = raycaster.ray.intersectPlane(drag.plane, new THREE.Vector3());
+        if (!point) return;
+        const currentVector = point.sub(drag.center).projectOnPlane(drag.axisWorld).normalize();
+        const sine = drag.axisWorld.dot(drag.startVector.clone().cross(currentVector));
+        const cosine = THREE.MathUtils.clamp(drag.startVector.dot(currentVector), -1, 1);
+        const angle = Math.atan2(sine, cosine);
+        const rotation = new THREE.Quaternion().setFromAxisAngle(drag.axisWorld, angle);
+        orientation.copy(drag.orientation).premultiply(rotation).normalize();
+        normal.set(0, 0, 1).applyQuaternion(orientation).normalize();
       }
       updatePlaneTransform();
     };
@@ -345,8 +397,13 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       if (!drag) return;
       drag = null;
       controls.enabled = true;
-      renderer.domElement.style.cursor = "grab";
       if (renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
+      applyPointerFeedback(!revealed ? pointerHits(event)[0] : undefined);
+    };
+    const handlePointerLeave = () => {
+      if (drag) return;
+      setRingHighlight(null);
+      renderer.domElement.style.cursor = "default";
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowUp" || event.key === "ArrowDown") {
@@ -360,6 +417,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     renderer.domElement.addEventListener("pointermove", handlePointerMove);
     renderer.domElement.addEventListener("pointerup", handlePointerUp);
     renderer.domElement.addEventListener("pointercancel", handlePointerUp);
+    renderer.domElement.addEventListener("pointerleave", handlePointerLeave);
     renderer.domElement.addEventListener("keydown", handleKeyDown);
     const contextLoss = (event: Event) => { event.preventDefault(); onError(); };
     renderer.domElement.addEventListener("webglcontextlost", contextLoss);
@@ -390,6 +448,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       renderer.domElement.removeEventListener("pointermove", handlePointerMove);
       renderer.domElement.removeEventListener("pointerup", handlePointerUp);
       renderer.domElement.removeEventListener("pointercancel", handlePointerUp);
+      renderer.domElement.removeEventListener("pointerleave", handlePointerLeave);
       renderer.domElement.removeEventListener("keydown", handleKeyDown);
       renderer.domElement.removeEventListener("webglcontextlost", contextLoss);
       controls.dispose();

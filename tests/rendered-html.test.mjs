@@ -418,6 +418,15 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(spaceSlice, /空间切片实验室/);
   assert.match(spaceSlice, /new THREE\.PlaneGeometry/);
   assert.match(spaceSlice, /new THREE\.TorusGeometry/);
+  assert.match(spaceSlice, /new THREE\.TorusGeometry\(1\.52, \.018/);
+  assert.match(spaceSlice, /new THREE\.TorusGeometry\(1\.52, \.052/);
+  assert.match(spaceSlice, /ringHitX\.userData\.axis = "x"/);
+  assert.match(spaceSlice, /ringHitY\.userData\.axis = "y"/);
+  assert.match(spaceSlice, /raycaster\.ray\.intersectPlane\(drag\.plane/);
+  assert.match(spaceSlice, /Math\.atan2\(sine, cosine\)/);
+  assert.match(spaceSlice, /orientation\.copy\(drag\.orientation\)\.premultiply\(rotation\)/);
+  assert.match(spaceSlice, /ringXActive\.visible = axis === "x"/);
+  assert.match(spaceSlice, /style\.cursor = hit\?\.object\.userData\.handle === "move" \? "ns-resize" : hit \? "grab" : "default"/);
   assert.doesNotMatch(spaceSlice, /new THREE\.TubeGeometry/);
   assert.match(spaceSlice, /coneSection \? \(isReveal \? "#6d5abc" : "#9184d4"\)/);
   assert.match(spaceSlice, /opacity: isReveal \? \.55 : \.28/);

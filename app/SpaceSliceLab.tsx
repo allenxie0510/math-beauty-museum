@@ -103,23 +103,20 @@ function clearGroup(group: THREE.Group) {
 
 const SpaceSliceScene = forwardRef<SceneHandle, {
   shape: SliceShapeId;
-  interactionDisabled: boolean;
   onPlaneChange: (value: PlaneSnapshot) => void;
   onSectionChange: (value: SectionResult | null) => void;
   onError: () => void;
-}>(({ shape, interactionDisabled, onPlaneChange, onSectionChange, onError }, ref) => {
+}>(({ shape, onPlaneChange, onSectionChange, onError }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const shapeRef = useRef(shape);
   const planeCallbackRef = useRef(onPlaneChange);
   const sectionCallbackRef = useRef(onSectionChange);
-  const interactionDisabledRef = useRef(interactionDisabled);
   const changeShapeRef = useRef<(shape: SliceShapeId) => void>(() => undefined);
   const revealRef = useRef<() => SectionResult | null>(() => null);
   const setOffsetRef = useRef<(value: number) => void>(() => undefined);
   const rotateRef = useRef<(yaw: number, pitch: number) => void>(() => undefined);
   useEffect(() => { planeCallbackRef.current = onPlaneChange; }, [onPlaneChange]);
   useEffect(() => { sectionCallbackRef.current = onSectionChange; }, [onSectionChange]);
-  useEffect(() => { interactionDisabledRef.current = interactionDisabled; }, [interactionDisabled]);
 
   useImperativeHandle(ref, () => ({
     reveal: () => revealRef.current(),
@@ -331,7 +328,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       renderer.domElement.style.cursor = hit?.object.userData.handle === "move" ? "ns-resize" : hit ? "grab" : "default";
     };
     const handlePointerDown = (event: PointerEvent) => {
-      if (interactionDisabledRef.current || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
       const hit = pointerHits(event)[0];
       if (!hit) return;
       event.preventDefault();
@@ -362,7 +359,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     };
     const handlePointerMove = (event: PointerEvent) => {
       if (!drag) {
-        applyPointerFeedback(interactionDisabledRef.current ? undefined : pointerHits(event)[0]);
+        applyPointerFeedback(pointerHits(event)[0]);
         return;
       }
       event.preventDefault();
@@ -590,17 +587,18 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
       const next = sceneRef.current?.reveal() ?? null;
       setPendingResult(next);
       const resultTimer = window.setTimeout(() => {
+        const final = sceneRef.current?.reveal() ?? next;
         modeRef.current = "result";
-        setResult(next); setLiveResult(next); setMode("result");
-        const type = next?.classification.type ?? "none";
-        const hitTarget = !!next && (type === challenge.target || (challenge.target === "circle" && type === "great-circle"));
+        setResult(final); setLiveResult(final); setMode("result");
+        const type = final?.classification.type ?? "none";
+        const hitTarget = !!final && (type === challenge.target || (challenge.target === "circle" && type === "great-circle"));
         const suggestedCue = type === "none"
           ? "这次没有切到立体。把光片向中心移一点。"
           : type === "special"
             ? "你碰到了边或顶点。移动一点，会更容易看清。"
             : hitTarget
-              ? `找到了，${next?.classification.label}。记住光片现在的方向。`
-              : `这是${next?.classification.label}。换一个角度，看看它怎样变化。`;
+              ? `找到了，${final?.classification.label}。记住光片现在的方向。`
+              : `这是${final?.classification.label}。换一个角度，看看它怎样变化。`;
         observeMathAction({
           id: `slice-result-${shape}-${type}-${challenge.target}`,
           scene: "space-slice",
@@ -613,14 +611,14 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
             shape,
             target: challenge.target,
             section: type,
-            label: next?.classification.label ?? "未切中",
+            label: final?.classification.label ?? "未切中",
             matchedTarget: hitTarget,
             tilt,
             offset: Number(plane.offset.toFixed(2)),
           },
         });
-        if (next && next.classification.type !== "none" && next.classification.type !== "special") {
-          const discovery = next.classification.type === "great-circle" ? "great-circle" : next.classification.type;
+        if (final && final.classification.type !== "none" && final.classification.type !== "special") {
+          const discovery = final.classification.type === "great-circle" ? "great-circle" : final.classification.type;
           setDiscoveries((current) => current[shape].includes(discovery) ? current : { ...current, [shape]: [...current[shape], discovery] });
         }
       }, window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 30 : 720);
@@ -670,14 +668,14 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
         </header>
         <div className="space-slice-body">
           <section className="space-slice-stage" aria-label="三维切片操作区">
-            {!webglError ? <SpaceSliceScene ref={sceneRef} shape={shape} interactionDisabled={mode === "revealing"} onPlaneChange={setPlane} onSectionChange={handleSectionChange} onError={reportSceneError} /> : <div className="space-slice-webgl-error"><span>◌</span><b>你的浏览器暂时无法运行这个 3D 实验</b><p>建议使用最新版 Chrome、Safari 或 Edge。</p></div>}
+            {!webglError ? <SpaceSliceScene ref={sceneRef} shape={shape} onPlaneChange={setPlane} onSectionChange={handleSectionChange} onError={reportSceneError} /> : <div className="space-slice-webgl-error"><span>◌</span><b>你的浏览器暂时无法运行这个 3D 实验</b><p>建议使用最新版 Chrome、Safari 或 Edge。</p></div>}
             {!webglError && <>
               <div className="slice-scene-status"><span className={mode}>{mode === "editing" ? "截面实时预览" : mode === "revealing" ? "正在切开…" : "截面实时显现"}</span><small>倾角 {tilt}° · 距离 {plane.offset.toFixed(2)}</small></div>
               {mode !== "revealing" && <div className="slice-scene-hint"><i>◎</i><span>拖中央光点移动 · 拖光环旋转<br />截面图形会同步更新</span></div>}
               <div className="slice-quick-controls" aria-label="光片精细控制">
-                <button onClick={() => quickRotate("left")} aria-label="向左旋转光片" disabled={mode === "revealing"}>↶</button>
-                <label><span>光片距离</span><input type="range" min={-plane.limit} max={plane.limit} step="0.02" value={plane.offset} onChange={(event) => sceneRef.current?.setOffset(Number(event.target.value))} onPointerUp={finishOffsetAdjustment} onKeyUp={finishOffsetAdjustment} disabled={mode === "revealing"} aria-label="光片距离" /></label>
-                <button onClick={() => quickRotate("right")} aria-label="向右倾斜光片" disabled={mode === "revealing"}>↷</button>
+                <button onClick={() => quickRotate("left")} aria-label="向左旋转光片">↶</button>
+                <label><span>光片距离</span><input type="range" min={-plane.limit} max={plane.limit} step="0.02" value={plane.offset} onChange={(event) => sceneRef.current?.setOffset(Number(event.target.value))} onPointerUp={finishOffsetAdjustment} onKeyUp={finishOffsetAdjustment} aria-label="光片距离" /></label>
+                <button onClick={() => quickRotate("right")} aria-label="向右倾斜光片">↷</button>
               </div>
             </>}
           </section>
@@ -688,7 +686,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
               <p>{challengeSuccess ? "找到了。把这个形状收藏进立体的秘密里。" : "移动和旋转光片，找到你认为正确的位置，再切开验证。"}</p>
               <div className="challenge-target"><i className={challengeSuccess ? "done" : ""}>{challengeSuccess ? "✓" : "○"}</i><span>目标 · {CHALLENGES[shape].find((entry) => entry.target === challenge.target)?.title.replace(/^.*?(找到|找出|藏着)/, "") || challenge.target}</span></div>
             </section>
-            <SectionView result={mode === "revealing" ? pendingResult ?? liveResult : liveResult} revealing={mode === "revealing"} shape={shape} />
+            <SectionView result={mode === "revealing" ? liveResult ?? pendingResult : liveResult} revealing={mode === "revealing"} shape={shape} />
             <section className="slice-discoveries">
               <div className="slice-panel-kicker"><span>{shapeInfo.name}的秘密</span><small>DISCOVERIES</small></div>
               <div>{shapeInfo.secrets.map(([id, icon]) => <span key={id} className={discoveries[shape].includes(id) ? "found" : ""} aria-label={discoveries[shape].includes(id) ? `已发现 ${id}` : `尚未发现 ${id}`}>{discoveries[shape].includes(id) ? icon : "?"}</span>)}</div>

@@ -440,7 +440,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(spaceSlice, /style\.cursor = hit\?\.object\.userData\.handle === "move" \? "ns-resize" : hit \? "grab" : "default"/);
   assert.match(spaceSlice, /onSectionChange=\{handleSectionChange\}/);
   assert.match(spaceSlice, /calculate\(revealed\)/);
-  assert.match(spaceSlice, /pendingResult \?\? liveResult/);
+  assert.match(spaceSlice, /liveResult \?\? pendingResult/);
   assert.match(spaceSlice, />截面图形</);
   assert.doesNotMatch(spaceSlice, /重新摆放|截面镜|continueEditing/);
   assert.doesNotMatch(spaceSlice, /if \(revealed \|\|/);

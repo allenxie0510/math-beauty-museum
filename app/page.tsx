@@ -1,7 +1,7 @@
 "use client";
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { cueMathObserver } from "./math-observer-events";
+import { cueMathObserver, setMathObserverScene } from "./math-observer-events";
 
 const LazyMathObserver = lazy(async () => {
   const observerModule = await import("./MathObserver");
@@ -36,6 +36,7 @@ const LazyHometownTeacherStudio = lazy(async () => {
 function scrollToId(id: string, behavior: ScrollBehavior = "smooth") {
   const target = document.getElementById(id);
   if (!target) return;
+  setMathObserverScene(id);
   window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior });
 }
 
@@ -186,7 +187,13 @@ export default function Home() {
 
   const openCertificate = useCallback(() => {
     setUnlockNotice(false);
+    setMathObserverScene("certificate");
     setCertificateOpen(true);
+  }, []);
+
+  const closeCertificate = useCallback(() => {
+    setCertificateOpen(false);
+    setMathObserverScene("garden");
   }, []);
 
   useEffect(() => {
@@ -223,7 +230,7 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
       setHometownSlug(params.get("hometown"));
-      if (params.get("studio") === "hometown") setStudioOpen(true);
+      if (params.get("studio") === "hometown") { setMathObserverScene("hometown-studio"); setStudioOpen(true); }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -244,6 +251,7 @@ export default function Home() {
     setHometownSlug(slug);
     setHometownPreview(manifest ?? null);
     setStudioOpen(false);
+    setMathObserverScene("hometown");
     window.history.replaceState(null, "", `/?hometown=${encodeURIComponent(slug)}#hometown`);
     window.setTimeout(() => scrollToId("hometown"), 50);
   }, []);
@@ -286,7 +294,7 @@ export default function Home() {
       <Suspense fallback={<MuseumLoading />}><LazyNatureMuseumWorld /></Suspense>
       <DeferredInteractiveWorkshop />
       <DeferredMathGarden onProgress={updateGardenProgress} />
-      <DeferredHometownMath slug={hometownSlug} previewManifest={hometownPreview} onOpenStudio={() => setStudioOpen(true)} onExploreDemo={exploreMuseumDemo} onDetailChange={() => undefined}/>
+      <DeferredHometownMath slug={hometownSlug} previewManifest={hometownPreview} onOpenStudio={() => { setMathObserverScene("hometown-studio"); setStudioOpen(true); }} onExploreDemo={exploreMuseumDemo} onDetailChange={() => undefined}/>
 
       {unlockNotice && (
         <div className="certificate-unlock-toast" role="status">
@@ -295,8 +303,8 @@ export default function Home() {
           <button onClick={() => setUnlockNotice(false)} aria-label="关闭证书解锁通知">×</button>
         </div>
       )}
-      {certificateOpen && <Certificate name={name} setName={setName} close={() => setCertificateOpen(false)} />}
-      {studioOpen && <Suspense fallback={<div className="studio-loading" role="status">正在打开教师策展台…</div>}><LazyHometownTeacherStudio close={() => setStudioOpen(false)} preview={previewHometown}/></Suspense>}
+      {certificateOpen && <Certificate name={name} setName={setName} close={closeCertificate} />}
+      {studioOpen && <Suspense fallback={<div className="studio-loading" role="status">正在打开教师策展台…</div>}><LazyHometownTeacherStudio close={() => { setStudioOpen(false); setMathObserverScene("hometown"); }} preview={previewHometown}/></Suspense>}
     </main>
   );
 }

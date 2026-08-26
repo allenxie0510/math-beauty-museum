@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
-import { observeMathAction } from "./math-observer-events";
+import { observeMathAction, setMathObserverScene } from "./math-observer-events";
 
 type GardenId = "flower" | "tree" | "butterfly" | "vine" | "building" | "pond" | "shell" | "mobius" | "euler";
 type GardenSettings = Record<string, number>;
@@ -440,6 +440,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
     observer.observe(section);return()=>observer.disconnect();
   },[gardenCanvasReady]);
   const select=useCallback((id:GardenId)=>{
+    setMathObserverScene("garden",{view:"discovery",item:id});
     setSelectedId(id);
     if(discoveriesRef.current.has(id))return;
     const item=GARDEN_ITEMS.find(candidate=>candidate.id===id);
@@ -502,7 +503,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
       </div>
 
       {selected&&<aside className="garden-info-panel" style={{"--item-color":selected.color} as React.CSSProperties}>
-        <button className="garden-panel-close" onClick={()=>setSelectedId(null)} aria-label="关闭发现窗口">×</button>
+        <button className="garden-panel-close" onClick={()=>{setMathObserverScene("garden",{view:"world"});setSelectedId(null)}} aria-label="关闭发现窗口">×</button>
         <span className="garden-panel-index">DISCOVERY {String(GARDEN_ITEMS.findIndex(i=>i.id===selected.id)+1).padStart(2,"0")}</span>
         <div className="garden-panel-icon">{selected.icon}</div>
         <h3>{selected.discovery}</h3><p className="garden-object-name">{selected.name}<small>{selected.english}</small></p>

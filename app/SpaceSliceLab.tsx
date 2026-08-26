@@ -395,7 +395,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       if (completedMove) observeMathAction(completedMode === "rotate"
         ? {
             id: "slice-first-rotation",
-            scene: "space-slice",
+            scene: "workshop-slice",
             action: "slice_plane_rotated",
             outcome: "exploring",
             importance: .6,
@@ -405,7 +405,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
           }
         : {
             id: "slice-first-move",
-            scene: "space-slice",
+            scene: "workshop-slice",
             action: "slice_plane_moved",
             outcome: "exploring",
             importance: .6,
@@ -567,7 +567,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
     };
     observeMathAction({
       id: `slice-shape-${next}`,
-      scene: "space-slice",
+      scene: "workshop-slice",
       action: "solid_selected",
       outcome: "neutral",
       importance: .52,
@@ -601,7 +601,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
               : `这是${final?.classification.label}。换一个角度，看看它怎样变化。`;
         observeMathAction({
           id: `slice-result-${shape}-${type}-${challenge.target}`,
-          scene: "space-slice",
+          scene: "workshop-slice",
           action: "slice_revealed",
           outcome: hitTarget ? "success" : type === "none" || type === "special" || attempt >= 3 ? "stuck" : "discovery",
           importance: hitTarget ? .92 : type === "none" || type === "special" ? .82 : .7,
@@ -630,7 +630,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
     sceneRef.current?.rotate(direction === "left" ? -THREE.MathUtils.degToRad(4) : THREE.MathUtils.degToRad(4), direction === "right" ? THREE.MathUtils.degToRad(1.5) : 0);
     observeMathAction({
       id: "slice-first-quick-rotation",
-      scene: "space-slice",
+      scene: "workshop-slice",
       action: "slice_plane_rotated",
       outcome: "exploring",
       importance: .6,
@@ -641,7 +641,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
   };
   const finishOffsetAdjustment = () => observeMathAction({
     id: "slice-first-quick-move",
-    scene: "space-slice",
+    scene: "workshop-slice",
     action: "slice_plane_moved",
     outcome: "exploring",
     importance: .6,

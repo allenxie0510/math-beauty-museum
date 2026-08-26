@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 import { SpaceSliceLab } from "./SpaceSliceLab";
-import { observeMathAction } from "./math-observer-events";
+import { observeMathAction, setMathObserverScene } from "./math-observer-events";
 
 type GalleryPanel = {
   color: string;
@@ -662,10 +662,12 @@ export function InteractiveWorkshop() {
   const [webglError, setWebglError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const openDetail = useCallback((id: "paper" | "slice") => {
+    const scene = id === "slice" ? "workshop-slice" : "workshop-paper";
+    setMathObserverScene(scene, { game: id });
     setDetailOpen(id);
     observeMathAction({
       id: `workshop-open-${id}`,
-      scene: id === "slice" ? "workshop-slice" : "workshop-paper",
+      scene,
       action: "workshop_game_opened",
       outcome: "discovery",
       importance: .72,
@@ -674,7 +676,7 @@ export function InteractiveWorkshop() {
       context: { game: id },
     });
   }, []);
-  const closeDetail = useCallback(() => setDetailOpen(null), []);
+  const closeDetail = useCallback(() => { setMathObserverScene("workshop"); setDetailOpen(null); }, []);
   const reportWebglError = useCallback(() => setWebglError(true), []);
   return (
     <section className="workshop-world workshop-gallery" id="workshop" aria-labelledby="workshop-title">

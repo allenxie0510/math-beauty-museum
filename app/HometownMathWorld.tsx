@@ -6,7 +6,7 @@ import { HometownMathOverlay } from "./HometownMathOverlay";
 import { DEFAULT_HOMETOWN_MANIFEST } from "./hometown-math/domain/default-manifest";
 import { buildLearningContent } from "./hometown-math/domain/registry";
 import type { HometownSceneManifest } from "./hometown-math/domain/types";
-import { observeMathAction } from "./math-observer-events";
+import { observeMathAction, setMathObserverScene } from "./math-observer-events";
 
 type Props = {
   slug?: string | null;
@@ -118,6 +118,7 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
   const selected = exhibits.find((item) => item.id === selectedId) ?? null;
   const selectedZone = selected ? manifest.zones.find((zone) => zone.id === selected.zoneId) : null;
   const select = useCallback((id: string) => {
+    setMathObserverScene("hometown", { view: "exhibit", exhibit: id });
     setSelectedId(id); setRevealStep(0);
     if (seenExhibitsRef.current.has(id)) return;
     seenExhibitsRef.current.add(id);
@@ -125,7 +126,7 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
     const zone = item ? manifest.zones.find((candidate) => candidate.id === item.zoneId) : null;
     observeMathAction({ id: `hometown-exhibit-${id}`, scene: "hometown", action: "hometown_exhibit_discovered", outcome: "discovery", importance: .84, once: true, suggestedCue: `先看原照片，再让结构显现。你能在照片里指出${item?.conceptLabel ?? "数学规律"}藏在哪里吗？`, context: { exhibit: id, title: item?.title ?? id, zone: zone?.name ?? "家乡数学", concept: item?.conceptLabel ?? "", formula: item?.learning.formula ?? "" } });
   }, [exhibits, manifest.zones]);
-  const close = useCallback(() => { setSelectedId(null); setTouring(false); }, []);
+  const close = useCallback(() => { setMathObserverScene("hometown", { view: "gallery" }); setSelectedId(null); setTouring(false); }, []);
 
   useEffect(() => {
     if (previewManifest) { const timer = window.setTimeout(() => setManifest(completeManifest(previewManifest)), 0); return () => window.clearTimeout(timer); }

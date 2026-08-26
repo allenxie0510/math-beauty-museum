@@ -3,6 +3,7 @@ import { fetchWithTimeout, jsonError, protectObserverRequest, qwenConfig } from 
 type DecisionPayload = {
   participation?: "quiet" | "balanced" | "active";
   score?: number;
+  currentScene?: { scene?: unknown; context?: unknown };
   event?: Record<string, unknown>;
   recentEvents?: Array<Record<string, unknown>>;
   recentCueIds?: string[];
@@ -46,6 +47,9 @@ export async function POST(request: Request) {
   const event = JSON.parse(JSON.stringify(payload.event).slice(0, 2600)) as Record<string, unknown>;
   const recentEvents = Array.isArray(payload.recentEvents) ? payload.recentEvents.slice(-10) : [];
   const recentCueIds = Array.isArray(payload.recentCueIds) ? payload.recentCueIds.slice(-12) : [];
+  const currentScene = payload.currentScene && typeof payload.currentScene === "object"
+    ? JSON.parse(JSON.stringify(payload.currentScene).slice(0, 1200)) as Record<string, unknown>
+    : { scene: event.scene };
   const eventId = typeof event.id === "string" ? event.id : "observer-cue";
   const system = [
     "你是儿童数学美学馆的数学观察员“小观”。你的首要能力是克制：用户正在顺利探索时保持安静，只在关键发现、连续受挫、明确空闲或安全问题时开口。",
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
   const user = JSON.stringify({
     participation: payload.participation ?? "balanced",
     localScore: Math.max(0, Math.min(1, Number(payload.score) || 0)),
+    currentScene,
     event,
     recentEvents,
     recentCueIds,

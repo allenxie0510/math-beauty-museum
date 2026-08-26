@@ -49,9 +49,21 @@ const SCENE_REPLAY_CUES: Record<string, string> = {
 
 const PARTICIPATION_ORDER: MathObserverParticipation[] = ["quiet", "balanced", "active"];
 const PARTICIPATION_LABEL: Record<MathObserverParticipation, string> = { quiet: "静音", balanced: "平衡", active: "积极" };
-const PARTICIPATION_MARK: Record<MathObserverParticipation, string> = { quiet: "·", balanced: "··", active: "···" };
 const MIN_COOLDOWN_SECONDS = 3;
 const MAX_COOLDOWN_SECONDS = 30;
+
+function ParticipationIcon({ level }: { level: MathObserverParticipation }) {
+  if (level === "quiet") {
+    return <svg className="math-observer-level-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 9.5v5h3.4l4.6 3.8V5.7L7.4 9.5H4Z" fill="currentColor" />
+      <path d="m15.5 8 5 8m0-8-5 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>;
+  }
+
+  return <span className="math-observer-level-dots" aria-hidden="true">
+    {Array.from({ length: level === "balanced" ? 1 : 2 }, (_, index) => <i key={index} />)}
+  </span>;
+}
 
 type ObserverDecision = { action?: "silent" | "speak"; cueId?: string; text?: string; priority?: number };
 
@@ -546,7 +558,7 @@ export function MathObserver() {
         <span className="math-observer-talk-sequence" aria-hidden="true" />
       </button>
       <div className="math-observer-preferences">
-        <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小观参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}>{PARTICIPATION_MARK[participation]}</button>
+        <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小观参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}><ParticipationIcon level={participation} /></button>
         {settingsOpen && <div className="math-observer-settings" role="group" aria-label="小观参与设置">
           <span>参与度</span>
           <div>{PARTICIPATION_ORDER.map((level) => <button key={level} type="button" className={participation === level ? "active" : ""} aria-pressed={participation === level} onClick={() => selectParticipation(level)}>{PARTICIPATION_LABEL[level]}</button>)}</div>

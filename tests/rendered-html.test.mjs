@@ -476,6 +476,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /math-observer-participation/);
   assert.match(observer, /math-observer-cooldown-seconds/);
   assert.match(observer, /math-observer-settings/);
+  assert.match(observer, /ParticipationIcon/);
+  assert.match(observer, /level === "balanced" \? 1 : 2/);
+  assert.match(css, /\.math-observer-level-icon/);
+  assert.match(css, /\.math-observer-level-dots/);
   assert.match(observer, /pendingActionRef/);
   assert.match(observer, /affectCooldown: false, countSession: false/);
   assert.match(observer, /activeInteractionRef/);

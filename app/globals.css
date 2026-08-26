@@ -334,3 +334,11 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
 .section-view-canvas{width:100%;height:auto;aspect-ratio:1}
 .section-path,.section-path.open{fill:rgba(18,103,127,.38);stroke:none}
 @media(max-width:620px){.section-view-canvas{height:auto}}
+/* Stronger distance control and shape-matched conic sections. */
+.slice-quick-controls input{-webkit-appearance:none;appearance:none;height:24px;background:transparent;cursor:pointer}
+.slice-quick-controls input::-webkit-slider-runnable-track{height:5px;border-radius:999px;background:linear-gradient(90deg,#52afc2,#786ed0);box-shadow:inset 0 0 0 1px rgba(35,109,128,.16)}
+.slice-quick-controls input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;margin-top:-7.5px;border:3px solid #287f94;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(65,174,197,.16),0 4px 10px rgba(27,83,99,.25)}
+.slice-quick-controls input::-moz-range-track{height:5px;border:0;border-radius:999px;background:linear-gradient(90deg,#52afc2,#786ed0);box-shadow:inset 0 0 0 1px rgba(35,109,128,.16)}
+.slice-quick-controls input::-moz-range-thumb{width:15px;height:15px;border:3px solid #287f94;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(65,174,197,.16),0 4px 10px rgba(27,83,99,.25)}
+.slice-quick-controls input:disabled{cursor:default}
+.section-view-cone .section-path{fill:rgba(109,90,188,.4)}

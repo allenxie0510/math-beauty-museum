@@ -232,10 +232,11 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
           // ShapeGeometry closes their endpoints with the corresponding base
           // chord, which is the actual filled section of the finite solid.
           const shape2D = new THREE.Shape(contour.points2D);
+          const coneSection = currentShape === "cone";
           const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape2D), new THREE.MeshBasicMaterial({
-            color: isReveal ? "#12677f" : "#318fa4",
+            color: coneSection ? (isReveal ? "#6d5abc" : "#9184d4") : (isReveal ? "#176d82" : "#3b94a7"),
             transparent: true,
-            opacity: isReveal ? .78 : .3,
+            opacity: isReveal ? .55 : .28,
             side: THREE.DoubleSide,
             depthTest: false,
             depthWrite: false,
@@ -403,7 +404,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
 });
 SpaceSliceScene.displayName = "SpaceSliceScene";
 
-function SectionView({ result, revealing }: { result: SectionResult | null; revealing: boolean }) {
+function SectionView({ result, revealing, shape }: { result: SectionResult | null; revealing: boolean; shape: SliceShapeId }) {
   const drawing = useMemo(() => {
     if (!result?.contours.length) return null;
     const all = result.contours.flatMap((contour) => contour.points2D);
@@ -421,7 +422,7 @@ function SectionView({ result, revealing }: { result: SectionResult | null; reve
     return { viewBox, paths };
   }, [result]);
   return (
-    <div className={`section-view ${result ? "has-result" : ""} ${revealing ? "is-revealing" : ""}`}>
+    <div className={`section-view section-view-${shape} ${result ? "has-result" : ""} ${revealing ? "is-revealing" : ""}`}>
       <div className="section-view-top"><span>截面镜</span><small>SECTION VIEW</small></div>
       <div className="section-view-canvas">
         {!drawing ? <span className="section-question">?</span> : <svg viewBox={drawing.viewBox} role="img" aria-label={`二维截面：${result?.classification.label}`} preserveAspectRatio="xMidYMid meet">{drawing.paths.map((path, index) => <path key={index} d={path.d} className={`section-path ${path.closed ? "closed" : "open"}`} pathLength="1" />)}</svg>}
@@ -529,7 +530,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
               <p>{challengeSuccess ? "找到了。把这个形状收藏进立体的秘密里。" : "移动和旋转光片，找到你认为正确的位置，再切开验证。"}</p>
               <div className="challenge-target"><i className={challengeSuccess ? "done" : ""}>{challengeSuccess ? "✓" : "○"}</i><span>目标 · {CHALLENGES[shape].find((entry) => entry.target === challenge.target)?.title.replace(/^.*?(找到|找出|藏着)/, "") || challenge.target}</span></div>
             </section>
-            <SectionView result={mode === "result" ? result : mode === "revealing" ? pendingResult : null} revealing={mode === "revealing"} />
+            <SectionView result={mode === "result" ? result : mode === "revealing" ? pendingResult : null} revealing={mode === "revealing"} shape={shape} />
             <section className="slice-discoveries">
               <div className="slice-panel-kicker"><span>{shapeInfo.name}的秘密</span><small>DISCOVERIES</small></div>
               <div>{shapeInfo.secrets.map(([id, icon]) => <span key={id} className={discoveries[shape].includes(id) ? "found" : ""} aria-label={discoveries[shape].includes(id) ? `已发现 ${id}` : `尚未发现 ${id}`}>{discoveries[shape].includes(id) ? icon : "?"}</span>)}</div>

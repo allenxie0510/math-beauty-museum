@@ -16,8 +16,8 @@ type GalleryPanel = {
 const PANEL_RADIUS = .84;
 const PANELS: GalleryPanel[] = [
   { color: "#c94b3a", title: "剪纸", position: [-1.2, 1.25, -4.05], id: "paper" },
-  { color: "#6aaeba", title: "空间切片", position: [1.18, 1.25, -4.08], id: "slice" },
-  { color: "#368e97", title: "", position: [3.56, 1.25, -4.08] },
+  { color: "#368e97", title: "空间切片", position: [1.18, 1.25, -4.08], id: "slice" },
+  { color: "#6aaeba", title: "", position: [3.56, 1.25, -4.08] },
   { color: "#727e4e", title: "", position: [-1.2, -1.25, -4.08] },
   { color: "#92738f", title: "", position: [1.18, -1.25, -4.08] },
   { color: "#c4a33e", title: "", position: [3.56, -1.25, -4.08] },

@@ -413,12 +413,15 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /const PANEL_RADIUS = \.84/);
   assert.equal((workshop.match(/title: ""/g) ?? []).length, 4);
   assert.match(workshop, /title: "空间切片"/);
+  assert.match(workshop, /color: "#368e97", title: "空间切片"/);
   assert.match(workshop, /<SpaceSliceLab close=/);
   assert.match(spaceSlice, /空间切片实验室/);
   assert.match(spaceSlice, /new THREE\.PlaneGeometry/);
   assert.match(spaceSlice, /new THREE\.TorusGeometry/);
   assert.doesNotMatch(spaceSlice, /new THREE\.TubeGeometry/);
-  assert.match(spaceSlice, /opacity: isReveal \? \.78 : \.3/);
+  assert.match(spaceSlice, /coneSection \? \(isReveal \? "#6d5abc" : "#9184d4"\)/);
+  assert.match(spaceSlice, /opacity: isReveal \? \.55 : \.28/);
+  assert.match(spaceSlice, /section-view-\$\{shape\}/);
   assert.match(spaceSlice, /path\.closed \? "closed" : "open"/);
   assert.match(spaceSlice, /role="tablist"/);
   assert.match(spaceSlice, /切开看看/);
@@ -430,6 +433,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(sliceGeometry, /type: "hyperbola"/);
   assert.match(css, /\.section-view-canvas\{width:100%;height:auto;aspect-ratio:1\}/);
   assert.match(css, /\.section-path,\.section-path\.open\{fill:rgba\(18,103,127,\.38\);stroke:none\}/);
+  assert.match(css, /\.section-view-cone \.section-path\{fill:rgba\(109,90,188,\.4\)\}/);
+  assert.match(css, /input::-webkit-slider-thumb/);
   assert.match(css, /\.space-slice-lab/);
   assert.match(workshop, /new THREE\.TextureLoader\(\)\.load\(`data:image\/svg\+xml/);
   assert.match(workshop, /width="2048" height="2048"/);

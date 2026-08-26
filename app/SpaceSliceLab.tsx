@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeElementSize } from "./viewport";
 import { computeSection, planeBasis, SectionResult, SPACE_SLICE_DIMENSIONS, SliceShapeId } from "./space-slice/geometry";
-import { cueMathObserver } from "./math-observer-events";
+import { observeMathAction } from "./math-observer-events";
 
 type SceneHandle = {
   reveal: () => SectionResult | null;
@@ -400,14 +400,33 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     const handlePointerUp = (event: PointerEvent) => {
       if (!drag) return;
       const completedMode = drag.mode;
+      const completedAxis = drag.mode === "rotate" ? drag.axis : undefined;
       const completedMove = drag.moved;
       drag = null;
       controls.enabled = true;
       if (renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
       applyPointerFeedback(!revealed ? pointerHits(event)[0] : undefined);
-      if (completedMove) cueMathObserver(completedMode === "rotate"
-        ? { id: "slice-first-rotation", message: "你改变了光片的方向。先看截面边缘怎样变化。", once: true }
-        : { id: "slice-first-move", message: "你改变了光片的位置。方向没变，截面也可能变化。", once: true });
+      if (completedMove) observeMathAction(completedMode === "rotate"
+        ? {
+            id: "slice-first-rotation",
+            scene: "space-slice",
+            action: "slice_plane_rotated",
+            outcome: "exploring",
+            importance: .6,
+            suggestedCue: "你改变了光片的方向。先看截面边缘怎样变化。",
+            once: true,
+            context: { shape: currentShape, axis: completedAxis ?? "unknown" },
+          }
+        : {
+            id: "slice-first-move",
+            scene: "space-slice",
+            action: "slice_plane_moved",
+            outcome: "exploring",
+            importance: .6,
+            suggestedCue: "你改变了光片的位置。方向没变，截面也可能变化。",
+            once: true,
+            context: { shape: currentShape, offset: Number(offset.toFixed(2)) },
+          });
     };
     const handlePointerLeave = () => {
       if (drag) return;
@@ -509,6 +528,7 @@ function readDiscoveries() {
 export function SpaceSliceLab({ close }: { close: () => void }) {
   const sceneRef = useRef<SceneHandle>(null);
   const revealTimers = useRef<number[]>([]);
+  const attemptsRef = useRef<Record<string, number>>({});
   const [shape, setShape] = useState<SliceShapeId>("cube");
   const [mode, setMode] = useState<"editing" | "revealing" | "result">("editing");
   const [result, setResult] = useState<SectionResult | null>(null);
@@ -547,28 +567,55 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
       cylinder: "先改变方向，再看圆怎样变成椭圆。",
       cone: "注意光片有没有同时穿过上下两个锥面。",
     };
-    cueMathObserver({ id: `slice-shape-${next}`, message: cue[next], once: true });
+    observeMathAction({
+      id: `slice-shape-${next}`,
+      scene: "space-slice",
+      action: "solid_selected",
+      outcome: "neutral",
+      importance: .52,
+      suggestedCue: cue[next],
+      once: true,
+      context: { shape: next, target: CHALLENGES[next][0].target },
+    });
   };
   const reveal = () => {
     if (mode !== "editing") return;
+    const attemptKey = `${shape}:${challenge.target}`;
+    const attempt = (attemptsRef.current[attemptKey] ?? 0) + 1;
+    attemptsRef.current[attemptKey] = attempt;
     setMode("revealing"); setResult(null); setWhyOpen(false);
     const freezeTimer = window.setTimeout(() => {
       const next = sceneRef.current?.reveal() ?? null;
       setPendingResult(next);
       const resultTimer = window.setTimeout(() => {
         setResult(next); setMode("result");
-        if (!next || next.classification.type === "none") {
-          cueMathObserver({ id: "slice-result-none", message: "这次没有切到立体。把光片向中心移一点。", priority: 3 });
-        } else if (next.classification.type === "special") {
-          cueMathObserver({ id: "slice-result-special", message: "你碰到了边或顶点。移动一点，会更容易看清。", priority: 3 });
-        } else {
-          const hitTarget = next.classification.type === challenge.target || (challenge.target === "circle" && next.classification.type === "great-circle");
-          cueMathObserver({
-            id: `slice-result-${shape}-${next.classification.type}`,
-            message: hitTarget ? `找到了，${next.classification.label}。记住光片现在的方向。` : `这是${next.classification.label}。换一个角度，看看它怎样变化。`,
-            priority: 3,
-          });
-        }
+        const type = next?.classification.type ?? "none";
+        const hitTarget = !!next && (type === challenge.target || (challenge.target === "circle" && type === "great-circle"));
+        const suggestedCue = type === "none"
+          ? "这次没有切到立体。把光片向中心移一点。"
+          : type === "special"
+            ? "你碰到了边或顶点。移动一点，会更容易看清。"
+            : hitTarget
+              ? `找到了，${next?.classification.label}。记住光片现在的方向。`
+              : `这是${next?.classification.label}。换一个角度，看看它怎样变化。`;
+        observeMathAction({
+          id: `slice-result-${shape}-${type}-${challenge.target}`,
+          scene: "space-slice",
+          action: "slice_revealed",
+          outcome: hitTarget ? "success" : type === "none" || type === "special" || attempt >= 3 ? "stuck" : "discovery",
+          importance: hitTarget ? .92 : type === "none" || type === "special" ? .82 : .7,
+          attempt,
+          suggestedCue,
+          context: {
+            shape,
+            target: challenge.target,
+            section: type,
+            label: next?.classification.label ?? "未切中",
+            matchedTarget: hitTarget,
+            tilt,
+            offset: Number(plane.offset.toFixed(2)),
+          },
+        });
         if (next && next.classification.type !== "none" && next.classification.type !== "special") {
           const discovery = next.classification.type === "great-circle" ? "great-circle" : next.classification.type;
           setDiscoveries((current) => current[shape].includes(discovery) ? current : { ...current, [shape]: [...current[shape], discovery] });
@@ -579,7 +626,33 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
     revealTimers.current.push(freezeTimer);
   };
   const continueSlice = () => { sceneRef.current?.continueEditing(); setMode("editing"); setResult(null); setPendingResult(null); setWhyOpen(false); };
-  const reset = () => { sceneRef.current?.reset(); setMode("editing"); setResult(null); setPendingResult(null); setWhyOpen(false); };
+  const reset = () => {
+    sceneRef.current?.reset(); setMode("editing"); setResult(null); setPendingResult(null); setWhyOpen(false);
+    observeMathAction({ id: `slice-reset-${shape}`, scene: "space-slice", action: "slice_reset", outcome: "exploring", importance: .22, context: { shape } });
+  };
+  const quickRotate = (direction: "left" | "right") => {
+    sceneRef.current?.rotate(direction === "left" ? -THREE.MathUtils.degToRad(4) : THREE.MathUtils.degToRad(4), direction === "right" ? THREE.MathUtils.degToRad(1.5) : 0);
+    observeMathAction({
+      id: "slice-first-quick-rotation",
+      scene: "space-slice",
+      action: "slice_plane_rotated",
+      outcome: "exploring",
+      importance: .6,
+      suggestedCue: "角度改变了。停一下，看看实时截面和刚才有什么不同。",
+      once: true,
+      context: { shape, control: direction },
+    });
+  };
+  const finishOffsetAdjustment = () => observeMathAction({
+    id: "slice-first-quick-move",
+    scene: "space-slice",
+    action: "slice_plane_moved",
+    outcome: "exploring",
+    importance: .6,
+    suggestedCue: "方向没有变，光片的位置变了。看看截面大小怎样变化。",
+    once: true,
+    context: { shape, offset: Number(plane.offset.toFixed(2)) },
+  });
   const tabKeyDown = (event: React.KeyboardEvent, index: number) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
@@ -604,9 +677,9 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
               <div className="slice-scene-status"><span className={mode}>{mode === "editing" ? "正在摆放光片" : mode === "revealing" ? "正在切开…" : "截面已经显现"}</span><small>倾角 {tilt}° · 距离 {plane.offset.toFixed(2)}</small></div>
               {mode === "editing" && <div className="slice-scene-hint"><i>◎</i><span>拖中央光点移动 · 拖光环旋转<br />拖空白处观察 · 滚轮缩放</span></div>}
               <div className="slice-quick-controls" aria-label="光片精细控制">
-                <button onClick={() => sceneRef.current?.rotate(-THREE.MathUtils.degToRad(4), 0)} aria-label="向左旋转光片" disabled={mode !== "editing"}>↶</button>
-                <label><span>光片距离</span><input type="range" min={-plane.limit} max={plane.limit} step="0.02" value={plane.offset} onChange={(event) => sceneRef.current?.setOffset(Number(event.target.value))} disabled={mode !== "editing"} aria-label="光片距离" /></label>
-                <button onClick={() => sceneRef.current?.rotate(THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(1.5))} aria-label="向右倾斜光片" disabled={mode !== "editing"}>↷</button>
+                <button onClick={() => quickRotate("left")} aria-label="向左旋转光片" disabled={mode !== "editing"}>↶</button>
+                <label><span>光片距离</span><input type="range" min={-plane.limit} max={plane.limit} step="0.02" value={plane.offset} onChange={(event) => sceneRef.current?.setOffset(Number(event.target.value))} onPointerUp={finishOffsetAdjustment} onKeyUp={finishOffsetAdjustment} disabled={mode !== "editing"} aria-label="光片距离" /></label>
+                <button onClick={() => quickRotate("right")} aria-label="向右倾斜光片" disabled={mode !== "editing"}>↷</button>
               </div>
             </>}
           </section>

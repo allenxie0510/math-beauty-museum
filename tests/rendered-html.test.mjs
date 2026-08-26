@@ -43,7 +43,7 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, workshop, spaceSlice, sliceGeometry, observer, observerEvents, page, layout, css, audio, viewport, mascotAsset] = await Promise.all([
+  const [museum, garden, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, mascotAsset] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/InteractiveWorkshop.tsx", import.meta.url), "utf8"),
@@ -51,6 +51,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
     readFile(new URL("../app/space-slice/geometry.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/MathObserver.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/math-observer-events.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/math-observer-policy.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/observer/decide/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/observer/speech/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -456,9 +459,20 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.math-observer\{position:fixed/);
   assert.match(observer, /SpeechSynthesisUtterance/);
   assert.match(observer, /math-observer-xiaoguan\.png/);
-  assert.match(observer, /utterance\.pitch = 1\.14/);
-  assert.match(observer, /26000/);
+  assert.match(observer, /utterance\.pitch = 1/);
+  assert.match(observer, /\/api\/observer\/decide/);
+  assert.match(observer, /\/api\/observer\/speech/);
+  assert.match(observer, /math-observer-participation/);
+  assert.match(observer, /activeInteractionRef/);
   assert.match(observerEvents, /math-observer-cue/);
+  assert.match(observerEvents, /math-observer-action/);
+  assert.match(observerPolicy, /quiet: \{ threshold: \.84/);
+  assert.match(observerPolicy, /balanced: \{ threshold: \.68/);
+  assert.match(observerPolicy, /active: \{ threshold: \.53/);
+  assert.match(observerDecide, /compatible-mode\/v1\/chat\/completions/);
+  assert.match(observerDecide, /action.*silent\|speak/);
+  assert.match(observerSpeech, /config\.ttsModel/);
+  assert.match(observerSpeech, /multimodal-generation\/generation/);
   assert.match(museum, /observer-hall-\$\{HALLS\[hallIndex\]\.key\}/);
   assert.equal(mascotAsset[25], 6, "math observer mascot must keep a true RGBA alpha channel");
   assert.match(workshop, /new THREE\.TextureLoader\(\)\.load\(`data:image\/svg\+xml/);

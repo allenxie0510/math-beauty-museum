@@ -43,7 +43,7 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, hometown, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, mascotAsset] = await Promise.all([
+  const [museum, garden, hometown, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, mascotAsset, mascotSequenceAsset] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/HometownMathWorld.tsx", import.meta.url), "utf8"),
@@ -60,7 +60,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/audio.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/viewport.ts", import.meta.url), "utf8"),
-    readFile(new URL("../public/math-observer-xiaoguan.png", import.meta.url)),
+    readFile(new URL("../public/math-observer-talk-0.png", import.meta.url)),
+    readFile(new URL("../public/math-observer-talk-sequence.png", import.meta.url)),
   ]);
 
   for (const hall of ["自然数学馆", "建筑数学馆", "声音数学馆", "宇宙数学馆"]) {
@@ -466,7 +467,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.space-slice-lab/);
   assert.match(css, /\.math-observer\{position:fixed/);
   assert.match(observer, /SpeechSynthesisUtterance/);
-  assert.match(observer, /math-observer-xiaoguan\.png/);
+  assert.match(observer, /math-observer-talk-0\.png/);
+  assert.match(observer, /math-observer-talk-sequence/);
+  assert.match(css, /@keyframes observerTalkSequence/);
   assert.match(observer, /utterance\.pitch = 1/);
   assert.match(observer, /\/api\/observer\/decide/);
   assert.match(observer, /\/api\/observer\/speech/);
@@ -495,6 +498,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(hometown, /hometown_math_reading_completed/);
   assert.match(css, /\.math-observer-settings/);
   assert.equal(mascotAsset[25], 6, "math observer mascot must keep a true RGBA alpha channel");
+  assert.equal(mascotSequenceAsset[25], 6, "math observer speaking sequence must keep a true RGBA alpha channel");
   assert.match(workshop, /new THREE\.TextureLoader\(\)\.load\(`data:image\/svg\+xml/);
   assert.match(workshop, /width="2048" height="2048"/);
   assert.match(workshop, /font-size="128"/);

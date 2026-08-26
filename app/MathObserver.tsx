@@ -542,8 +542,8 @@ export function MathObserver() {
     <aside className={`math-observer ${ready ? "is-ready" : ""} ${speaking ? "is-speaking" : ""}`} aria-label="数学观察员小观">
       <button className="math-observer-character" type="button" onClick={replay} aria-label="让数学观察员小观重复刚才的语音">
         <span className="math-observer-halo" aria-hidden="true" />
-        <Image src="/math-observer-xiaoguan.png" alt="数学观察员小观" width={512} height={512} unoptimized />
-        <span className="math-observer-magnifier-motion" aria-hidden="true" />
+        <Image src="/math-observer-talk-0.png" alt="数学观察员小观" width={512} height={512} unoptimized />
+        <span className="math-observer-talk-sequence" aria-hidden="true" />
       </button>
       <div className="math-observer-preferences">
         <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小观参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}>{PARTICIPATION_MARK[participation]}</button>

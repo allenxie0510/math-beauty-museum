@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import {
   MATH_OBSERVER_ACTION_EVENT,
@@ -66,6 +66,15 @@ function ParticipationIcon({ level }: { level: MathObserverParticipation }) {
 }
 
 type ObserverDecision = { action?: "silent" | "speak"; cueId?: string; text?: string; priority?: number };
+type ObserverPosition = { left: number; top: number };
+
+function clampObserverPosition(left: number, top: number, width: number, height: number): ObserverPosition {
+  const margin = 8;
+  return {
+    left: Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - width - margin)),
+    top: Math.min(Math.max(margin, top), Math.max(margin, window.innerHeight - height - margin)),
+  };
+}
 
 function normalizeScene(scene: string) {
   return scene === "space-slice" ? "workshop-slice" : scene;
@@ -118,6 +127,11 @@ export function MathObserver() {
   const [participation, setParticipation] = useState<MathObserverParticipation>("balanced");
   const [cooldownSeconds, setCooldownSeconds] = useState(MATH_OBSERVER_PROFILES.balanced.cooldownMs / 1000);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [observerPosition, setObserverPosition] = useState<ObserverPosition | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const observerRef = useRef<HTMLElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; left: number; top: number; width: number; height: number; moved: boolean } | null>(null);
+  const suppressReplayRef = useRef(false);
   const unlockedRef = useRef(false);
   const speakingRef = useRef(false);
   const requestingSpeechRef = useRef(false);
@@ -550,11 +564,76 @@ export function MathObserver() {
 
   const replay = () => deliverCue({ id: "observer-replay", message: lastMessageRef.current, priority: 3 }, true);
 
+  useEffect(() => {
+    try {
+      const storedPosition = JSON.parse(localStorage.getItem("math-observer-position") ?? "null") as Partial<ObserverPosition> | null;
+      const bounds = observerRef.current?.getBoundingClientRect();
+      if (bounds && Number.isFinite(storedPosition?.left) && Number.isFinite(storedPosition?.top)) {
+        setObserverPosition(clampObserverPosition(Number(storedPosition?.left), Number(storedPosition?.top), bounds.width, bounds.height));
+      }
+    } catch { /* Keep the default bottom-right position. */ }
+
+    const keepVisible = () => {
+      const bounds = observerRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setObserverPosition((current) => current ? clampObserverPosition(current.left, current.top, bounds.width, bounds.height) : current);
+    };
+    window.addEventListener("resize", keepVisible);
+    return () => window.removeEventListener("resize", keepVisible);
+  }, []);
+
+  const beginObserverDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    const bounds = observerRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height, moved: false };
+    suppressReplayRef.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging(true);
+  };
+
+  const moveObserver = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(deltaX, deltaY) >= 4) drag.moved = true;
+    if (!drag.moved) return;
+    suppressReplayRef.current = true;
+    setObserverPosition(clampObserverPosition(drag.left + deltaX, drag.top + deltaY, drag.width, drag.height));
+  };
+
+  const endObserverDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    dragRef.current = null;
+    setDragging(false);
+    if (!drag.moved) return;
+    const finalPosition = clampObserverPosition(drag.left + event.clientX - drag.startX, drag.top + event.clientY - drag.startY, drag.width, drag.height);
+    setObserverPosition(finalPosition);
+    try { localStorage.setItem("math-observer-position", JSON.stringify(finalPosition)); } catch { /* Position remains in memory. */ }
+  };
+
+  const replayUnlessDragged = () => {
+    if (suppressReplayRef.current) {
+      suppressReplayRef.current = false;
+      return;
+    }
+    replay();
+  };
+
+  const observerStyle: CSSProperties | undefined = observerPosition
+    ? { left: observerPosition.left, top: observerPosition.top, right: "auto", bottom: "auto" }
+    : undefined;
+  const settingsToRight = observerPosition !== null && observerPosition.left < 260;
+  const settingsDown = observerPosition !== null && observerPosition.top < 250;
+
   return (
-    <aside className={`math-observer ${ready ? "is-ready" : ""} ${speaking ? "is-speaking" : ""}`} aria-label="数学观察员小观">
-      <button className="math-observer-character" type="button" onClick={replay} aria-label="让数学观察员小观重复刚才的语音">
+    <aside ref={observerRef} style={observerStyle} className={`math-observer ${ready ? "is-ready" : ""} ${speaking ? "is-speaking" : ""} ${dragging ? "is-dragging" : ""} ${settingsToRight ? "settings-to-right" : ""} ${settingsDown ? "settings-down" : ""}`} aria-label="数学观察员小观">
+      <button className="math-observer-character" type="button" onClick={replayUnlessDragged} onPointerDown={beginObserverDrag} onPointerMove={moveObserver} onPointerUp={endObserverDrag} onPointerCancel={endObserverDrag} title="拖动小观改变位置，点击重复语音" aria-label="拖动数学观察员小观改变位置，点击可重复刚才的语音">
         <span className="math-observer-halo" aria-hidden="true" />
-        <Image src="/math-observer-talk-0.png" alt="数学观察员小观" width={512} height={512} unoptimized />
+        <Image src="/math-observer-talk-0.png" alt="数学观察员小观" width={512} height={512} draggable={false} unoptimized />
         <span className="math-observer-talk-sequence" aria-hidden="true" />
       </button>
       <div className="math-observer-preferences">

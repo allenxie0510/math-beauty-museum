@@ -473,6 +473,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observerDecide, /action.*silent\|speak/);
   assert.match(observerSpeech, /config\.ttsModel/);
   assert.match(observerSpeech, /multimodal-generation\/generation/);
+  assert.match(observerSpeech, /SpeechSynthesizer/);
+  assert.match(observerSpeech, /cosyvoice-/);
   assert.match(museum, /observer-hall-\$\{HALLS\[hallIndex\]\.key\}/);
   assert.equal(mascotAsset[25], 6, "math observer mascot must keep a true RGBA alpha channel");
   assert.match(workshop, /new THREE\.TextureLoader\(\)\.load\(`data:image\/svg\+xml/);

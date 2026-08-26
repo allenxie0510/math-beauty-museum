@@ -8,7 +8,10 @@ function trustedAudioUrl(value: string) {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    return url.protocol === "https:" && (host === "aliyuncs.com" || host.endsWith(".aliyuncs.com") || host.endsWith(".alicdn.com")) ? url : null;
+    const trustedHost = host === "aliyuncs.com" || host.endsWith(".aliyuncs.com") || host.endsWith(".alicdn.com");
+    if (!trustedHost || (url.protocol !== "https:" && url.protocol !== "http:")) return null;
+    url.protocol = "https:";
+    return url;
   } catch {
     return null;
   }
@@ -24,12 +27,23 @@ export async function POST(request: Request) {
   if (!text) return jsonError("Speech text is required", 400);
 
   try {
-    const response = await fetchWithTimeout(`${config.baseUrl}/api/v1/services/aigc/multimodal-generation/generation`, {
+    const cosyVoiceModel = config.ttsModel.startsWith("cosyvoice-") || config.ttsModel.startsWith("qwen-audio-");
+    const endpoint = cosyVoiceModel
+      ? `${config.baseUrl}/api/v1/services/audio/tts/SpeechSynthesizer`
+      : `${config.baseUrl}/api/v1/services/aigc/multimodal-generation/generation`;
+    const input = cosyVoiceModel
+      ? { text, voice: config.ttsVoice, format: "wav", sample_rate: 24000 }
+      : { text, voice: config.ttsVoice };
+    const response = await fetchWithTimeout(endpoint, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: config.ttsModel, input: { text, voice: config.ttsVoice } }),
+      body: JSON.stringify({ model: config.ttsModel, input }),
     }, 20000);
-    if (!response.ok) return jsonError("Qwen TTS request failed", 502);
+    if (!response.ok) {
+      const failure = await response.json().catch(() => null) as { code?: unknown } | null;
+      const code = typeof failure?.code === "string" ? failure.code.slice(0, 60) : "upstream_error";
+      return Response.json({ error: "Qwen TTS request failed", upstreamCode: code }, { status: 502, headers: { "Cache-Control": "no-store" } });
+    }
     const result = await response.json() as TtsResponse;
     const inlineAudio = result.output?.audio?.data;
     if (inlineAudio) {

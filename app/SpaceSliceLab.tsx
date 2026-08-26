@@ -9,8 +9,6 @@ import { observeMathAction } from "./math-observer-events";
 
 type SceneHandle = {
   reveal: () => SectionResult | null;
-  continueEditing: () => void;
-  reset: () => void;
   setOffset: (value: number) => void;
   rotate: (yaw: number, pitch: number) => void;
 };
@@ -105,24 +103,26 @@ function clearGroup(group: THREE.Group) {
 
 const SpaceSliceScene = forwardRef<SceneHandle, {
   shape: SliceShapeId;
+  interactionDisabled: boolean;
   onPlaneChange: (value: PlaneSnapshot) => void;
+  onSectionChange: (value: SectionResult | null) => void;
   onError: () => void;
-}>(({ shape, onPlaneChange, onError }, ref) => {
+}>(({ shape, interactionDisabled, onPlaneChange, onSectionChange, onError }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const shapeRef = useRef(shape);
   const planeCallbackRef = useRef(onPlaneChange);
+  const sectionCallbackRef = useRef(onSectionChange);
+  const interactionDisabledRef = useRef(interactionDisabled);
   const changeShapeRef = useRef<(shape: SliceShapeId) => void>(() => undefined);
   const revealRef = useRef<() => SectionResult | null>(() => null);
-  const continueRef = useRef<() => void>(() => undefined);
-  const resetRef = useRef<() => void>(() => undefined);
   const setOffsetRef = useRef<(value: number) => void>(() => undefined);
   const rotateRef = useRef<(yaw: number, pitch: number) => void>(() => undefined);
   useEffect(() => { planeCallbackRef.current = onPlaneChange; }, [onPlaneChange]);
+  useEffect(() => { sectionCallbackRef.current = onSectionChange; }, [onSectionChange]);
+  useEffect(() => { interactionDisabledRef.current = interactionDisabled; }, [interactionDisabled]);
 
   useImperativeHandle(ref, () => ({
     reveal: () => revealRef.current(),
-    continueEditing: () => continueRef.current(),
-    reset: () => resetRef.current(),
     setOffset: (value) => setOffsetRef.current(value),
     rotate: (yaw, pitch) => rotateRef.current(yaw, pitch),
   }), []);
@@ -264,6 +264,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       try {
         currentResult = computeSection(currentShape, solidMeshes, normal, offset);
         renderSection(currentResult, isReveal);
+        sectionCallbackRef.current(currentResult);
         return currentResult;
       } catch (error) {
         console.error("Space slice section calculation failed", error);
@@ -288,7 +289,6 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
 
     const setOffset = (value: number) => {
       offset = THREE.MathUtils.clamp(value, -OFFSET_LIMITS[currentShape], OFFSET_LIMITS[currentShape]);
-      revealed = false;
       updatePlaneTransform();
     };
     const rotate = (yaw: number, pitch: number) => {
@@ -296,22 +296,11 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
       orientation.premultiply(new THREE.Quaternion().setFromAxisAngle(cameraRight, pitch)).normalize();
       normal.set(0, 0, 1).applyQuaternion(orientation).normalize();
-      revealed = false;
       updatePlaneTransform();
     };
 
     changeShapeRef.current = loadShape;
     revealRef.current = () => { revealed = true; return calculate(true); };
-    continueRef.current = () => { revealed = false; sectionDirty = true; };
-    resetRef.current = () => {
-      normal = DEFAULT_NORMALS[currentShape].clone();
-      orientation.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-      offset = DEFAULT_OFFSETS[currentShape];
-      revealed = false;
-      controls.reset();
-      clearGroup(sectionRoot);
-      updatePlaneTransform();
-    };
     setOffsetRef.current = setOffset;
     rotateRef.current = rotate;
     loadShape(currentShape);
@@ -342,7 +331,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       renderer.domElement.style.cursor = hit?.object.userData.handle === "move" ? "ns-resize" : hit ? "grab" : "default";
     };
     const handlePointerDown = (event: PointerEvent) => {
-      if (revealed || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (interactionDisabledRef.current || (event.pointerType === "mouse" && event.button !== 0)) return;
       const hit = pointerHits(event)[0];
       if (!hit) return;
       event.preventDefault();
@@ -373,7 +362,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     };
     const handlePointerMove = (event: PointerEvent) => {
       if (!drag) {
-        applyPointerFeedback(!revealed ? pointerHits(event)[0] : undefined);
+        applyPointerFeedback(interactionDisabledRef.current ? undefined : pointerHits(event)[0]);
         return;
       }
       event.preventDefault();
@@ -405,7 +394,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       drag = null;
       controls.enabled = true;
       if (renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
-      applyPointerFeedback(!revealed ? pointerHits(event)[0] : undefined);
+      applyPointerFeedback(pointerHits(event)[0]);
       if (completedMove) observeMathAction(completedMode === "rotate"
         ? {
             id: "slice-first-rotation",
@@ -459,8 +448,8 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     let animationFrame = 0;
     const render = (now: number) => {
       controls.update();
-      if (sectionDirty && !revealed && now - lastSectionUpdate > 32) {
-        calculate(false);
+      if (sectionDirty && now - lastSectionUpdate > 32) {
+        calculate(revealed);
         sectionDirty = false;
         lastSectionUpdate = now;
       }
@@ -510,11 +499,11 @@ function SectionView({ result, revealing, shape }: { result: SectionResult | nul
   }, [result]);
   return (
     <div className={`section-view section-view-${shape} ${result ? "has-result" : ""} ${revealing ? "is-revealing" : ""}`}>
-      <div className="section-view-top"><span>截面镜</span><small>SECTION VIEW</small></div>
+      <div className="section-view-top"><span>截面图形</span><small>SECTION VIEW</small></div>
       <div className="section-view-canvas">
         {!drawing ? <span className="section-question">?</span> : <svg viewBox={drawing.viewBox} role="img" aria-label={`二维截面：${result?.classification.label}`} preserveAspectRatio="xMidYMid meet">{drawing.paths.map((path, index) => <path key={index} d={path.d} className={`section-path ${path.closed ? "closed" : "open"}`} pathLength="1" />)}</svg>}
       </div>
-      <strong>{result?.classification.label ?? "等待切开"}</strong>
+      <strong>{result?.classification.label ?? "移动光片查看"}</strong>
     </div>
   );
 }
@@ -529,15 +518,26 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
   const sceneRef = useRef<SceneHandle>(null);
   const revealTimers = useRef<number[]>([]);
   const attemptsRef = useRef<Record<string, number>>({});
+  const modeRef = useRef<"editing" | "revealing" | "result">("editing");
   const [shape, setShape] = useState<SliceShapeId>("cube");
   const [mode, setMode] = useState<"editing" | "revealing" | "result">("editing");
   const [result, setResult] = useState<SectionResult | null>(null);
+  const [liveResult, setLiveResult] = useState<SectionResult | null>(null);
   const [pendingResult, setPendingResult] = useState<SectionResult | null>(null);
   const [discoveries, setDiscoveries] = useState<Record<SliceShapeId, string[]>>(readDiscoveries);
   const [plane, setPlane] = useState<PlaneSnapshot>({ normal: [0, 0, 1], offset: DEFAULT_OFFSETS.cube, limit: OFFSET_LIMITS.cube });
   const [whyOpen, setWhyOpen] = useState(false);
   const [webglError, setWebglError] = useState(false);
   const reportSceneError = useCallback(() => setWebglError(true), []);
+
+  const handleSectionChange = useCallback((next: SectionResult | null) => {
+    setLiveResult(next);
+    if (modeRef.current !== "result") return;
+    setResult(next);
+    if (!next || next.classification.type === "none" || next.classification.type === "special") return;
+    const discovery = next.classification.type === "great-circle" ? "great-circle" : next.classification.type;
+    setDiscoveries((current) => current[shape].includes(discovery) ? current : { ...current, [shape]: [...current[shape], discovery] });
+  }, [shape]);
 
   const challenge = useMemo(() => CHALLENGES[shape].find((entry) => !discoveries[shape].includes(entry.target)) ?? CHALLENGES[shape][CHALLENGES[shape].length - 1], [discoveries, shape]);
   const challengeSuccess = !!result && (result.classification.type === challenge.target || (challenge.target === "circle" && result.classification.type === "great-circle"));
@@ -560,7 +560,8 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
 
   const chooseShape = (next: SliceShapeId) => {
     if (mode === "revealing") return;
-    setShape(next); setMode("editing"); setResult(null); setPendingResult(null); setWhyOpen(false);
+    modeRef.current = "editing";
+    setShape(next); setMode("editing"); setResult(null); setLiveResult(null); setPendingResult(null); setWhyOpen(false);
     const cue: Record<SliceShapeId, string> = {
       cube: "立方体里不只有正方形。试试让光片穿过更多个面。",
       sphere: "球体的截面总是圆。问题是，什么时候圆最大？",
@@ -579,16 +580,18 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
     });
   };
   const reveal = () => {
-    if (mode !== "editing") return;
+    if (mode === "revealing") return;
     const attemptKey = `${shape}:${challenge.target}`;
     const attempt = (attemptsRef.current[attemptKey] ?? 0) + 1;
     attemptsRef.current[attemptKey] = attempt;
+    modeRef.current = "revealing";
     setMode("revealing"); setResult(null); setWhyOpen(false);
     const freezeTimer = window.setTimeout(() => {
       const next = sceneRef.current?.reveal() ?? null;
       setPendingResult(next);
       const resultTimer = window.setTimeout(() => {
-        setResult(next); setMode("result");
+        modeRef.current = "result";
+        setResult(next); setLiveResult(next); setMode("result");
         const type = next?.classification.type ?? "none";
         const hitTarget = !!next && (type === challenge.target || (challenge.target === "circle" && type === "great-circle"));
         const suggestedCue = type === "none"
@@ -624,11 +627,6 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
       revealTimers.current.push(resultTimer);
     }, 140);
     revealTimers.current.push(freezeTimer);
-  };
-  const continueSlice = () => { sceneRef.current?.continueEditing(); setMode("editing"); setResult(null); setPendingResult(null); setWhyOpen(false); };
-  const reset = () => {
-    sceneRef.current?.reset(); setMode("editing"); setResult(null); setPendingResult(null); setWhyOpen(false);
-    observeMathAction({ id: `slice-reset-${shape}`, scene: "space-slice", action: "slice_reset", outcome: "exploring", importance: .22, context: { shape } });
   };
   const quickRotate = (direction: "left" | "right") => {
     sceneRef.current?.rotate(direction === "left" ? -THREE.MathUtils.degToRad(4) : THREE.MathUtils.degToRad(4), direction === "right" ? THREE.MathUtils.degToRad(1.5) : 0);
@@ -672,14 +670,14 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
         </header>
         <div className="space-slice-body">
           <section className="space-slice-stage" aria-label="三维切片操作区">
-            {!webglError ? <SpaceSliceScene ref={sceneRef} shape={shape} onPlaneChange={setPlane} onError={reportSceneError} /> : <div className="space-slice-webgl-error"><span>◌</span><b>你的浏览器暂时无法运行这个 3D 实验</b><p>建议使用最新版 Chrome、Safari 或 Edge。</p></div>}
+            {!webglError ? <SpaceSliceScene ref={sceneRef} shape={shape} interactionDisabled={mode === "revealing"} onPlaneChange={setPlane} onSectionChange={handleSectionChange} onError={reportSceneError} /> : <div className="space-slice-webgl-error"><span>◌</span><b>你的浏览器暂时无法运行这个 3D 实验</b><p>建议使用最新版 Chrome、Safari 或 Edge。</p></div>}
             {!webglError && <>
-              <div className="slice-scene-status"><span className={mode}>{mode === "editing" ? "正在摆放光片" : mode === "revealing" ? "正在切开…" : "截面已经显现"}</span><small>倾角 {tilt}° · 距离 {plane.offset.toFixed(2)}</small></div>
-              {mode === "editing" && <div className="slice-scene-hint"><i>◎</i><span>拖中央光点移动 · 拖光环旋转<br />拖空白处观察 · 滚轮缩放</span></div>}
+              <div className="slice-scene-status"><span className={mode}>{mode === "editing" ? "截面实时预览" : mode === "revealing" ? "正在切开…" : "截面实时显现"}</span><small>倾角 {tilt}° · 距离 {plane.offset.toFixed(2)}</small></div>
+              {mode !== "revealing" && <div className="slice-scene-hint"><i>◎</i><span>拖中央光点移动 · 拖光环旋转<br />截面图形会同步更新</span></div>}
               <div className="slice-quick-controls" aria-label="光片精细控制">
-                <button onClick={() => quickRotate("left")} aria-label="向左旋转光片" disabled={mode !== "editing"}>↶</button>
-                <label><span>光片距离</span><input type="range" min={-plane.limit} max={plane.limit} step="0.02" value={plane.offset} onChange={(event) => sceneRef.current?.setOffset(Number(event.target.value))} onPointerUp={finishOffsetAdjustment} onKeyUp={finishOffsetAdjustment} disabled={mode !== "editing"} aria-label="光片距离" /></label>
-                <button onClick={() => quickRotate("right")} aria-label="向右倾斜光片" disabled={mode !== "editing"}>↷</button>
+                <button onClick={() => quickRotate("left")} aria-label="向左旋转光片" disabled={mode === "revealing"}>↶</button>
+                <label><span>光片距离</span><input type="range" min={-plane.limit} max={plane.limit} step="0.02" value={plane.offset} onChange={(event) => sceneRef.current?.setOffset(Number(event.target.value))} onPointerUp={finishOffsetAdjustment} onKeyUp={finishOffsetAdjustment} disabled={mode === "revealing"} aria-label="光片距离" /></label>
+                <button onClick={() => quickRotate("right")} aria-label="向右倾斜光片" disabled={mode === "revealing"}>↷</button>
               </div>
             </>}
           </section>
@@ -690,7 +688,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
               <p>{challengeSuccess ? "找到了。把这个形状收藏进立体的秘密里。" : "移动和旋转光片，找到你认为正确的位置，再切开验证。"}</p>
               <div className="challenge-target"><i className={challengeSuccess ? "done" : ""}>{challengeSuccess ? "✓" : "○"}</i><span>目标 · {CHALLENGES[shape].find((entry) => entry.target === challenge.target)?.title.replace(/^.*?(找到|找出|藏着)/, "") || challenge.target}</span></div>
             </section>
-            <SectionView result={mode === "result" ? result : mode === "revealing" ? pendingResult : null} revealing={mode === "revealing"} shape={shape} />
+            <SectionView result={mode === "revealing" ? pendingResult ?? liveResult : liveResult} revealing={mode === "revealing"} shape={shape} />
             <section className="slice-discoveries">
               <div className="slice-panel-kicker"><span>{shapeInfo.name}的秘密</span><small>DISCOVERIES</small></div>
               <div>{shapeInfo.secrets.map(([id, icon]) => <span key={id} className={discoveries[shape].includes(id) ? "found" : ""} aria-label={discoveries[shape].includes(id) ? `已发现 ${id}` : `尚未发现 ${id}`}>{discoveries[shape].includes(id) ? icon : "?"}</span>)}</div>
@@ -699,9 +697,8 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
           </aside>
         </div>
         <footer className="space-slice-actions">
-          <button className="slice-reset" onClick={reset} disabled={mode === "revealing"}>↺ <span>重新摆放</span></button>
-          <p>{mode === "editing" ? "先猜一猜，再让截面显现" : mode === "revealing" ? "光片正在穿过立体…" : challengeSuccess ? "一项新的空间秘密被发现" : challenge.hint}</p>
-          {mode === "result" ? <button className="slice-reveal-button" onClick={continueSlice}>继续切 <i>→</i></button> : <button className="slice-reveal-button" onClick={reveal} disabled={mode !== "editing" || webglError}>{mode === "revealing" ? "正在切开…" : "切开看看"}<i>✦</i></button>}
+          <p>{mode === "editing" ? "移动光片时，截面图形会实时变化" : mode === "revealing" ? "光片正在穿过立体…" : challengeSuccess ? "继续调节，比较截面如何变化" : challenge.hint}</p>
+          <button className="slice-reveal-button" onClick={reveal} disabled={mode === "revealing" || webglError}>{mode === "revealing" ? "正在切开…" : mode === "result" ? "再次验证" : "切开看看"}<i>✦</i></button>
         </footer>
       </article>
     </div>

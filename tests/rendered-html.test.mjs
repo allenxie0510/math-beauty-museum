@@ -438,6 +438,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(spaceSlice, /orientation\.copy\(drag\.orientation\)\.premultiply\(rotation\)/);
   assert.match(spaceSlice, /ringXActive\.visible = axis === "x"/);
   assert.match(spaceSlice, /style\.cursor = hit\?\.object\.userData\.handle === "move" \? "ns-resize" : hit \? "grab" : "default"/);
+  assert.match(spaceSlice, /onSectionChange=\{handleSectionChange\}/);
+  assert.match(spaceSlice, /calculate\(revealed\)/);
+  assert.match(spaceSlice, /pendingResult \?\? liveResult/);
+  assert.match(spaceSlice, />截面图形</);
+  assert.doesNotMatch(spaceSlice, /重新摆放|截面镜|continueEditing/);
+  assert.doesNotMatch(spaceSlice, /if \(revealed \|\|/);
   assert.doesNotMatch(spaceSlice, /new THREE\.TubeGeometry/);
   assert.match(spaceSlice, /coneSection \? \(isReveal \? "#6d5abc" : "#9184d4"\)/);
   assert.match(spaceSlice, /opacity: isReveal \? \.55 : \.28/);

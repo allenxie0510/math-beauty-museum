@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 import { SpaceSliceLab } from "./SpaceSliceLab";
+import { cueMathObserver } from "./math-observer-events";
 
 type GalleryPanel = {
   color: string;
@@ -619,7 +620,12 @@ export function InteractiveWorkshop() {
   const [detailOpen, setDetailOpen] = useState<"paper" | "slice" | null>(null);
   const [webglError, setWebglError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const openDetail = useCallback((id: "paper" | "slice") => setDetailOpen(id), []);
+  const openDetail = useCallback((id: "paper" | "slice") => {
+    setDetailOpen(id);
+    cueMathObserver(id === "slice"
+      ? { id: "observer-open-slice", message: "先拖动光片，不急着切开。看实时截面怎样变化。", once: true, priority: 2 }
+      : { id: "observer-open-paper", message: "先圈出一个小形状，再展开看它怎样重复。", once: true, priority: 2 });
+  }, []);
   const closeDetail = useCallback(() => setDetailOpen(null), []);
   const reportWebglError = useCallback(() => setWebglError(true), []);
   return (

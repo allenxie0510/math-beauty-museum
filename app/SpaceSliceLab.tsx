@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeElementSize } from "./viewport";
 import { computeSection, planeBasis, SectionResult, SPACE_SLICE_DIMENSIONS, SliceShapeId } from "./space-slice/geometry";
+import { cueMathObserver } from "./math-observer-events";
 
 type SceneHandle = {
   reveal: () => SectionResult | null;
@@ -319,8 +320,8 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     const pointer = new THREE.Vector2();
     type RingAxis = "x" | "y";
     type DragState =
-      | { mode: "move"; x: number; y: number; offset: number }
-      | { mode: "rotate"; axis: RingAxis; axisWorld: THREE.Vector3; center: THREE.Vector3; plane: THREE.Plane; startVector: THREE.Vector3; orientation: THREE.Quaternion };
+      | { mode: "move"; x: number; y: number; offset: number; moved: boolean }
+      | { mode: "rotate"; axis: RingAxis; axisWorld: THREE.Vector3; center: THREE.Vector3; plane: THREE.Plane; startVector: THREE.Vector3; orientation: THREE.Quaternion; moved: boolean };
     let drag: DragState | null = null;
     const setRingHighlight = (axis: RingAxis | null) => {
       ringXActive.visible = axis === "x";
@@ -348,7 +349,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       renderer.domElement.setPointerCapture(event.pointerId);
       const mode = hit.object.userData.handle as "move" | "rotate";
       if (mode === "move") {
-        drag = { mode, x: event.clientX, y: event.clientY, offset };
+        drag = { mode, x: event.clientX, y: event.clientY, offset, moved: false };
         setRingHighlight(null);
       } else {
         const axis = hit.object.userData.axis as RingAxis;
@@ -363,6 +364,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
           plane: new THREE.Plane().setFromNormalAndCoplanarPoint(axisWorld, center),
           startVector,
           orientation: orientation.clone(),
+          moved: false,
         };
         setRingHighlight(axis);
       }
@@ -378,6 +380,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
       if (drag.mode === "move") {
         const bounds = renderer.domElement.getBoundingClientRect();
         const delta = -(event.clientY - drag.y) / Math.max(1, bounds.height) * 4.6 + (event.clientX - drag.x) / Math.max(1, bounds.width) * .55;
+        if (Math.abs(delta) > .01) drag.moved = true;
         offset = THREE.MathUtils.clamp(drag.offset + delta, -OFFSET_LIMITS[currentShape], OFFSET_LIMITS[currentShape]);
       } else {
         updatePointerRay(event);
@@ -387,6 +390,7 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
         const sine = drag.axisWorld.dot(drag.startVector.clone().cross(currentVector));
         const cosine = THREE.MathUtils.clamp(drag.startVector.dot(currentVector), -1, 1);
         const angle = Math.atan2(sine, cosine);
+        if (Math.abs(angle) > .01) drag.moved = true;
         const rotation = new THREE.Quaternion().setFromAxisAngle(drag.axisWorld, angle);
         orientation.copy(drag.orientation).premultiply(rotation).normalize();
         normal.set(0, 0, 1).applyQuaternion(orientation).normalize();
@@ -395,10 +399,15 @@ const SpaceSliceScene = forwardRef<SceneHandle, {
     };
     const handlePointerUp = (event: PointerEvent) => {
       if (!drag) return;
+      const completedMode = drag.mode;
+      const completedMove = drag.moved;
       drag = null;
       controls.enabled = true;
       if (renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
       applyPointerFeedback(!revealed ? pointerHits(event)[0] : undefined);
+      if (completedMove) cueMathObserver(completedMode === "rotate"
+        ? { id: "slice-first-rotation", message: "你改变了光片的方向。先看截面边缘怎样变化。", once: true }
+        : { id: "slice-first-move", message: "你改变了光片的位置。方向没变，截面也可能变化。", once: true });
     };
     const handlePointerLeave = () => {
       if (drag) return;
@@ -532,6 +541,13 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
   const chooseShape = (next: SliceShapeId) => {
     if (mode === "revealing") return;
     setShape(next); setMode("editing"); setResult(null); setPendingResult(null); setWhyOpen(false);
+    const cue: Record<SliceShapeId, string> = {
+      cube: "立方体里不只有正方形。试试让光片穿过更多个面。",
+      sphere: "球体的截面总是圆。问题是，什么时候圆最大？",
+      cylinder: "先改变方向，再看圆怎样变成椭圆。",
+      cone: "注意光片有没有同时穿过上下两个锥面。",
+    };
+    cueMathObserver({ id: `slice-shape-${next}`, message: cue[next], once: true });
   };
   const reveal = () => {
     if (mode !== "editing") return;
@@ -541,6 +557,18 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
       setPendingResult(next);
       const resultTimer = window.setTimeout(() => {
         setResult(next); setMode("result");
+        if (!next || next.classification.type === "none") {
+          cueMathObserver({ id: "slice-result-none", message: "这次没有切到立体。把光片向中心移一点。", priority: 3 });
+        } else if (next.classification.type === "special") {
+          cueMathObserver({ id: "slice-result-special", message: "你碰到了边或顶点。移动一点，会更容易看清。", priority: 3 });
+        } else {
+          const hitTarget = next.classification.type === challenge.target || (challenge.target === "circle" && next.classification.type === "great-circle");
+          cueMathObserver({
+            id: `slice-result-${shape}-${next.classification.type}`,
+            message: hitTarget ? `找到了，${next.classification.label}。记住光片现在的方向。` : `这是${next.classification.label}。换一个角度，看看它怎样变化。`,
+            priority: 3,
+          });
+        }
         if (next && next.classification.type !== "none" && next.classification.type !== "special") {
           const discovery = next.classification.type === "great-circle" ? "great-circle" : next.classification.type;
           setDiscoveries((current) => current[shape].includes(discovery) ? current : { ...current, [shape]: [...current[shape], discovery] });

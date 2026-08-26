@@ -6,6 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
+import { cueMathObserver } from "./math-observer-events";
 
 type HallKey = "nature" | "architecture" | "sound" | "cosmos";
 type VisualKind =
@@ -2870,6 +2871,22 @@ export function NatureMuseumWorld() {
   const hall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const selected = useMemo(() => hall?.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
   const currentDiscoveries = hall?.items.filter((item) => discoveries.has(item.id)).length ?? 0;
+
+  useEffect(() => {
+    if (hallIndex < 0 || transition !== "idle") return;
+    const messages = [
+      "自然很少只画直线。先找重复，再看它怎样变化。",
+      "建筑把力量藏进形状里。试着找最稳定的结构。",
+      "看不见的声音，也能留下形状。先改变一个参数。",
+      "观察宇宙时，换一个尺度，规律才会出现。",
+    ];
+    cueMathObserver({ id: `observer-hall-${HALLS[hallIndex].key}`, message: messages[hallIndex], once: true, priority: 2 });
+  }, [hallIndex, transition]);
+
+  useEffect(() => {
+    if (!selected) return;
+    cueMathObserver({ id: `observer-first-exhibit-${hallIndex}`, message: "先只动一个参数。停一下，再判断是什么改变了。", once: true });
+  }, [hallIndex, selected]);
 
   const select = useCallback((id: string, targetHallIndex: number) => {
     const item = HALLS[targetHallIndex]?.items.find((candidate) => candidate.id === id);

@@ -1,6 +1,12 @@
 "use client";
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { cueMathObserver } from "./math-observer-events";
+
+const LazyMathObserver = lazy(async () => {
+  const observerModule = await import("./MathObserver");
+  return { default: observerModule.MathObserver };
+});
 
 const LazyNatureMuseumWorld = lazy(async () => {
   const museumModule = await import("./NatureMuseum3D");
@@ -170,6 +176,8 @@ export default function Home() {
 
   const updateGardenProgress = useCallback((value: number) => {
     setGardenProgress(value);
+    if (value === 1) cueMathObserver({ id: "observer-garden-first", message: "第一个发现。试着说出，是哪一种重复吸引了你。", once: true, priority: 2 });
+    if (value >= 5) cueMathObserver({ id: "observer-garden-five", message: "五项发现完成了。你的证书已经亮起。", once: true, priority: 3 });
     if (value >= 5 && !certificateUnlocked.current) {
       certificateUnlocked.current = true;
       setUnlockNotice(true);
@@ -250,7 +258,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className={`immersive-main ${certificateOpen ? "certificate-mode" : ""}`}>
+    <main className={`immersive-main ${certificateOpen ? "certificate-mode" : ""} ${studioOpen ? "studio-mode" : ""}`}>
       <header className="site-header">
         <button className="brand" onClick={() => scrollToId("hall")}>
           <span className="brand-mark">φ</span>
@@ -272,6 +280,8 @@ export default function Home() {
           <i>{gardenProgress >= 5 ? "领取证书" : "探险家进度"}</i>
         </button>
       </header>
+
+      <Suspense fallback={null}><LazyMathObserver /></Suspense>
 
       <Suspense fallback={<MuseumLoading />}><LazyNatureMuseumWorld /></Suspense>
       <DeferredInteractiveWorkshop />

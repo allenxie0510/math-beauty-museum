@@ -89,7 +89,7 @@ const HALLS: HallDefinition[] = [
         icon: "φ",
         name: "黄金比例花",
         english: "Golden Ratio Flower",
-        formula: "θₙ = nα · rₙ = s(r₀+c√n) · 0≤n<N · αg = 360°/φ² ≈ 137.5°",
+        formula: "θₙ = nα ; rₙ = s(r₀+c√n)\n0 ≤ n < N ; α = 360°/φ² ≈ 137.5°",
         color: "#a8cf58",
         discovery: "一朵花，正在寻找最舒展的排列。",
         explanation: "花瓣依次转过黄金角，彼此错开，让每一片都更容易得到阳光。改变角度时，你会看到秩序如何出现或消失。",
@@ -97,7 +97,7 @@ const HALLS: HallDefinition[] = [
         previewCaption: "花瓣沿黄金角依次展开",
         controls: [
           { key: "goldenPetals", symbol: "N", label: "花瓣数量", min: 8, max: 34, step: 1, defaultValue: 21 },
-          { key: "goldenAngle", symbol: "θ", label: "旋转角度", min: 110, max: 155, step: .1, defaultValue: 137.5, suffix: "°", target: 137.5, targetLabel: "黄金角" },
+          { key: "goldenAngle", symbol: "α", label: "旋转角度", min: 110, max: 155, step: .1, defaultValue: 137.5, suffix: "°", target: 137.5, targetLabel: "黄金角" },
           { key: "goldenSpread", symbol: "s", label: "展开距离", min: .65, max: 1.45, step: .01, defaultValue: 1 },
         ],
       },
@@ -107,7 +107,7 @@ const HALLS: HallDefinition[] = [
         icon: "⌘",
         name: "分形生长",
         english: "Fractal Growth",
-        formula: "Lₙ = L₀rⁿ · 分枝方向 = θ±α",
+        formula: "Lₙ = L₀rⁿ\nθₙ₊₁ = θₙ ± α",
         color: "#72b86c",
         discovery: "一条简单规则，长成了一棵复杂的树。",
         explanation: "每根枝条都缩短一点、转动一点，再复制自己。重复不是单调，它能从很少的信息里创造丰富生命。",
@@ -125,7 +125,7 @@ const HALLS: HallDefinition[] = [
         icon: "∞",
         name: "斐波那契花盘",
         english: "Fibonacci Phyllotaxis",
-        formula: "θₙ = nα · rₙ = cs√n · 0 ≤ n < N",
+        formula: "θₙ = nα ; rₙ = cs√n\n0 ≤ n < N",
         color: "#cdb54b",
         discovery: "小小种子，也懂得怎样装满一个圆。",
         explanation: "每颗种子沿固定角度生长，会形成两组反向螺旋；接近黄金角时，可见螺旋数常是相邻的斐波那契数，但种子编号本身不必是斐波那契数。",
@@ -133,7 +133,7 @@ const HALLS: HallDefinition[] = [
         previewCaption: "两组反向螺旋共同填满花盘",
         controls: [
           { key: "fibonacciSeeds", symbol: "N", label: "种子数量", min: 34, max: 144, step: 1, defaultValue: 89 },
-          { key: "fibonacciAngle", symbol: "θ", label: "生长角度", min: 128, max: 145, step: .1, defaultValue: 137.5, suffix: "°", target: 137.5, targetLabel: "黄金角" },
+          { key: "fibonacciAngle", symbol: "α", label: "生长角度", min: 128, max: 145, step: .1, defaultValue: 137.5, suffix: "°", target: 137.5, targetLabel: "黄金角" },
           { key: "fibonacciScale", symbol: "s", label: "排列间距", min: .65, max: 1.3, step: .01, defaultValue: 1 },
         ],
       },
@@ -173,7 +173,7 @@ const HALLS: HallDefinition[] = [
         icon: "⌒",
         name: "悬链拱",
         english: "Catenary Arch",
-        formula: "y = a[cosh(x/a) − 1] · h = a[cosh(L/2a) − 1]",
+        formula: "y = a[cosh(x/a) − 1]\nh = a[cosh(L/(2a)) − 1]",
         color: "#dfb354",
         discovery: "一条自然垂落的曲线，翻转后可以撑起穹顶。",
         explanation: "绳索在重力下形成悬链线。把它上下翻转，压力会沿曲线流动，因此许多拱门和穹顶格外稳定。",
@@ -191,7 +191,7 @@ const HALLS: HallDefinition[] = [
         icon: "⬡",
         name: "几何铺砌",
         english: "Geometric Tessellation",
-        formula: "αₙ = (n−2)·180°/n · mαₙ = 360°",
+        formula: "αₙ = (n−2)·180°/n\nmαₙ = 360°",
         color: "#e77f4c",
         discovery: "没有缝隙的重复，铺成一整面城市表皮。",
         explanation: "三角形、正方形和正六边形能够围绕一点完整拼合。改变边数与旋转角，观察空间何时严丝合缝。",
@@ -257,7 +257,7 @@ const HALLS: HallDefinition[] = [
         icon: "✣",
         name: "克拉尼图形",
         english: "Chladni Figures",
-        formula: "uₘₙ = sin(mπx)sin(nπy) − sin(nπx)sin(mπy) · |u| < ε",
+        formula: "uₘₙ = sin(mπx)sin(nπy) − sin(nπx)sin(mπy)\n|uₘₙ| < ε",
         color: "#ed98ae",
         discovery: "沙粒会主动离开振动最强的位置。",
         explanation: "薄板振动时，几乎不动的节点会收集沙粒，显现出隐藏的几何图案。频率模式不同，图案也会改变。",
@@ -287,7 +287,7 @@ const HALLS: HallDefinition[] = [
         icon: "◌",
         name: "开普勒轨道",
         english: "Kepler Orbit",
-        formula: "M = ωt = E − e sin E · x = a(cos E − e) · y = a√(1−e²)sin E",
+        formula: "M = ωt = E − e sin E\nx = a(cos E − e) ; y = a√(1−e²)sin E",
         color: "#5c9bd2",
         discovery: "行星绕行的不是正圆，而是优雅的椭圆。",
         explanation: "太阳位于椭圆的一个焦点。改变离心率，观察轨道从接近圆形逐渐拉长，以及行星速度的变化。",
@@ -305,7 +305,7 @@ const HALLS: HallDefinition[] = [
         icon: "↻",
         name: "螺旋星系",
         english: "Spiral Galaxy",
-        formula: "r(θ) = aeᵇθ · θⱼ = θ + 2πj/k",
+        formula: "r(θ) = a exp(bθ)\nθⱼ = θ + 2πj/k ; j = 0,…,k−1",
         color: "#7772ce",
         discovery: "亿万颗星，排列成跨越光年的螺旋。",
         explanation: "星系旋臂近似对数螺旋。改变旋臂数量与曲率，你会发现台风、贝壳和银河共享相似语言。",
@@ -324,7 +324,7 @@ const HALLS: HallDefinition[] = [
         icon: "∞",
         name: "轨道共振",
         english: "Orbital Resonance",
-        formula: "T₁:T₂ = p:q · z(t) = R₁eⁱ⁽²πt⁄p⁺φ⁾ − R₂eⁱ²πt⁄q",
+        formula: "T₁:T₂ = p:q\nz(t) = R₁exp[i(2πt/p+φ)] − R₂exp(i2πt/q)",
         color: "#4f83bd",
         discovery: "不同速度的行星，也能找到共同节拍。",
         explanation: "当两个天体的公转周期形成整数比，它们会周期性回到相似位置，画出稳定而优美的共振轨迹。",
@@ -366,6 +366,10 @@ function controlDecimals(control: MuseumControl) {
 
 function controlDisplayValue(control: MuseumControl, value: number) {
   return value.toFixed(controlDecimals(control)) + (control.suffix ?? "");
+}
+
+function formulaInline(formula: string) {
+  return formula.replace(/\s*\n\s*/g, " ; ");
 }
 
 function snapControlValue(control: MuseumControl, value: number) {
@@ -690,8 +694,14 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   ctx.font = "600 23px Arial, sans-serif";
   ctx.fillText(item.english.toUpperCase(), 76, 239);
   ctx.fillStyle = item.color;
-  ctx.font = "italic 46px Georgia, serif";
-  ctx.fillText(item.formula, 76, 326);
+  const boardFormula = formulaInline(item.formula);
+  let boardFormulaSize = 46;
+  ctx.font = `italic ${boardFormulaSize}px "STIX Two Math", "Cambria Math", Georgia, serif`;
+  while (ctx.measureText(boardFormula).width > 870 && boardFormulaSize > 28) {
+    boardFormulaSize -= 2;
+    ctx.font = `italic ${boardFormulaSize}px "STIX Two Math", "Cambria Math", Georgia, serif`;
+  }
+  ctx.fillText(boardFormula, 76, 326);
   drawMiniArtwork(ctx, item, canvas.width, canvas.height, 670, 1.22);
   ctx.fillStyle = "rgba(255,255,255,.38)";
   ctx.font = "600 17px Arial, sans-serif";
@@ -778,7 +788,7 @@ function glowMaterial(color: string, opacity = 1) {
   });
 }
 
-function makeTextMaterial(text: string, color: string, fontSize = 118, square = false, canvasWidth = 1024) {
+function makeTextMaterial(text: string, color: string, fontSize = 118, square = false, canvasWidth = 1024, fontFamily = "Arial, sans-serif") {
   const canvas = document.createElement("canvas");
   canvas.width = square ? 384 : canvasWidth;
   canvas.height = square ? 384 : 256;
@@ -787,7 +797,12 @@ function makeTextMaterial(text: string, color: string, fontSize = 118, square = 
   ctx.shadowColor = color;
   ctx.shadowBlur = 28;
   ctx.fillStyle = color;
-  ctx.font = `700 ${fontSize}px Arial, sans-serif`;
+  let resolvedFontSize = fontSize;
+  ctx.font = `700 ${resolvedFontSize}px ${fontFamily}`;
+  while (ctx.measureText(text).width > canvas.width * .92 && resolvedFontSize > 20) {
+    resolvedFontSize -= 4;
+    ctx.font = `700 ${resolvedFontSize}px ${fontFamily}`;
+  }
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -843,7 +858,7 @@ function makeFormulaHologram(formula: string, color: string, lowPower: boolean) 
   group.name = "atrium-formula-hologram";
   const formulaPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(5.2, .86),
-    makeTextMaterial(formula, color, 88, false, 1536),
+    makeTextMaterial(formulaInline(formula), color, 88, false, 1536, '"STIX Two Math", "Cambria Math", Georgia, serif'),
   );
   group.add(formulaPlane);
   const points: THREE.Vector3[] = [];
@@ -3253,7 +3268,7 @@ export function NatureMuseumWorld() {
               <span className="nature-lab-index">{hall.english} / DISCOVERY {selected.index}</span>
               <div className="nature-lab-heading"><i>{selected.icon}</i><div><h3>{selected.name}</h3><p>{selected.english}</p></div></div>
               <div className="nature-lab-formula">
-                <div className="nature-formula-expression"><span>隐藏规律</span><strong>{selected.formula}</strong></div>
+                <div className="nature-formula-expression"><span>隐藏规律</span><strong className={`math-formula ${selected.formula.includes("\n") ? "multiline" : ""}`} role="math">{selected.formula}</strong></div>
                 <div className="nature-lab-live-vars" aria-live="polite" aria-label="公式实时变量">
                   {selected.controls.map((control) => {
                     const value = settings[control.key] ?? control.defaultValue;

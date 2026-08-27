@@ -45,7 +45,7 @@ test("aligns per-photo vector evidence with deterministic learning formulas", as
   assert.match(overlay, /editable/);
   assert.match(overlay, /vectorEffect/);
   assert.match(registry, /θ ≈ 360°\/n/);
-  assert.match(registry, /d\(P,l\) ≈ d\(P′,l\).*PP′ ⟂ l/);
+  assert.match(registry, /d\(P,ℓ\) ≈ d\(P′,ℓ\).*PP′ ⟂ ℓ/s);
   assert.match(registry, /f\(x \+ T\) ≈ f\(x\)/);
   assert.match(world, /核心测量/);
   assert.match(world, /数学表达式/);

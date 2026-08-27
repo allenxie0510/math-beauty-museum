@@ -198,7 +198,7 @@ function classify(shape: SliceShapeId, contours: SectionContour[], normal: THREE
       type: greatCircle ? "great-circle" : "circle",
       label: greatCircle ? "最大圆" : "圆",
       insight: greatCircle ? "光片穿过了球心，所以出现了球体能拥有的最大截面。" : "方向可以不断改变，只要切到球体，截面始终是圆。",
-      formula: `r² = R² − d² · 当前 r ≈ ${radius.toFixed(2)}`,
+      formula: `r² = R² − d²\nr ≈ ${radius.toFixed(2)}`,
       greatCircle,
     };
   }

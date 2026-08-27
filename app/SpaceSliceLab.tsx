@@ -691,7 +691,7 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
               <div className="slice-panel-kicker"><span>{shapeInfo.name}的秘密</span><small>DISCOVERIES</small></div>
               <div>{shapeInfo.secrets.map(([id, icon]) => <span key={id} className={discoveries[shape].includes(id) ? "found" : ""} aria-label={discoveries[shape].includes(id) ? `已发现 ${id}` : `尚未发现 ${id}`}>{discoveries[shape].includes(id) ? icon : "?"}</span>)}</div>
             </section>
-            {mode === "result" && result && <section className={`slice-insight ${challengeSuccess ? "success" : ""}`} role="status"><span>{challengeSuccess ? "MATHEMATICAL DISCOVERY" : "这次切出了"}</span><h3>{result.classification.label}</h3><p>{result.classification.insight}</p>{result.classification.formula && <small>{result.classification.formula}</small>}<button onClick={() => setWhyOpen((value) => !value)}>{whyOpen ? "收起解释" : "为什么？"}</button>{whyOpen && <div>截面不是贴在立体表面的图案，而是无限平面和立体表面所有交点共同围成的二维形状。</div>}</section>}
+            {mode === "result" && result && <section className={`slice-insight ${challengeSuccess ? "success" : ""}`} role="status"><span>{challengeSuccess ? "MATHEMATICAL DISCOVERY" : "这次切出了"}</span><h3>{result.classification.label}</h3><p>{result.classification.insight}</p>{result.classification.formula && <small className="math-formula multiline" role="math">{result.classification.formula}</small>}<button onClick={() => setWhyOpen((value) => !value)}>{whyOpen ? "收起解释" : "为什么？"}</button>{whyOpen && <div>截面不是贴在立体表面的图案，而是无限平面和立体表面所有交点共同围成的二维形状。</div>}</section>}
           </aside>
         </div>
         <footer className="space-slice-actions">

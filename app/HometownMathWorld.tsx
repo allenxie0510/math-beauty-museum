@@ -208,7 +208,7 @@ export function HometownMathWorld({ slug, previewManifest, onOpenStudio, onExplo
             <p>{selected.learning.observation || selected.interpretation}</p>
             <section className={`hometown-math-reading ${revealStep >= 3 ? "is-visible" : ""}`} aria-live="polite">
               <header><span>核心测量</span><strong>{selected.learning.measurementValue}</strong><small>{selected.learning.measurementDetail}</small></header>
-              <div className="hometown-formula-card"><span>数学表达式</span><strong>{selected.learning.formula}</strong><p>{selected.learning.formulaMeaning}</p></div>
+              <div className="hometown-formula-card"><span>数学表达式</span><strong className="math-formula multiline" role="math">{selected.learning.formula}</strong><p>{selected.learning.formulaMeaning}</p></div>
               <ol>{selected.learning.reasoning.map((line, index) => <li key={line}><i>{index + 1}</i><span>{line}</span></li>)}</ol>
               <dl>{selected.learning.variables.map((variable) => <div key={variable.symbol}><dt>{variable.symbol}</dt><dd>{variable.meaning}</dd></div>)}</dl>
               <div className="hometown-why"><b>为什么这种结构很美？</b><p>{selected.learning.whyItMatters}</p></div>

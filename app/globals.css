@@ -351,3 +351,13 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
 .math-observer-level{padding-bottom:0;letter-spacing:normal}.math-observer-level-icon{display:block;width:15px;height:15px}.math-observer-level-dots{display:flex;align-items:center;justify-content:center;gap:4px}.math-observer-level-dots i{display:block;width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 1px 2px rgba(31,76,94,.16)}
 
 .math-observer-character{cursor:grab;touch-action:none;user-select:none}.math-observer.is-dragging .math-observer-character{cursor:grabbing}.math-observer.settings-to-right .math-observer-settings{right:auto;left:0}.math-observer.settings-down .math-observer-settings{top:40px;bottom:auto}
+
+/* Unified mathematical notation and formula layout. */
+.math-formula{display:block;max-width:100%;overflow-x:auto!important;overflow-y:hidden;white-space:pre!important;text-overflow:clip!important;font-family:"STIX Two Math","Cambria Math","Times New Roman",Georgia,serif!important;font-variant-numeric:lining-nums tabular-nums;font-weight:600;letter-spacing:0;scrollbar-width:thin}
+.math-formula.multiline{line-height:1.3}
+.nature-lab-formula .nature-formula-expression>strong.math-formula{font-size:clamp(23px,2vw,32px);line-height:1.25}
+.garden-formula>strong.math-formula{font-size:19px;line-height:1.35}
+.hometown-formula-card>strong.math-formula{font-size:20px;line-height:1.4}
+.studio-formula-preview>strong.math-formula{font-size:16px;line-height:1.4}
+.slice-insight>small.math-formula{font-size:11px;line-height:1.4}
+@media(max-width:700px){.nature-lab-formula .nature-formula-expression>strong.math-formula{max-height:3em;overflow-x:auto!important;overflow-y:auto!important;white-space:pre!important;font-size:16px!important;line-height:1.25}.garden-formula>strong.math-formula{font-size:15px}.hometown-formula-card>strong.math-formula{font-size:17px}.studio-formula-preview>strong.math-formula{font-size:14px}.slice-insight>small.math-formula{font-size:10px}}

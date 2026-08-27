@@ -36,7 +36,7 @@ type GardenItem = {
 
 const GARDEN_ITEMS: GardenItem[] = [
   {
-    id: "flower", icon: "✿", name: "黄金比例花", english: "Golden Ratio Flower", formula: "θₙ = nα · rₙ = r₀ + c√n · 0 ≤ n < N · αg = 360°/φ² ≈ 137.5°",
+    id: "flower", icon: "✿", name: "黄金比例花", english: "Golden Ratio Flower", formula: "θₙ = nα ; rₙ = r₀+c√n\n0 ≤ n < N ; α = 360°/φ² ≈ 137.5°",
     discovery: "你发现了一朵数学花！", explanation: "它的花瓣沿着黄金角依次展开，彼此错开，争取到最充足的阳光。",
     color: "#f277bd", controls: [
       { key: "flowerPetals", symbol: "N", label: "花瓣数量", min: 8, max: 30, step: 1 },
@@ -45,7 +45,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "tree", icon: "♧", name: "分形树", english: "Fractal Tree", formula: "Lₙ = L₀rⁿ · θ = ±α · n ≤ D",
+    id: "tree", icon: "♧", name: "分形树", english: "Fractal Tree", formula: "Lₙ = L₀rⁿ ; θₙ₊₁ = θₙ ± α\n0 ≤ n ≤ D",
     discovery: "你发现了一棵会复制自己的树！", explanation: "每一根枝条都重复相同规则。简单的递归，慢慢长成复杂的生命。",
     color: "#8fd052", controls: [
       { key: "treeDepth", symbol: "D", label: "递归层级", min: 2, max: 5, step: 1 },
@@ -63,7 +63,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "vine", icon: "⌇", name: "螺旋藤蔓", english: "Spiral Vine", formula: "θ(t) = 2πNt · r(t) = r₀ + Rt · y(t) = Ht · 0 ≤ t ≤ 1",
+    id: "vine", icon: "⌇", name: "螺旋藤蔓", english: "Spiral Vine", formula: "θ(t) = 2πNt ; r(t) = r₀+Rt\ny(t) = Ht ; 0 ≤ t ≤ 1",
     discovery: "你发现了一条旋转生长的藤蔓！", explanation: "半径随着角度不断增长，同一条螺旋也藏在贝壳、台风和银河里。",
     color: "#8fcf45", controls: [
       { key: "vineTurns", symbol: "N", label: "螺旋圈数", min: 2, max: 7, step: 0.1 },
@@ -72,7 +72,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "building", icon: "△", name: "分形光塔", english: "Sierpiński Light Sculpture", formula: "N(D) = 4ᴰ · (x,y,z) ↦ (Sx,Hy,Sz)",
+    id: "building", icon: "△", name: "分形光塔", english: "Sierpiński Light Sculpture", formula: "N(D) = 4ᴰ\n(x,y,z) ↦ (Sx,Hy,Sz)",
     discovery: "你发现了一座会自我复制的光塔！", explanation: "每个四面体都分裂成四个更小的自己。重复同一条规则，空隙与实体共同长成一座分形雕塑。",
     color: "#ff9c63", controls: [
       { key: "buildingSides", symbol: "D", label: "分形层级", min: 1, max: 3, step: 1 },
@@ -81,7 +81,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "pond", icon: "∿", name: "音乐喷泉", english: "Audio-Reactive Fountain", formula: "sᵢ(t) = 1 + A sin(3.2vt − 0.72i) · 0 ≤ i < N",
+    id: "pond", icon: "∿", name: "音乐喷泉", english: "Audio-Reactive Fountain", formula: "sᵢ(t) = 1 + A sin(3.2vt − 0.72i)\n0 ≤ i < N",
     discovery: "你发现了会跟着音乐呼吸的喷泉！", explanation: "公式描述没有音乐输入时各圆环的基础波动；播放音乐后，低、中、高频会作为额外能量叠加到水柱和圆环上。",
     color: "#47c9e7", controls: [
       { key: "pondFrequency", symbol: "N", label: "波纹圈数", min: 2, max: 8, step: 1 },
@@ -90,7 +90,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "shell", icon: "φ", name: "黄金螺旋", english: "Golden Spiral", formula: "r(θ) = ag²ᶿ⁄π · 0 ≤ θ ≤ 2πT · 管径 = w",
+    id: "shell", icon: "φ", name: "黄金螺旋", english: "Golden Spiral", formula: "r(θ) = a exp[(2 ln g/π)θ]\n0 ≤ θ ≤ 2πT ; ρ = w",
     discovery: "你发现了一条不断生长的黄金螺旋！", explanation: "每旋转四分之一圈，半径会乘以增长倍率 g；当 g = φ ≈ 1.618 时，它就是黄金螺旋。",
     color: "#ffc46f", controls: [
       { key: "shellTurns", symbol: "T", label: "螺旋圈数", min: 2.5, max: 6, step: 0.1 },
@@ -99,7 +99,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "mobius", icon: "∞", name: "莫比乌斯环", english: "Möbius Ribbon", formula: "x=(R+v cos(ku/2))cos u · y=v sin(ku/2) · z=(R+v cos(ku/2))sin u · 0≤u≤2π, |v|≤w",
+    id: "mobius", icon: "∞", name: "莫比乌斯环", english: "Möbius Ribbon", formula: "x = [R+v cos(ku/2)]cos u\ny = v sin(ku/2)\nz = [R+v cos(ku/2)]sin u\n0 ≤ u ≤ 2π ; |v| ≤ w",
     discovery: "你发现了一条没有正反面的丝带！", explanation: "沿着它一直走，会回到起点却抵达原本的背面。它把两个世界连成一个。",
     color: "#7587ef", controls: [
       { key: "mobiusTwist", symbol: "k", label: "半扭转次数（奇数）", min: 1, max: 3, step: 2 },
@@ -108,7 +108,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "euler", icon: "eⁱπ", name: "欧拉恒等式", english: "Euler Identity Sculpture", formula: "z(θ)=Reⁱᶿ=R(cosθ+i sinθ) · θ=π,R=1 ⇒ eⁱπ+1=0 · 辅助层 1≤m≤M",
+    id: "euler", icon: "eⁱπ", name: "欧拉恒等式", english: "Euler Identity Sculpture", formula: "z(θ) = R exp(iθ) = R(cosθ+i sinθ)\nθ = π, R = 1 ⇒ eⁱπ+1 = 0 ; 1 ≤ m ≤ M",
     discovery: "你发现了数学中最美的等式！", explanation: "欧拉恒等式把 0、1、π、e 和虚数 i 连接在一起。旋转向量沿单位圆前进，当角度到达 π 时，它恰好落在 −1。",
     color: "#e56fae", controls: [
       { key: "eulerPhase", symbol: "θ", label: "复平面角度", min: 0, max: 6.283, step: 0.001 },
@@ -539,14 +539,14 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         <div className="garden-panel-icon">{selected.icon}</div>
         <h3>{selected.discovery}</h3><p className="garden-object-name">{selected.name}<small>{selected.english}</small></p>
         <div className="garden-formula">
-          <span>隐藏规律</span><strong>{selected.formula}</strong>
+          <span>隐藏规律</span><strong className={`math-formula ${selected.formula.includes("\n")?"multiline":""}`} role="math">{selected.formula}</strong>
           <div className="garden-live-vars" aria-live="polite" aria-label="公式实时变量">
             {selected.controls.map(control=>{const value=Number(settings[control.key]);return <span key={control.key} className={activeControlKey===control.key?"active":""}><i>{control.symbol}</i><b>=</b>{formatGardenControlValue(control,value)}</span>})}
           </div>
         </div>
         <p className="garden-explanation">{selected.explanation}</p>
         <div className="garden-try-title"><span>试试看改变它</span><i>参数会实时作用于 3D 物体</i></div>
-        {selected.controls.map(control=>{const value=Number(settings[control.key]);const isGoldenAngle=control.key==="flowerAngle";const atGoldenAngle=isGoldenAngle&&Math.abs(value-137.5)<.001;return <label className={`garden-control ${activeControlKey===control.key?"active":""}`} key={control.key}><span><span className="garden-control-name"><em>{control.symbol}</em>{control.label}</span><b>{control.symbol} = {formatGardenControlValue(control,value)}</b></span><input type="range" aria-label={`${control.symbol}，${control.label}`} min={control.min} max={control.max} step={control.step} value={value} onPointerDown={()=>setActiveControlKey(control.key)} onFocus={()=>setActiveControlKey(control.key)} onChange={e=>{setActiveControlKey(control.key);setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}} onPointerUp={()=>finishGardenControl(selected,control,value)} onKeyUp={()=>finishGardenControl(selected,control,value)}/>{isGoldenAngle&&<small className={`golden-ratio-target ${atGoldenAngle?"reached":""}`}><i>目标值 αg = 137.5°</i><strong>{atGoldenAngle?"✓ 已达到黄金角":"拖动滑杆对准目标值"}</strong></small>}</label>})}
+        {selected.controls.map(control=>{const value=Number(settings[control.key]);const isGoldenAngle=control.key==="flowerAngle";const atGoldenAngle=isGoldenAngle&&Math.abs(value-137.5)<.001;return <label className={`garden-control ${activeControlKey===control.key?"active":""}`} key={control.key}><span><span className="garden-control-name"><em>{control.symbol}</em>{control.label}</span><b>{control.symbol} = {formatGardenControlValue(control,value)}</b></span><input type="range" aria-label={`${control.symbol}，${control.label}`} min={control.min} max={control.max} step={control.step} value={value} onPointerDown={()=>setActiveControlKey(control.key)} onFocus={()=>setActiveControlKey(control.key)} onChange={e=>{setActiveControlKey(control.key);setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}} onPointerUp={()=>finishGardenControl(selected,control,value)} onKeyUp={()=>finishGardenControl(selected,control,value)}/>{isGoldenAngle&&<small className={`golden-ratio-target ${atGoldenAngle?"reached":""}`}><i>目标值 α = 137.5°</i><strong>{atGoldenAngle?"✓ 已达到黄金角":"拖动滑杆对准目标值"}</strong></small>}</label>})}
         {selected.id==="pond"&&<div className="pond-music-control">
           <label className="pond-track-select"><span>喷泉音乐</span><select aria-label="选择喷泉音乐" value={pondTrackId} onChange={event=>{const nextTrackId=event.target.value as PondTrackId;setPondTrackId(nextTrackId);if(pondPlaying)void startPondTrack(nextTrackId)}}>{POND_TRACKS.map(track=><option key={track.id} value={track.id}>{track.name} · {track.mood}</option>)}</select></label>
           <button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"音乐正在驱动喷泉":"启动音乐可视化"}<small>实时频谱控制水柱高度与声波圆环</small></span></button>

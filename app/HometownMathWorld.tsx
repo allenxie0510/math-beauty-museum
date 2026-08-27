@@ -17,7 +17,7 @@ type Props = {
 };
 
 const allExhibits = (manifest: HometownSceneManifest) => manifest.zones.flatMap((zone) => zone.exhibits);
-const completeManifest = (manifest: HometownSceneManifest): HometownSceneManifest => ({ ...manifest, zones: manifest.zones.map((zone) => ({ ...zone, exhibits: zone.exhibits.map((item) => ({ ...item, learning: item.learning?.formula ? item.learning : buildLearningContent(item.conceptId, item.overlay, item.interpretation) })) })) });
+const completeManifest = (manifest: HometownSceneManifest): HometownSceneManifest => ({ ...manifest, zones: manifest.zones.map((zone) => ({ ...zone, exhibits: zone.exhibits.map((item) => ({ ...item, learning: buildLearningContent(item.conceptId, item.overlay, item.interpretation) })) })) });
 
 function HometownCanvas({ manifest, onError }: { manifest: HometownSceneManifest; onError: () => void }) {
   const mount = useRef<HTMLDivElement>(null);

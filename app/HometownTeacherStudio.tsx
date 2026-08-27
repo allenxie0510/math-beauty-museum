@@ -4,9 +4,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CONCEPT_REGISTRY, CONCEPT_BY_ID } from "./hometown-math/domain/registry";
+import { buildLearningContent, CONCEPT_REGISTRY, CONCEPT_BY_ID, normalizeOverlayCount } from "./hometown-math/domain/registry";
 import type { HometownConceptId, TeacherExhibitDraft, TeacherExhibitionDraft } from "./hometown-math/domain/types";
-import { buildLearningContent } from "./hometown-math/domain/registry";
 import { HometownMathOverlay } from "./HometownMathOverlay";
 import { prepareHometownImage } from "./hometown-math/services/client-image";
 import { authenticatedRequestInit, getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "./hometown-math/services/supabase-client";
@@ -259,7 +258,7 @@ function Inspector({ item, draft, busy, update, chooseConcept, save }: { item: T
     <span>原始文件 · {item.filename}</span>
     <label>核心数学概念<select value={item.conceptId ?? ""} onChange={(event) => chooseConcept(event.target.value as HometownConceptId)}><option value="" disabled>请选择一个核心概念</option>{CONCEPT_REGISTRY.map((concept) => <option key={concept.id} value={concept.id}>{concept.labelZh} · {concept.labelEn}</option>)}</select></label>
     {!item.conceptId && (suggestion ? <button className="studio-core-suggestion" onClick={() => chooseConcept(suggestion.conceptId)}><span>AI 建议：{suggestion.labelZh}<small>{suggestion.evidence}</small></span><b>采用</b></button> : <p className="studio-no-math">没有足够清晰的自动证据。请结合照片只选择一个最有把握的核心概念。</p>)}
-    {item.overlay && <div className="studio-calibration-tools"><b>照片级结构校准</b><p>{calibrationHint} 调整后需重新确认。</p>{showCount && <label>{overlayType === "wave" ? "波形密度" : "重复方向数"}<input type="range" min="2" max="16" value={Math.round(item.overlay.spacing ?? 8)} onChange={(event) => updateOverlay({ ...item.overlay!, spacing: Number(event.target.value) })}/><i>{Math.round(item.overlay.spacing ?? 8)}</i></label>}{showRotation && <label>{overlayType === "wave" ? "波形相位" : "结构旋转角"}<input type="range" min="-180" max="180" value={Math.round(item.overlay.rotation ?? 0)} onChange={(event) => updateOverlay({ ...item.overlay!, rotation: Number(event.target.value) })}/><i>{Math.round(item.overlay.rotation ?? 0)}°</i></label>}</div>}
+    {item.overlay && <div className="studio-calibration-tools"><b>照片级结构校准</b><p>{calibrationHint} 调整后需重新确认。</p>{showCount && <label>{overlayType === "wave" ? "可见周期数 N" : overlayType === "repeat" ? "可见单元数 N" : "重复方向数 n"}<input type="range" min="2" max="16" value={normalizeOverlayCount(item.overlay)} onChange={(event) => updateOverlay({ ...item.overlay!, spacing: Number(event.target.value) })}/><i>{normalizeOverlayCount(item.overlay)}</i></label>}{showRotation && <label>{overlayType === "wave" ? "波形相位" : "结构旋转角"}<input type="range" min="-180" max="180" value={Math.round(item.overlay.rotation ?? 0)} onChange={(event) => updateOverlay({ ...item.overlay!, rotation: Number(event.target.value) })}/><i>{Math.round(item.overlay.rotation ?? 0)}°</i></label>}</div>}
     <label>儿童标题（最多 18 字）<input maxLength={18} value={item.title} onChange={(event) => update({ title: event.target.value })}/></label>
     <label>AI 照片分析<textarea value={item.interpretation} onChange={(event) => update({ interpretation: event.target.value, evidence: event.target.value, teacherConfirmed: false })}/><small>把照片观察与画面证据合并为一段，只描述这张照片里真正看得到的结构。</small></label>
     {item.conceptId && <div className="studio-formula-preview"><b>由当前标注计算</b><strong>{item.learning.formula}</strong><p>{item.learning.formulaMeaning}</p></div>}

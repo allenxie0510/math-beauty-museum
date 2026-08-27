@@ -15,11 +15,11 @@ export const CONCEPT_REGISTRY: readonly ConceptRegistryEntry[] = [
   { id: "symmetry.axial", labelZh: "轴对称", labelEn: "AXIAL SYMMETRY", shortTitle: "一条线，两边相映", childExplanation: "沿着中线看过去，两边像照镜子一样彼此呼应。", demoId: "tessellation", keywords: ["蝴蝶", "叶", "窗", "门", "剪纸", "脸谱"], overlay: { type: "axis", points: [[.5, .14], [.5, .88]] } },
   { id: "symmetry.rotational", labelZh: "旋转对称", labelEn: "ROTATIONAL SYMMETRY", shortTitle: "转一转，图案又重合", childExplanation: "图案围绕中心重复出现，转过一定角度仍能彼此重合。", demoId: "tessellation", keywords: ["花", "窗花", "蛛网", "风车", "圆纹"], overlay: { type: "radial", center: [.5, .5], radius: .3, spacing: 8 } },
   { id: "fractal.self_similarity", labelZh: "分形与自相似", labelEn: "SELF-SIMILARITY", shortTitle: "小枝里藏着整棵树", childExplanation: "局部与整体有相似的轮廓，大小不同却保持同一种生长节奏。", demoId: "fractal", keywords: ["山", "树", "枝", "蕨", "云", "菜花"], overlay: { type: "nested", points: [[.15, .18], [.82, .82]] } },
-  { id: "pattern.repetition", labelZh: "重复与平移", labelEn: "REPETITION", shortTitle: "一个单元，铺成一片", childExplanation: "相同的基本单元沿着方向重复，形成稳定又有节奏的纹样。", demoId: "tessellation", keywords: ["竹编", "编织", "砖", "瓦", "布", "纹样", "篮"], overlay: { type: "repeat", points: [[.2, .5], [.72, .5]], spacing: .14 } },
+  { id: "pattern.repetition", labelZh: "重复与平移", labelEn: "REPETITION", shortTitle: "一个单元，铺成一片", childExplanation: "相同的基本单元沿着方向重复，形成稳定又有节奏的纹样。", demoId: "tessellation", keywords: ["竹编", "编织", "砖", "瓦", "布", "纹样", "篮"], overlay: { type: "repeat", points: [[.2, .5], [.72, .5]], spacing: 6 } },
   { id: "geometry.arch", labelZh: "拱与三角结构", labelEn: "ARCH GEOMETRY", shortTitle: "弧线托起一座桥", childExplanation: "拱形把力量向两边传递，三角形让结构更加稳定。", demoId: "catenary", keywords: ["桥", "拱", "屋顶", "梁", "塔", "亭"], overlay: { type: "arch", points: [[.16, .7], [.5, .25], [.84, .7]] } },
   { id: "geometry.hexagon", labelZh: "六边形镶嵌", labelEn: "HEXAGON TILING", shortTitle: "六条边，紧密相连", childExplanation: "六边形可以不留空隙地排在一起，节省空间又十分牢固。", demoId: "tessellation", keywords: ["蜂巢", "六边形", "网格", "龟甲", "地砖"], overlay: { type: "hexgrid", center: [.5, .5], radius: .09, spacing: .17 } },
   { id: "spiral.phyllotaxis", labelZh: "螺旋与叶序", labelEn: "SPIRAL PHYLLOTAXIS", shortTitle: "旋转着长大的种子", childExplanation: "新的种子按稳定角度依次出现，让有限空间容纳更多生命。", demoId: "phyllotaxis", keywords: ["向日葵", "松果", "花心", "螺旋", "贝壳"], overlay: { type: "spiral", center: [.5, .5], radius: .34, rotation: 0 } },
-  { id: "wave.periodicity", labelZh: "波与周期", labelEn: "WAVE PERIODICITY", shortTitle: "起伏之间藏着节拍", childExplanation: "相似的波峰和波谷不断出现，距离与高度描述了它的节奏。", demoId: "sine", keywords: ["水", "波", "涟漪", "山脊", "梯田", "声"], overlay: { type: "wave", points: [[.08, .56], [.92, .56]], spacing: .18 } },
+  { id: "wave.periodicity", labelZh: "波与周期", labelEn: "WAVE PERIODICITY", shortTitle: "起伏之间藏着节拍", childExplanation: "相似的波峰和波谷不断出现，距离与高度描述了它的节奏。", demoId: "sine", keywords: ["水", "波", "涟漪", "山脊", "梯田", "声"], overlay: { type: "wave", points: [[.08, .56], [.92, .56]], spacing: 5 } },
 ] as const;
 
 export const CONCEPT_BY_ID = Object.fromEntries(CONCEPT_REGISTRY.map((item) => [item.id, item])) as Record<HometownConceptId, ConceptRegistryEntry>;
@@ -35,8 +35,15 @@ export function candidatesFromFilename(filename: string): ConceptCandidate[] {
 
 const rounded = (value: number) => String(Math.round(value * 10) / 10);
 
+export function normalizeOverlayCount(overlay: OverlayGeometry) {
+  const fallback = overlay.type === "wave" ? 5 : overlay.type === "repeat" ? 6 : 8;
+  const stored = overlay.spacing;
+  const count = stored === undefined || stored < 2 ? fallback : Math.round(stored);
+  return Math.max(2, Math.min(24, count));
+}
+
 export function buildLearningContent(conceptId: HometownConceptId, overlay: OverlayGeometry, interpretation = ""): MathLearningContent {
-  const count = Math.max(2, Math.round(overlay.spacing ?? 8));
+  const count = normalizeOverlayCount(overlay);
   const angle = 360 / count;
   const base = {
     observation: interpretation || CONCEPT_BY_ID[conceptId].childExplanation,
@@ -51,7 +58,7 @@ export function buildLearningContent(conceptId: HometownConceptId, overlay: Over
     measurementLabel: "近似重复方向",
     measurementValue: `${count} 重 · ${rounded(angle)}°`,
     measurementDetail: `照片中标出了 ${count} 个近似重复方向；自然物存在遮挡与生长误差，因此使用“近似”。`,
-    formula: `θ ≈ 360° ÷ ${count} = ${rounded(angle)}°`,
+    formula: `θ ≈ 360°/n = 360°/${count} = ${rounded(angle)}°`,
     formulaMeaning: "把完整的一圈平均分给每个重复方向，就得到一次旋转的角度。",
     variables: [{ symbol: "n", meaning: `重复方向数，这张照片中取 n=${count}` }, { symbol: "θ", meaning: "相邻两个方向之间的旋转角" }],
     reasoning: ["先找到图案围绕的中心", `再数出约 ${count} 个重复方向`, `最后用 360°÷${count} 估算相邻方向的夹角`],
@@ -64,8 +71,8 @@ export function buildLearningContent(conceptId: HometownConceptId, overlay: Over
     measurementLabel: "近似镜像中轴",
     measurementValue: "1 条对称轴",
     measurementDetail: "选择中轴两侧成对的轮廓点，比较它们到轴线的垂直距离。",
-    formula: "d(P, l) ≈ d(P′, l)",
-    formulaMeaning: "一对对应点 P 与 P′ 到对称轴 l 的距离近似相等。",
+    formula: "d(P,l) ≈ d(P′,l)，且 PP′ ⟂ l",
+    formulaMeaning: "对应点到轴线的垂直距离近似相等，连接对应点的线段近似垂直于对称轴。",
     variables: [{ symbol: "l", meaning: "照片中标出的对称轴" }, { symbol: "P、P′", meaning: "轴线两侧的一对对应位置" }, { symbol: "d", meaning: "点到轴线的垂直距离" }],
     reasoning: ["先沿主体的生长方向寻找中轴", "再在两边选择形状相似的位置", "比较两点到中轴的距离与方向"],
     whyItMatters: "轴对称带来视觉平衡，也常让结构受力和生长分布更均匀。",
@@ -88,11 +95,11 @@ export function buildLearningContent(conceptId: HometownConceptId, overlay: Over
   if (conceptId === "wave.periodicity") return {
     ...base,
     measurementLabel: "波峰间距",
-    measurementValue: "波长 λ · 振幅 A",
-    measurementDetail: "相邻波峰之间的距离是波长 λ，中线到波峰的高度是振幅 A。",
-    formula: "y = A sin(2πx ÷ λ + φ)",
-    formulaMeaning: "A 控制波有多高，λ 控制每次起伏相隔多远，φ 控制波从哪里开始。",
-    variables: [{ symbol: "A", meaning: "中线到波峰的高度" }, { symbol: "λ", meaning: "相邻两个波峰的距离" }, { symbol: "φ", meaning: "波形的起始位置" }],
+    measurementValue: `${count} 个可见周期 · 波长 λ · 振幅 A`,
+    measurementDetail: `标注范围 L 内显示约 ${count} 个完整周期，因此 λ≈L/${count}；中线到波峰的高度是振幅 A。`,
+    formula: `y = y₀ + A sin(2πx/λ + φ)，λ ≈ L/${count}`,
+    formulaMeaning: "y₀ 是中线高度，A 控制波高，λ 控制相邻波峰间距，φ 控制起始相位。",
+    variables: [{ symbol: "y₀", meaning: "波形的中线高度" }, { symbol: "A", meaning: "中线到波峰的高度" }, { symbol: "λ", meaning: "相邻两个波峰的距离" }, { symbol: "L", meaning: "照片中标注波形的水平范围" }, { symbol: "φ", meaning: "波形的起始相位" }],
     reasoning: ["先找出连续的波峰和波谷", "画出穿过起伏中间的基准线", "比较相邻波峰的距离是否近似稳定"],
     whyItMatters: "周期帮助我们描述重复出现的节奏，从水纹、声音到季节变化都能用它研究。",
     applications: ["水面涟漪", "声音", "梯田轮廓", "音乐喷泉"],
@@ -116,9 +123,9 @@ export function buildLearningContent(conceptId: HometownConceptId, overlay: Over
     measurementLabel: "拱顶与两侧支点",
     measurementValue: "跨度 L · 拱高 h",
     measurementDetail: "两端支点之间是跨度 L，支点连线到最高点的距离是拱高 h。",
-    formula: "y ≈ a cosh(x ÷ a)",
-    formulaMeaning: "悬链线模型描述均匀自重下自然形成的曲线；真实桥拱还需根据轮廓判断是否更接近圆弧或抛物线。",
-    variables: [{ symbol: "x、y", meaning: "以拱中心为原点的水平与竖直位置" }, { symbol: "a", meaning: "控制拱形开阔程度的参数" }],
+    formula: "L = |AB|，h = d(C, 直线AB)",
+    formulaMeaning: "A、B 是两侧支点，C 是拱顶；先测跨度 L 与拱高 h，再用更多轮廓点判断它接近圆弧、抛物线还是悬链线。",
+    variables: [{ symbol: "A、B", meaning: "拱的两个支点" }, { symbol: "C", meaning: "拱顶位置" }, { symbol: "L", meaning: "两支点之间的跨度" }, { symbol: "h", meaning: "拱顶到支点连线的垂直距离" }],
     reasoning: ["定位拱的两个支点", "找到拱顶最高点", "沿真实边缘比较不同曲线模型的贴合程度"],
     whyItMatters: "拱形把上方压力沿曲线传向两侧支点，使石块和砖块共同承重。",
     applications: ["石桥", "窑洞", "门券", "屋顶结构"],

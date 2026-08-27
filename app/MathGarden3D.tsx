@@ -36,12 +36,12 @@ type GardenItem = {
 
 const GARDEN_ITEMS: GardenItem[] = [
   {
-    id: "flower", icon: "✿", name: "黄金比例花", english: "Golden Ratio Flower", formula: "rₙ = φa√n · θₙ = nα · n ≤ N",
+    id: "flower", icon: "✿", name: "黄金比例花", english: "Golden Ratio Flower", formula: "θₙ = nα · rₙ = r₀ + c√n · 0 ≤ n < N · αg = 360°/φ² ≈ 137.5°",
     discovery: "你发现了一朵数学花！", explanation: "它的花瓣沿着黄金角依次展开，彼此错开，争取到最充足的阳光。",
     color: "#f277bd", controls: [
       { key: "flowerPetals", symbol: "N", label: "花瓣数量", min: 8, max: 30, step: 1 },
       { key: "flowerAngle", symbol: "α", label: "旋转角度", min: 90, max: 170, step: 0.5, suffix: "°" },
-      { key: "flowerRatio", symbol: "φ", label: "生长比例", min: 1.1, max: 2, step: 0.001 },
+      { key: "flowerRatio", symbol: "c", label: "径向间距", min: 0.06, max: 0.14, step: 0.005 },
     ],
   },
   {
@@ -54,7 +54,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "butterfly", icon: "◒", name: "对称蝴蝶", english: "Symmetry Butterfly", formula: "Pᴿ = M(d)[R(α)(sPᴸ)]",
+    id: "butterfly", icon: "◒", name: "对称蝴蝶", english: "Symmetry Butterfly", formula: "Pᴿ = M_d(R_α(sPᴸ))",
     discovery: "你发现了一双镜像翅膀！", explanation: "蝴蝶的左右两翼互为镜像。对称让形态稳定，也让美更容易被看见。",
     color: "#8d73e8", controls: [
       { key: "butterflyWing", symbol: "α", label: "张翅角度", min: 12, max: 68, step: 1, suffix: "°" },
@@ -63,7 +63,7 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "vine", icon: "⌇", name: "螺旋藤蔓", english: "Spiral Vine", formula: "θ = 2πNt · r = a + Rt · y = Ht",
+    id: "vine", icon: "⌇", name: "螺旋藤蔓", english: "Spiral Vine", formula: "θ(t) = 2πNt · r(t) = r₀ + Rt · y(t) = Ht · 0 ≤ t ≤ 1",
     discovery: "你发现了一条旋转生长的藤蔓！", explanation: "半径随着角度不断增长，同一条螺旋也藏在贝壳、台风和银河里。",
     color: "#8fcf45", controls: [
       { key: "vineTurns", symbol: "N", label: "螺旋圈数", min: 2, max: 7, step: 0.1 },
@@ -81,53 +81,53 @@ const GARDEN_ITEMS: GardenItem[] = [
     ],
   },
   {
-    id: "pond", icon: "∿", name: "音乐喷泉", english: "Audio-Reactive Fountain", formula: "y(r,t) = A sin(2πfr − vt)",
-    discovery: "你发现了会跟着音乐呼吸的喷泉！", explanation: "音乐的低、中、高频被实时拆解：低音推动中央水柱，中高音控制四周喷泉，整体响度让声波圆环同步扩散。",
+    id: "pond", icon: "∿", name: "音乐喷泉", english: "Audio-Reactive Fountain", formula: "sᵢ(t) = 1 + A sin(3.2vt − 0.72i) · 0 ≤ i < N",
+    discovery: "你发现了会跟着音乐呼吸的喷泉！", explanation: "公式描述没有音乐输入时各圆环的基础波动；播放音乐后，低、中、高频会作为额外能量叠加到水柱和圆环上。",
     color: "#47c9e7", controls: [
-      { key: "pondFrequency", symbol: "f", label: "波纹频率", min: 2, max: 8, step: 1 },
-      { key: "pondAmplitude", symbol: "A", label: "波纹振幅", min: 0.35, max: 1.2, step: 0.01 },
+      { key: "pondFrequency", symbol: "N", label: "波纹圈数", min: 2, max: 8, step: 1 },
+      { key: "pondAmplitude", symbol: "A", label: "缩放振幅", min: 0.02, max: 0.18, step: 0.01 },
       { key: "pondSpeed", symbol: "v", label: "传播速度", min: 0.4, max: 1.8, step: 0.05 },
     ],
   },
   {
-    id: "shell", icon: "φ", name: "黄金螺旋", english: "Golden Spiral", formula: "r(θ) = aφ²ᶿ⁄π · θ ≤ 2πT · ρ = w",
-    discovery: "你发现了一条不断生长的黄金螺旋！", explanation: "它每旋转四分之一圈，半径就按黄金比例 φ 增长。花朵、贝壳与星系都能看到这种由小到大的优雅节奏。",
+    id: "shell", icon: "φ", name: "黄金螺旋", english: "Golden Spiral", formula: "r(θ) = ag²ᶿ⁄π · 0 ≤ θ ≤ 2πT · 管径 = w",
+    discovery: "你发现了一条不断生长的黄金螺旋！", explanation: "每旋转四分之一圈，半径会乘以增长倍率 g；当 g = φ ≈ 1.618 时，它就是黄金螺旋。",
     color: "#ffc46f", controls: [
       { key: "shellTurns", symbol: "T", label: "螺旋圈数", min: 2.5, max: 6, step: 0.1 },
-      { key: "shellGrowth", symbol: "φ", label: "增长比例", min: 1.45, max: 1.78, step: 0.01 },
+      { key: "shellGrowth", symbol: "g", label: "每 1/4 圈增长倍率", min: 1.45, max: 1.78, step: 0.01 },
       { key: "shellTube", symbol: "w", label: "线条粗细", min: 0.035, max: 0.11, step: 0.005 },
     ],
   },
   {
-    id: "mobius", icon: "∞", name: "莫比乌斯环", english: "Möbius Ribbon", formula: "X(u,v; R,w,k) · |v| ≤ w",
+    id: "mobius", icon: "∞", name: "莫比乌斯环", english: "Möbius Ribbon", formula: "x=(R+v cos(ku/2))cos u · y=v sin(ku/2) · z=(R+v cos(ku/2))sin u · 0≤u≤2π, |v|≤w",
     discovery: "你发现了一条没有正反面的丝带！", explanation: "沿着它一直走，会回到起点却抵达原本的背面。它把两个世界连成一个。",
     color: "#7587ef", controls: [
-      { key: "mobiusTwist", symbol: "k", label: "扭转次数", min: 1, max: 3, step: 1 },
+      { key: "mobiusTwist", symbol: "k", label: "半扭转次数（奇数）", min: 1, max: 3, step: 2 },
       { key: "mobiusWidth", symbol: "w", label: "丝带宽度", min: 0.25, max: 0.62, step: 0.01 },
       { key: "mobiusRadius", symbol: "R", label: "环形半径", min: 0.75, max: 1.35, step: 0.01 },
     ],
   },
   {
-    id: "euler", icon: "eⁱπ", name: "欧拉恒等式", english: "Euler Identity Sculpture", formula: "zₘ = R·eⁱᵐᶿ · 1 ≤ m ≤ M",
+    id: "euler", icon: "eⁱπ", name: "欧拉恒等式", english: "Euler Identity Sculpture", formula: "z(θ)=Reⁱᶿ=R(cosθ+i sinθ) · θ=π,R=1 ⇒ eⁱπ+1=0 · 辅助层 1≤m≤M",
     discovery: "你发现了数学中最美的等式！", explanation: "欧拉恒等式把 0、1、π、e 和虚数 i 连接在一起。旋转向量沿单位圆前进，当角度到达 π 时，它恰好落在 −1。",
     color: "#e56fae", controls: [
-      { key: "eulerPhase", symbol: "θ", label: "复平面角度", min: 0, max: 6.28, step: 0.01 },
+      { key: "eulerPhase", symbol: "θ", label: "复平面角度", min: 0, max: 6.283, step: 0.001 },
       { key: "eulerRadius", symbol: "R", label: "单位圆半径", min: 0.7, max: 1.3, step: 0.01 },
-      { key: "eulerWaves", symbol: "M", label: "指数波动层数", min: 1, max: 5, step: 1 },
+      { key: "eulerWaves", symbol: "M", label: "辅助波层数", min: 1, max: 5, step: 1 },
     ],
   },
 ];
 
 const DEFAULT_SETTINGS: GardenSettings = {
-  flowerPetals: 21, flowerAngle: 137.5, flowerRatio: 1.618,
+  flowerPetals: 21, flowerAngle: 137.5, flowerRatio: 0.09,
   treeDepth: 4, treeAngle: 27, treeRatio: 0.68,
   butterflyWing: 38, butterflyScale: 1, butterflyGap: 0.55,
   vineTurns: 4.5, vineRadius: 0.62, vineHeight: 3,
   buildingSides: 2, buildingHeight: 1.5, buildingRadius: 1.08,
-  pondFrequency: 5, pondAmplitude: 0.72, pondSpeed: 1,
+  pondFrequency: 5, pondAmplitude: 0.08, pondSpeed: 1,
   shellTurns: 3.6, shellGrowth: 1.618, shellTube: 0.065,
   mobiusTwist: 1, mobiusWidth: 0.42, mobiusRadius: 1,
-  eulerPhase: 3.14, eulerRadius: 1, eulerWaves: 3,
+  eulerPhase: Math.PI, eulerRadius: 1, eulerWaves: 3,
 };
 
 function formatGardenControlValue(control: GardenItem["controls"][number], value: number) {
@@ -218,7 +218,7 @@ function buildFlower(group: THREE.Group, s: GardenSettings) {
   const petalMaterial=makeOrganicMaterial(["#55d1c5","#c6eef0","#ef9fca","#ffcfdf"],{roughness:.3,clearcoat:.28});
   for(let i=0;i<count;i++){
     const theta=THREE.MathUtils.degToRad(i*s.flowerAngle),progress=i/Math.max(1,count-1);
-    const ring=.1+Math.sqrt(i)*.09*s.flowerRatio;
+    const ring=.1+Math.sqrt(i)*s.flowerRatio;
     const tangent=new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta));
     const radial=new THREE.Vector3(Math.cos(theta),.3+progress*.18,Math.sin(theta)).normalize();
     const normal=tangent.clone().cross(radial).normalize();
@@ -311,7 +311,7 @@ function buildPond(group: THREE.Group, s: GardenSettings) {
   const ringCount=Math.round(s.pondFrequency);
   for(let i=0;i<ringCount;i++){
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.22+i*.17,.018,10,64),makeOrganicMaterial(i%2?["#ffffff","#9ceaf0"]:["#78e4df","#8b8ce9"],{emissive:i%2?"#dffaff":"#26778e",emissiveIntensity:.25,roughness:.14}));
-    ring.rotation.x=Math.PI/2;ring.position.y=.13+i*.008;ring.userData.ringIndex=i;ring.userData.baseScale=s.pondAmplitude;group.add(ring);
+    ring.rotation.x=Math.PI/2;ring.position.y=.13+i*.008;ring.userData.ringIndex=i;ring.userData.waveAmplitude=s.pondAmplitude;group.add(ring);
   }
   const jetMaterial=makeOrganicMaterial(["#d9ffff","#59ddec","#8c8ce7"],{transparent:true,opacity:.74,roughness:.08,clearcoat:.8,emissive:"#4dcfe5",emissiveIntensity:.18});
   [[0,0,0],[-.48,.1,1],[.48,.1,2],[0,-.48,3],[0,.48,4]].forEach(([x,z,band])=>{const baseHeight=band===0?1.18:.74;const jet=new THREE.Mesh(new THREE.CylinderGeometry(.025,.06,1,14),jetMaterial);jet.position.set(x,.16+baseHeight*.5,z);jet.userData.fountainJet=band;jet.userData.baseHeight=baseHeight;jet.scale.y=baseHeight;jet.castShadow=true;group.add(jet);const crown=new THREE.Mesh(new THREE.TorusGeometry(band===0?.13:.095,.016,8,36),makeOrganicMaterial(band%2?["#f59ac8","#806dd9"]:["#c9ffff","#54cedd"],{roughness:.16,clearcoat:.6,emissive:band%2?"#a94f87":"#3ebdcc",emissiveIntensity:.32}));crown.position.set(x,.2+baseHeight,z);crown.rotation.x=Math.PI/2;crown.userData.fountainRing=band;crown.userData.baseHeight=baseHeight;crown.scale.setScalar(.8);crown.castShadow=true;group.add(crown)});
@@ -334,6 +334,15 @@ function buildEuler(group:THREE.Group,s:GardenSettings) {
   const radius=s.eulerRadius,center=new THREE.Vector3(0,1.25,0),phase=s.eulerPhase;
   const layerColors=["#ff78b5","#ffd166","#69ded2","#8f7cf2","#ff9668"];
   for(let layer=1;layer<=Math.round(s.eulerWaves);layer++){const wavePoints:THREE.Vector3[]=[];for(let i=0;i<=120;i++){const a=i/120*Math.PI*2;wavePoints.push(new THREE.Vector3(Math.cos(a)*radius,center.y+Math.sin(a)*radius,Math.sin(a*layer+phase)*.045*layer))}const color=layerColors[layer-1];const wave=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(wavePoints,true),144,.021,7,true),makeMaterial(color,{transparent:true,opacity:.92,emissive:color,emissiveIntensity:.38,roughness:.2,clearcoat:.4}));wave.castShadow=true;group.add(wave)}
+  const axisMaterial=new THREE.LineBasicMaterial({color:"#fff4d6",transparent:true,opacity:.72});
+  const realAxis=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-radius*1.35,center.y,0),new THREE.Vector3(radius*1.35,center.y,0)]),axisMaterial);
+  const imaginaryAxis=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,center.y-radius*1.35,0),new THREE.Vector3(0,center.y+radius*1.35,0)]),axisMaterial);
+  group.add(realAxis,imaginaryAxis);
+  const endpoint=new THREE.Vector3(Math.cos(phase)*radius,center.y+Math.sin(phase)*radius,0);
+  const vectorCurve=new THREE.LineCurve3(center.clone(),endpoint);
+  const vector=new THREE.Mesh(new THREE.TubeGeometry(vectorCurve,1,.032,10,false),makeMaterial("#fff2a8",{emissive:"#e76ba8",emissiveIntensity:.52,roughness:.22}));
+  const point=new THREE.Mesh(new THREE.SphereGeometry(.085,20,14),makeMaterial("#fff2a8",{emissive:"#e76ba8",emissiveIntensity:.65,roughness:.2}));
+  point.position.copy(endpoint);group.add(vector,point);
 }
 
 function buildMobius(group: THREE.Group, s: GardenSettings) {
@@ -409,7 +418,7 @@ function MathGardenCanvas({ selectedId, onSelect, settings, audioAnalyserRef, po
     let frame=0;const timer=new THREE.Timer();timer.connect(document);const spectrum=new Uint8Array(256);let smoothLow=0,smoothMid=0,smoothHigh=0,smoothOverall=0;
     const bandAverage=(from:number,to:number)=>{let total=0;for(let i=from;i<to;i++)total+=spectrum[i]??0;return total/Math.max(1,to-from)/255};
     let isSceneVisible=true;const stopObservingVisibility=observeElementVisibility(container,(visible)=>{isSceneVisible=visible});
-    const animate=(timestamp?:number)=>{frame=requestAnimationFrame(animate);if(!isSceneVisible||document.hidden)return;timer.update(timestamp);const t=timer.getElapsed();const analyser=audioAnalyserRef.current;if(analyser&&pondPlayingRef.current){analyser.getByteFrequencyData(spectrum);smoothLow=THREE.MathUtils.lerp(smoothLow,bandAverage(2,24),.24);smoothMid=THREE.MathUtils.lerp(smoothMid,bandAverage(24,78),.2);smoothHigh=THREE.MathUtils.lerp(smoothHigh,bandAverage(78,150),.18);smoothOverall=THREE.MathUtils.lerp(smoothOverall,bandAverage(2,150),.2)}else{smoothLow*=.92;smoothMid*=.92;smoothHigh*=.92;smoothOverall*=.92}controls.target.lerp(focus.current,.035);controls.update();const vine=groups.current.get("vine");if(vine)vine.rotation.y=Math.sin(t*.35)*.18;const butterfly=groups.current.get("butterfly");if(butterfly){const base=butterfly.userData.wingAngle??.6;const pulse=Math.sin(t*3)*.12;const left=butterfly.getObjectByName("wing-left"),right=butterfly.getObjectByName("wing-right");if(left)left.rotation.y=base*.35+pulse;if(right)right.rotation.y=-base*.35-pulse;butterfly.position.y=POSITIONS.butterfly[1]+Math.sin(t*1.15)*.07;butterfly.rotation.z=-.16+Math.sin(t*.82)*.05}const pond=groups.current.get("pond");if(pond){const speed=pond.userData.pondSpeed??1;pond.children.forEach(child=>{if(child.userData.ringIndex!==undefined){const phase=Math.sin(t*speed*3.2-child.userData.ringIndex*.72);const scale=child.userData.baseScale*(.86+smoothOverall*.9+phase*(.018+smoothOverall*.12));child.scale.setScalar(scale)}if(child.userData.fountainJet!==undefined){const band=child.userData.fountainJet===0?smoothLow:child.userData.fountainJet<3?smoothMid:smoothHigh;const height=Math.max(.2,child.userData.baseHeight*(.28+band*2.25));child.scale.y=height;child.position.y=.16+height*.5}if(child.userData.fountainRing!==undefined){const ringBand=child.userData.fountainRing,energy=ringBand===0?smoothLow:ringBand<3?smoothMid:smoothHigh,delayedEnergy=Math.max(0,energy+Math.sin(t*speed*2.4-ringBand*.42)*(.025+energy*.08)),targetHeight=Math.max(.2,child.userData.baseHeight*(.28+delayedEnergy*2.25)),lag=.075+ringBand*.012;child.position.y=THREE.MathUtils.lerp(child.position.y,.2+targetHeight,lag);const ringScale=.72+delayedEnergy*1.3;child.scale.lerp(new THREE.Vector3(ringScale,ringScale,ringScale),lag*.9);child.rotation.x=Math.PI/2+Math.sin(t*1.2-ringBand*.35)*.08;child.rotation.z=Math.cos(t*.9-ringBand*.27)*.12}})}const shell=groups.current.get("shell");if(shell)shell.rotation.y=Math.sin(t*.34)*.2;const mobius=groups.current.get("mobius");if(mobius)mobius.rotation.y=t*.16;renderer.render(scene,camera);if(container.dataset.webglReady!=="true"){container.dataset.webglReady="true";container.dataset.webglError="false"}};animate();
+    const animate=(timestamp?:number)=>{frame=requestAnimationFrame(animate);if(!isSceneVisible||document.hidden)return;timer.update(timestamp);const t=timer.getElapsed();const analyser=audioAnalyserRef.current;if(analyser&&pondPlayingRef.current){analyser.getByteFrequencyData(spectrum);smoothLow=THREE.MathUtils.lerp(smoothLow,bandAverage(2,24),.24);smoothMid=THREE.MathUtils.lerp(smoothMid,bandAverage(24,78),.2);smoothHigh=THREE.MathUtils.lerp(smoothHigh,bandAverage(78,150),.18);smoothOverall=THREE.MathUtils.lerp(smoothOverall,bandAverage(2,150),.2)}else{smoothLow*=.92;smoothMid*=.92;smoothHigh*=.92;smoothOverall*=.92}controls.target.lerp(focus.current,.035);controls.update();const vine=groups.current.get("vine");if(vine)vine.rotation.y=Math.sin(t*.35)*.18;const butterfly=groups.current.get("butterfly");if(butterfly){const base=butterfly.userData.wingAngle??.6;const pulse=Math.sin(t*3)*.12;const left=butterfly.getObjectByName("wing-left"),right=butterfly.getObjectByName("wing-right");if(left)left.rotation.y=base*.35+pulse;if(right)right.rotation.y=-base*.35-pulse;butterfly.position.y=POSITIONS.butterfly[1]+Math.sin(t*1.15)*.07;butterfly.rotation.z=-.16+Math.sin(t*.82)*.05}const pond=groups.current.get("pond");if(pond){const speed=pond.userData.pondSpeed??1;pond.children.forEach(child=>{if(child.userData.ringIndex!==undefined){const phase=Math.sin(t*speed*3.2-child.userData.ringIndex*.72);const amplitude=child.userData.waveAmplitude??.08;const scale=1+phase*amplitude+smoothOverall*(.18+amplitude);child.scale.setScalar(scale)}if(child.userData.fountainJet!==undefined){const band=child.userData.fountainJet===0?smoothLow:child.userData.fountainJet<3?smoothMid:smoothHigh;const height=Math.max(.2,child.userData.baseHeight*(.28+band*2.25));child.scale.y=height;child.position.y=.16+height*.5}if(child.userData.fountainRing!==undefined){const ringBand=child.userData.fountainRing,energy=ringBand===0?smoothLow:ringBand<3?smoothMid:smoothHigh,delayedEnergy=Math.max(0,energy+Math.sin(t*speed*2.4-ringBand*.42)*(.025+energy*.08)),targetHeight=Math.max(.2,child.userData.baseHeight*(.28+delayedEnergy*2.25)),lag=.075+ringBand*.012;child.position.y=THREE.MathUtils.lerp(child.position.y,.2+targetHeight,lag);const ringScale=.72+delayedEnergy*1.3;child.scale.lerp(new THREE.Vector3(ringScale,ringScale,ringScale),lag*.9);child.rotation.x=Math.PI/2+Math.sin(t*1.2-ringBand*.35)*.08;child.rotation.z=Math.cos(t*.9-ringBand*.27)*.12}})}const shell=groups.current.get("shell");if(shell)shell.rotation.y=Math.sin(t*.34)*.2;const mobius=groups.current.get("mobius");if(mobius)mobius.rotation.y=t*.16;renderer.render(scene,camera);if(container.dataset.webglReady!=="true"){container.dataset.webglReady="true";container.dataset.webglError="false"}};animate();
     const resize=()=>{if(!container.clientWidth||!container.clientHeight)return;camera.aspect=container.clientWidth/container.clientHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(window.devicePixelRatio,lowPower?1:1.8));renderer.setSize(container.clientWidth,container.clientHeight)};const stopObservingResize=observeElementSize(container,resize);
     return()=>{cancelAnimationFrame(frame);timer.dispose();stopObservingResize();stopObservingVisibility();renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",up);renderer.domElement.removeEventListener("webglcontextlost",contextLost);renderer.domElement.removeEventListener("webglcontextrestored",contextRestored);controls.dispose();disposeObject(scene);renderer.dispose();renderer.domElement.remove();delete container.dataset.webglReady;delete container.dataset.webglError;delete container.dataset.quality;sceneGroups.clear()};
   },[audioAnalyserRef,pondPlayingRef,retryKey]);
@@ -493,12 +502,12 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   },[stopPondSound]);
   const togglePondSound=()=>{if(pondPlaying)stopPondSound();else void startPondTrack(pondTrackId)};
   const finishGardenControl=(item:GardenItem,control:GardenItem["controls"][number],value:number)=>{
-    const reachedGolden=control.key==="flowerRatio"&&Math.abs(value-1.618)<.0005;
+    const reachedGolden=control.key==="flowerAngle"&&Math.abs(value-137.5)<.001;
     const attemptKey=`${item.id}:${control.key}`;
     const attempt=(controlAttemptsRef.current[attemptKey]??0)+1;
     controlAttemptsRef.current[attemptKey]=attempt;
     const suggestedCue=reachedGolden
-      ? "你对准了 1.618，观察得很准！比较前后两朵花，花瓣空隙是不是更均匀？"
+      ? "你对准了黄金角 137.5°，观察得很准！比较前后两朵花，花瓣空隙是不是更均匀？"
       : attempt>=3
         ? `你一直在认真调整${control.label}。先停在当前值，只观察${item.name}最明显的一处变化。`
         : `你改变了${control.label}。比较调整前后，${item.name}最明显的变化在哪里？`;
@@ -537,7 +546,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         </div>
         <p className="garden-explanation">{selected.explanation}</p>
         <div className="garden-try-title"><span>试试看改变它</span><i>参数会实时作用于 3D 物体</i></div>
-        {selected.controls.map(control=>{const value=Number(settings[control.key]);const isGoldenRatio=control.key==="flowerRatio";const atGoldenRatio=isGoldenRatio&&Math.abs(value-1.618)<.0005;return <label className={`garden-control ${activeControlKey===control.key?"active":""}`} key={control.key}><span><span className="garden-control-name"><em>{control.symbol}</em>{control.label}</span><b>{control.symbol} = {formatGardenControlValue(control,value)}</b></span><input type="range" aria-label={`${control.symbol}，${control.label}`} min={control.min} max={control.max} step={control.step} value={value} onPointerDown={()=>setActiveControlKey(control.key)} onFocus={()=>setActiveControlKey(control.key)} onChange={e=>{setActiveControlKey(control.key);setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}} onPointerUp={()=>finishGardenControl(selected,control,value)} onKeyUp={()=>finishGardenControl(selected,control,value)}/>{isGoldenRatio&&<small className={`golden-ratio-target ${atGoldenRatio?"reached":""}`}><i>目标值 φ = 1.618</i><strong>{atGoldenRatio?"✓ 已达到黄金比例":"拖动滑杆对准目标值"}</strong></small>}</label>})}
+        {selected.controls.map(control=>{const value=Number(settings[control.key]);const isGoldenAngle=control.key==="flowerAngle";const atGoldenAngle=isGoldenAngle&&Math.abs(value-137.5)<.001;return <label className={`garden-control ${activeControlKey===control.key?"active":""}`} key={control.key}><span><span className="garden-control-name"><em>{control.symbol}</em>{control.label}</span><b>{control.symbol} = {formatGardenControlValue(control,value)}</b></span><input type="range" aria-label={`${control.symbol}，${control.label}`} min={control.min} max={control.max} step={control.step} value={value} onPointerDown={()=>setActiveControlKey(control.key)} onFocus={()=>setActiveControlKey(control.key)} onChange={e=>{setActiveControlKey(control.key);setSettings(prev=>({...prev,[control.key]:Number(e.target.value)}))}} onPointerUp={()=>finishGardenControl(selected,control,value)} onKeyUp={()=>finishGardenControl(selected,control,value)}/>{isGoldenAngle&&<small className={`golden-ratio-target ${atGoldenAngle?"reached":""}`}><i>目标值 αg = 137.5°</i><strong>{atGoldenAngle?"✓ 已达到黄金角":"拖动滑杆对准目标值"}</strong></small>}</label>})}
         {selected.id==="pond"&&<div className="pond-music-control">
           <label className="pond-track-select"><span>喷泉音乐</span><select aria-label="选择喷泉音乐" value={pondTrackId} onChange={event=>{const nextTrackId=event.target.value as PondTrackId;setPondTrackId(nextTrackId);if(pondPlaying)void startPondTrack(nextTrackId)}}>{POND_TRACKS.map(track=><option key={track.id} value={track.id}>{track.name} · {track.mood}</option>)}</select></label>
           <button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"音乐正在驱动喷泉":"启动音乐可视化"}<small>实时频谱控制水柱高度与声波圆环</small></span></button>

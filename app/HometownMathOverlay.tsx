@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { normalizeOverlayCount } from "./hometown-math/domain/registry";
 import type { OverlayGeometry } from "./hometown-math/domain/types";
 
 type Props = {
@@ -22,7 +23,7 @@ export function HometownMathOverlay({ overlay, aspectRatio = 4 / 3, editable = f
   const pair = (point: [number, number] | undefined, fallback: [number, number]) => [x(point?.[0], fallback[0]), y(point?.[1], fallback[1])] as const;
   const [cx, cy] = pair(overlay.center, [.5, .5]);
   const radius = clamp(overlay.radius, .32) * scale;
-  const count = Math.max(2, Math.min(24, Math.round(overlay.spacing ?? 8)));
+  const count = normalizeOverlayCount(overlay);
   const rotation = overlay.rotation ?? 0;
   const points = overlay.points ?? [];
   const primary = { stroke: "#fff", strokeWidth: 3.2, fill: "none", vectorEffect: "non-scaling-stroke" as const };
@@ -104,7 +105,7 @@ export function HometownMathOverlay({ overlay, aspectRatio = 4 / 3, editable = f
   } else {
     const [startX, baseline] = pair(points[0], [.08, .54]);
     const [endX] = pair(points[1], [.92, .54]);
-    const wavePoints = Array.from({ length: 100 }, (_, index) => { const t = index / 99; return `${startX + (endX - startX) * t},${baseline + Math.sin(t * Math.PI * count + rotation * Math.PI / 180) * radius * .28}`; }).join(" ");
+    const wavePoints = Array.from({ length: 100 }, (_, index) => { const t = index / 99; return `${startX + (endX - startX) * t},${baseline + Math.sin(t * Math.PI * 2 * count + rotation * Math.PI / 180) * radius * .28}`; }).join(" ");
     geometry = <><line x1={startX} y1={baseline} x2={endX} y2={baseline} {...guide}/><polyline points={wavePoints} {...primary}/></>;
   }
 

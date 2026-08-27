@@ -89,7 +89,7 @@ const HALLS: HallDefinition[] = [
         icon: "φ",
         name: "黄金比例花",
         english: "Golden Ratio Flower",
-        formula: "φ ≈ 1.618",
+        formula: "θₙ = nα · rₙ = s(r₀+c√n) · 0≤n<N · αg = 360°/φ² ≈ 137.5°",
         color: "#a8cf58",
         discovery: "一朵花，正在寻找最舒展的排列。",
         explanation: "花瓣依次转过黄金角，彼此错开，让每一片都更容易得到阳光。改变角度时，你会看到秩序如何出现或消失。",
@@ -107,7 +107,7 @@ const HALLS: HallDefinition[] = [
         icon: "⌘",
         name: "分形生长",
         english: "Fractal Growth",
-        formula: "Lₙ = L₀ · rⁿ",
+        formula: "Lₙ = L₀rⁿ · 分枝方向 = θ±α",
         color: "#72b86c",
         discovery: "一条简单规则，长成了一棵复杂的树。",
         explanation: "每根枝条都缩短一点、转动一点，再复制自己。重复不是单调，它能从很少的信息里创造丰富生命。",
@@ -125,14 +125,14 @@ const HALLS: HallDefinition[] = [
         icon: "∞",
         name: "斐波那契花盘",
         english: "Fibonacci Phyllotaxis",
-        formula: "1, 1, 2, 3, 5, 8…",
+        formula: "θₙ = nα · rₙ = cs√n · 0 ≤ n < N",
         color: "#cdb54b",
         discovery: "小小种子，也懂得怎样装满一个圆。",
-        explanation: "每颗种子沿固定角度生长，会自然形成两组反向螺旋。向日葵用数列，把有限空间安排得井井有条。",
+        explanation: "每颗种子沿固定角度生长，会形成两组反向螺旋；接近黄金角时，可见螺旋数常是相邻的斐波那契数，但种子编号本身不必是斐波那契数。",
         visual: "phyllotaxis",
         previewCaption: "两组反向螺旋共同填满花盘",
         controls: [
-          { key: "fibonacciSeeds", symbol: "Fₙ", label: "种子数量", min: 34, max: 144, step: 1, defaultValue: 89 },
+          { key: "fibonacciSeeds", symbol: "N", label: "种子数量", min: 34, max: 144, step: 1, defaultValue: 89 },
           { key: "fibonacciAngle", symbol: "θ", label: "生长角度", min: 128, max: 145, step: .1, defaultValue: 137.5, suffix: "°", target: 137.5, targetLabel: "黄金角" },
           { key: "fibonacciScale", symbol: "s", label: "排列间距", min: .65, max: 1.3, step: .01, defaultValue: 1 },
         ],
@@ -173,7 +173,7 @@ const HALLS: HallDefinition[] = [
         icon: "⌒",
         name: "悬链拱",
         english: "Catenary Arch",
-        formula: "y = a cosh(x/a)",
+        formula: "y = a[cosh(x/a) − 1] · h = a[cosh(L/2a) − 1]",
         color: "#dfb354",
         discovery: "一条自然垂落的曲线，翻转后可以撑起穹顶。",
         explanation: "绳索在重力下形成悬链线。把它上下翻转，压力会沿曲线流动，因此许多拱门和穹顶格外稳定。",
@@ -181,7 +181,7 @@ const HALLS: HallDefinition[] = [
         previewCaption: "重力画出的曲线，成为稳定的拱",
         controls: [
           { key: "catenarySpan", symbol: "L", label: "拱跨宽度", min: 4, max: 9, step: .1, defaultValue: 6.8 },
-          { key: "catenarySag", symbol: "a", label: "拱顶高度", min: 1.2, max: 4, step: .1, defaultValue: 2.6 },
+          { key: "catenarySag", symbol: "h", label: "拱高", min: 1.2, max: 4, step: .1, defaultValue: 2.6 },
           { key: "catenaryLoads", symbol: "N", label: "受力节点", min: 5, max: 17, step: 1, defaultValue: 11 },
         ],
       },
@@ -191,7 +191,7 @@ const HALLS: HallDefinition[] = [
         icon: "⬡",
         name: "几何铺砌",
         english: "Geometric Tessellation",
-        formula: "Σ interior angles = 360°",
+        formula: "αₙ = (n−2)·180°/n · mαₙ = 360°",
         color: "#e77f4c",
         discovery: "没有缝隙的重复，铺成一整面城市表皮。",
         explanation: "三角形、正方形和正六边形能够围绕一点完整拼合。改变边数与旋转角，观察空间何时严丝合缝。",
@@ -239,7 +239,7 @@ const HALLS: HallDefinition[] = [
         icon: "Σ",
         name: "傅里叶叠加",
         english: "Fourier Harmonics",
-        formula: "f(t) = Σ Aₙ sin(nωt)",
+        formula: "f(t) = Σₙ₌₁ᴺ n⁻ᵖ sin(2πnf₀t)",
         color: "#a979d3",
         discovery: "复杂的声音，可以拆成许多个简单波。",
         explanation: "把不同频率的正弦波叠加，就能得到丰富音色。增加谐波层数，观察简单波如何共同塑造复杂声音。",
@@ -247,8 +247,8 @@ const HALLS: HallDefinition[] = [
         previewCaption: "多个简单波叠加成复杂音色",
         controls: [
           { key: "harmonicCount", symbol: "N", label: "谐波层数", min: 1, max: 9, step: 1, defaultValue: 5 },
-          { key: "harmonicDecay", symbol: "λ", label: "衰减速度", min: .45, max: 1.6, step: .01, defaultValue: .9 },
-          { key: "harmonicBase", symbol: "ω", label: "基础频率", min: 1, max: 5, step: .1, defaultValue: 2.2 },
+          { key: "harmonicDecay", symbol: "p", label: "振幅衰减指数", min: .45, max: 1.6, step: .01, defaultValue: .9 },
+          { key: "harmonicBase", symbol: "f₀", label: "基频", min: 1, max: 5, step: .1, defaultValue: 2.2 },
         ],
       },
       {
@@ -257,7 +257,7 @@ const HALLS: HallDefinition[] = [
         icon: "✣",
         name: "克拉尼图形",
         english: "Chladni Figures",
-        formula: "∇²u + k²u = 0",
+        formula: "uₘₙ = sin(mπx)sin(nπy) − sin(nπx)sin(mπy) · |u| < ε",
         color: "#ed98ae",
         discovery: "沙粒会主动离开振动最强的位置。",
         explanation: "薄板振动时，几乎不动的节点会收集沙粒，显现出隐藏的几何图案。频率模式不同，图案也会改变。",
@@ -287,7 +287,7 @@ const HALLS: HallDefinition[] = [
         icon: "◌",
         name: "开普勒轨道",
         english: "Kepler Orbit",
-        formula: "r = a(1-e²)/(1+e cos θ)",
+        formula: "M = ωt = E − e sin E · x = a(cos E − e) · y = a√(1−e²)sin E",
         color: "#5c9bd2",
         discovery: "行星绕行的不是正圆，而是优雅的椭圆。",
         explanation: "太阳位于椭圆的一个焦点。改变离心率，观察轨道从接近圆形逐渐拉长，以及行星速度的变化。",
@@ -295,8 +295,8 @@ const HALLS: HallDefinition[] = [
         previewCaption: "行星沿椭圆轨道绕焦点运行",
         controls: [
           { key: "orbitEccentricity", symbol: "e", label: "轨道离心率", min: 0, max: .82, step: .01, defaultValue: .35 },
-          { key: "orbitSpeed", symbol: "ω", label: "运行速度", min: .4, max: 2.4, step: .1, defaultValue: 1.2 },
-          { key: "orbitBodies", symbol: "N", label: "轨迹采样点", min: 4, max: 18, step: 1, defaultValue: 10 },
+          { key: "orbitSpeed", symbol: "ω", label: "平均角速度", min: .4, max: 2.4, step: .1, defaultValue: 1.2 },
+          { key: "orbitBodies", symbol: "N", label: "等时间轨迹点", min: 4, max: 18, step: 1, defaultValue: 10 },
         ],
       },
       {
@@ -305,7 +305,7 @@ const HALLS: HallDefinition[] = [
         icon: "↻",
         name: "螺旋星系",
         english: "Spiral Galaxy",
-        formula: "r = aeᵇθ",
+        formula: "r(θ) = aeᵇθ · θⱼ = θ + 2πj/k",
         color: "#7772ce",
         discovery: "亿万颗星，排列成跨越光年的螺旋。",
         explanation: "星系旋臂近似对数螺旋。改变旋臂数量与曲率，你会发现台风、贝壳和银河共享相似语言。",
@@ -324,7 +324,7 @@ const HALLS: HallDefinition[] = [
         icon: "∞",
         name: "轨道共振",
         english: "Orbital Resonance",
-        formula: "T₁ : T₂ = p : q",
+        formula: "T₁:T₂ = p:q · z(t) = R₁eⁱ⁽²πt⁄p⁺φ⁾ − R₂eⁱ²πt⁄q",
         color: "#4f83bd",
         discovery: "不同速度的行星，也能找到共同节拍。",
         explanation: "当两个天体的公转周期形成整数比，它们会周期性回到相似位置，画出稳定而优美的共振轨迹。",
@@ -476,6 +476,41 @@ function polygonPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, radi
     else ctx.lineTo(x, y);
   }
   ctx.closePath();
+}
+
+function solveCatenaryParameter(span: number, rise: number) {
+  // h = a(cosh(L / 2a) - 1) has one positive solution for L,h > 0.
+  let low = span / 40;
+  let high = span * 100;
+  for (let i = 0; i < 72; i++) {
+    const mid = (low + high) / 2;
+    const currentRise = mid * (Math.cosh(span / (2 * mid)) - 1);
+    if (currentRise > rise) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
+}
+
+function solveEccentricAnomaly(meanAnomaly: number, eccentricity: number) {
+  const tau = Math.PI * 2;
+  const normalizedMeanAnomaly = ((meanAnomaly % tau) + tau) % tau;
+  let eccentricAnomaly = eccentricity < .8 ? normalizedMeanAnomaly : Math.PI;
+  for (let i = 0; i < 10; i++) {
+    const error = eccentricAnomaly - eccentricity * Math.sin(eccentricAnomaly) - normalizedMeanAnomaly;
+    eccentricAnomaly -= error / Math.max(.0001, 1 - eccentricity * Math.cos(eccentricAnomaly));
+  }
+  return eccentricAnomaly;
+}
+
+function greatestCommonDivisor(a: number, b: number) {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y) [x, y] = [y, x % y];
+  return Math.max(1, x);
+}
+
+function leastCommonMultiple(a: number, b: number) {
+  return Math.abs(Math.round(a * b)) / greatestCommonDivisor(a, b);
 }
 
 function roundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
@@ -2002,6 +2037,7 @@ function drawPreview(
   width: number,
   height: number,
   signal: SoundSignal,
+  elapsedMs = 0,
 ) {
   const value = (key: string) => settings[key] ?? DEFAULT_SETTINGS[key] ?? 0;
   const cx = width * .52;
@@ -2106,6 +2142,8 @@ function drawPreview(
     const half = span * 52;
     const baseY = height * .75;
     const topY = baseY - rise * 92;
+    const catenaryA = solveCatenaryParameter(span, rise);
+    const curveHeight = catenaryA * (Math.cosh(span / (2 * catenaryA)) - 1);
     ctx.strokeStyle = "#59aeb0";
     ctx.lineWidth = 10;
     ctx.lineCap = "round";
@@ -2113,7 +2151,8 @@ function drawPreview(
     for (let i = 0; i <= 160; i++) {
       const t = i / 160 * 2 - 1;
       const x = cx + t * half;
-      const normalized = (Math.cosh(t * 1.45) - 1) / (Math.cosh(1.45) - 1);
+      const modelX = t * span / 2;
+      const normalized = catenaryA * (Math.cosh(modelX / catenaryA) - 1) / curveHeight;
       const y = topY + normalized * (baseY - topY);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
@@ -2124,7 +2163,8 @@ function drawPreview(
     for (let i = 0; i < nodes; i++) {
       const t = i / Math.max(1, nodes - 1) * 2 - 1;
       const x = cx + t * half;
-      const normalized = (Math.cosh(t * 1.45) - 1) / (Math.cosh(1.45) - 1);
+      const modelX = t * span / 2;
+      const normalized = catenaryA * (Math.cosh(modelX / catenaryA) - 1) / curveHeight;
       const y = topY + normalized * (baseY - topY);
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -2141,12 +2181,8 @@ function drawPreview(
     const sides = Math.round(value("tileSides"));
     const radius = value("tileScale");
     const rotation = THREE.MathUtils.degToRad(value("tileRotation"));
-    const dx = radius * 1.65;
-    const dy = radius * 1.5;
-    for (let row = -4; row <= 4; row++) for (let col = -7; col <= 7; col++) {
-      const x = cx + col * dx + (row % 2) * dx * .5;
-      const y = cy + row * dy;
-      polygonPath(ctx, x, y, radius, sides, rotation);
+    const paint = (row: number, col: number, x: number, y: number, path: () => void) => {
+      path();
       const gradient = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
       gradient.addColorStop(0, row % 2 ? "#f3a36d" : "#8cced0");
       gradient.addColorStop(1, col % 2 ? "#8c79d5" : "#ef86b7");
@@ -2157,7 +2193,48 @@ function drawPreview(
       ctx.strokeStyle = "rgba(255,255,255,.9)";
       ctx.lineWidth = 2;
       ctx.stroke();
+    };
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation);
+    if (sides === 3) {
+      const side = Math.sqrt(3) * radius;
+      const rowHeight = radius * 1.5;
+      for (let row = -6; row <= 5; row++) for (let col = -8; col <= 7; col++) {
+        const topOffset = (Math.abs(row) % 2) * side * .5;
+        const bottomOffset = (Math.abs(row + 1) % 2) * side * .5;
+        const topLeft = [col * side + topOffset, row * rowHeight] as const;
+        const topRight = [(col + 1) * side + topOffset, row * rowHeight] as const;
+        const bottomLeft = [col * side + bottomOffset, (row + 1) * rowHeight] as const;
+        const bottomRight = [(col + 1) * side + bottomOffset, (row + 1) * rowHeight] as const;
+        const diagonalToLeft = topOffset < bottomOffset;
+        const triangles = diagonalToLeft
+          ? [[topLeft, topRight, bottomLeft], [topRight, bottomRight, bottomLeft]]
+          : [[topLeft, topRight, bottomRight], [topLeft, bottomRight, bottomLeft]];
+        triangles.forEach((triangle, index) => paint(row, col + index, triangle[0][0], triangle[0][1], () => {
+          ctx.beginPath();ctx.moveTo(...triangle[0]);ctx.lineTo(...triangle[1]);ctx.lineTo(...triangle[2]);ctx.closePath();
+        }));
+      }
+    } else if (sides === 4) {
+      const spacing = Math.sqrt(2) * radius;
+      for (let row = -6; row <= 6; row++) for (let col = -9; col <= 9; col++) {
+        const x = col * spacing, y = row * spacing;
+        paint(row, col, x, y, () => polygonPath(ctx, x, y, radius, 4, Math.PI / 4));
+      }
+    } else if (sides === 6) {
+      const dx = radius * 1.5, dy = Math.sqrt(3) * radius;
+      for (let col = -7; col <= 7; col++) for (let row = -5; row <= 5; row++) {
+        const x = col * dx, y = (row + (Math.abs(col) % 2) * .5) * dy;
+        paint(row, col, x, y, () => polygonPath(ctx, x, y, radius, 6));
+      }
+    } else {
+      const spacing = radius * 2.25;
+      for (let row = -4; row <= 4; row++) for (let col = -6; col <= 6; col++) {
+        const x = col * spacing, y = row * spacing;
+        paint(row, col, x, y, () => polygonPath(ctx, x, y, radius, sides));
+      }
     }
+    ctx.restore();
   } else if (item.visual === "sine") {
     const live = signal.mode !== "idle";
     const frequency = value("waveFrequency") * (1 + (live ? signal.mid * .18 : 0));
@@ -2271,20 +2348,22 @@ function drawPreview(
     ctx.beginPath();
     ctx.ellipse(cx, cy, a, b, 0, 0, Math.PI * 2);
     ctx.stroke();
-    const sun = ctx.createRadialGradient(cx - focus - 8, cy - 8, 2, cx - focus, cy, 34);
+    const sun = ctx.createRadialGradient(cx + focus - 8, cy - 8, 2, cx + focus, cy, 34);
     sun.addColorStop(0, "#fffbd3");
     sun.addColorStop(1, "#e6a73f");
     ctx.fillStyle = sun;
     ctx.beginPath();
-    ctx.arc(cx - focus, cy, 34, 0, Math.PI * 2);
+    ctx.arc(cx + focus, cy, 34, 0, Math.PI * 2);
     ctx.fill();
+    const meanAnomalyNow = elapsedMs * .00045 * speed;
     for (let i = 0; i < bodies; i++) {
-      const angle = i / bodies * Math.PI * 2 * speed;
-      const x = cx + Math.cos(angle) * a;
-      const y = cy + Math.sin(angle) * b;
-      ctx.fillStyle = i === bodies - 1 ? "#4faec8" : "rgba(79,174,200,.22)";
+      const meanAnomaly = meanAnomalyNow - i / bodies * Math.PI * 2;
+      const eccentricAnomaly = solveEccentricAnomaly(meanAnomaly, eccentricity);
+      const x = cx + Math.cos(eccentricAnomaly) * a;
+      const y = cy + Math.sin(eccentricAnomaly) * b;
+      ctx.fillStyle = i === 0 ? "#4faec8" : "rgba(79,174,200,.22)";
       ctx.beginPath();
-      ctx.arc(x, y, i === bodies - 1 ? 15 : 7, 0, Math.PI * 2);
+      ctx.arc(x, y, i === 0 ? 15 : 7, 0, Math.PI * 2);
       ctx.fill();
     }
   } else if (item.visual === "spiral") {
@@ -2300,12 +2379,15 @@ function drawPreview(
     ctx.fillRect(0, 0, width, height);
     for (let i = 0; i < stars; i++) {
       const arm = i % arms;
-      const progress = i / stars;
+      const progress = i / Math.max(1, stars - 1);
       const hash = Math.sin(i * 91.73) * 43758.5453;
-      const jitter = (hash - Math.floor(hash) - .5) * 36;
-      const theta = progress * Math.PI * 7 + arm * Math.PI * 2 / arms;
-      const radius = (22 + 290 * Math.pow(progress, .72)) * spiralScale;
-      const angle = theta * curvature * 3.4;
+      const jitter = (hash - Math.floor(hash) - .5) * (8 + progress * 28);
+      const innerRadius = 22 * spiralScale;
+      const outerRadius = 312 * spiralScale;
+      const thetaMax = Math.log(outerRadius / innerRadius) / Math.max(.01, curvature);
+      const theta = progress * thetaMax;
+      const radius = innerRadius * Math.exp(curvature * theta);
+      const angle = theta + arm * Math.PI * 2 / arms;
       const x = cx + Math.cos(angle) * (radius + jitter);
       const y = cy + Math.sin(angle) * (radius + jitter) * .68;
       const size = 1.5 + (i % 9 === 0 ? 3 : 0);
@@ -2322,18 +2404,19 @@ function drawPreview(
     const phase = THREE.MathUtils.degToRad(value("resonancePhase"));
     ctx.strokeStyle = "rgba(84,85,92,.22)";
     ctx.lineWidth = 2;
-    [100, 190, 280].forEach((radius) => {
+    [82, 190].forEach((radius) => {
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.stroke();
     });
     ctx.beginPath();
+    const repeatTime = leastCommonMultiple(p, q);
     for (let i = 0; i <= 1600; i++) {
-      const t = i / 1600 * Math.PI * 2;
-      const radius = 190 + Math.cos(q * t) * 82;
-      const angle = p * t + phase;
-      const x = cx + Math.cos(angle) * radius;
-      const y = cy + Math.sin(angle) * radius;
+      const t = i / 1600 * repeatTime;
+      const innerAngle = Math.PI * 2 * t / p + phase;
+      const outerAngle = Math.PI * 2 * t / q;
+      const x = cx + Math.cos(innerAngle) * 82 - Math.cos(outerAngle) * 190;
+      const y = cy + Math.sin(innerAngle) * 82 - Math.sin(outerAngle) * 190;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
@@ -2699,10 +2782,14 @@ function Galaxy3DPreview({ settings }: { settings: MuseumSettings }) {
       for (let i = 0; i < count; i++) {
         const arm = i % arms;
         const progress = i / Math.max(1, count - 1);
-        const radius = (.08 + Math.pow(progress, .62) * 4.25) * spiralScale;
-        const angleNoise = (deterministic(i + 2) - .5) * (.3 + progress * .42);
-        const angle = arm / arms * Math.PI * 2 + progress * Math.PI * (3.7 + curvature * 11) + angleNoise;
-        const radialNoise = (deterministic(i + 4) - .5) * (.2 + progress * .82);
+        const innerRadius = .08 * spiralScale;
+        const outerRadius = 4.33 * spiralScale;
+        const thetaMax = Math.log(outerRadius / innerRadius) / Math.max(.01, curvature);
+        const theta = progress * thetaMax;
+        const radius = innerRadius * Math.exp(curvature * theta);
+        const angleNoise = (deterministic(i + 2) - .5) * (.12 + progress * .34);
+        const angle = arm / arms * Math.PI * 2 + theta + angleNoise;
+        const radialNoise = (deterministic(i + 4) - .5) * (.08 + progress * .52);
         const actualRadius = Math.max(.03, radius + radialNoise);
         const thickness = (deterministic(i + 8) - .5) * (.58 - progress * .42);
         positions[i * 3] = Math.cos(angle) * actualRadius;
@@ -2807,7 +2894,7 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const isSoundVisual = item.visual === "sine" || item.visual === "harmonics" || item.visual === "chladni";
+    const isAnimatedVisual = item.visual === "sine" || item.visual === "harmonics" || item.visual === "chladni" || item.visual === "orbit";
     let raf = 0;
     let cssWidth = 1000;
     let cssHeight = 680;
@@ -2829,8 +2916,8 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
       ctx.fillStyle = background;
       ctx.fillRect(0, 0, logicalWidth, logicalHeight);
       drawGrid(ctx, logicalWidth, logicalHeight);
-      drawPreview(ctx, item, settings, logicalWidth, logicalHeight, signalRef.current);
-      if (isSoundVisual) raf = window.requestAnimationFrame(render);
+      drawPreview(ctx, item, settings, logicalWidth, logicalHeight, signalRef.current, performance.now());
+      if (isAnimatedVisual) raf = window.requestAnimationFrame(render);
     };
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();

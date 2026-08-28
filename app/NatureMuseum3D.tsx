@@ -1876,7 +1876,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
           surfaceParameters.shear.value = Math.sin(elapsed * .47 + 1.6) * .12;
           surfaceParameters.lift.value = Math.cos(elapsed * .71 + .2) * .1;
           const radialParameter = 1 + Math.sin(elapsed * .74 + 1.1) * .075;
-          surface.rotation.set(-.18 + Math.sin(elapsed * .42) * .035, .18, -.12 + artworkProgress * Math.PI * 2);
+          surface.rotation.set(-.18 + Math.sin(elapsed * .42) * .035, .18 + artworkProgress * Math.PI * 2, -.12);
           surface.position.y = Math.sin(elapsed * .56) * .16;
           surface.scale.set(1.04 * radialParameter, 1.04 + Math.cos(elapsed * .51) * .07, 1.04 * radialParameter);
           updateTesseractProjection(tesseract, elapsed * 1.15);

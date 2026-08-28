@@ -193,6 +193,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /transformed\.x \+= transformed\.y \* uSurfaceShear/);
   assert.match(museum, /surface\.position\.y = Math\.sin\(elapsed \* \.56\) \* \.16/);
   assert.match(museum, /surface\.rotation\.set\(-\.18 \+ Math\.sin/);
+  assert.match(museum, /surface\.rotation\.set\(-\.18 \+ Math\.sin\(elapsed \* \.42\) \* \.035, \.18 \+ artworkProgress \* Math\.PI \* 2, -\.12\)/);
   assert.match(museum, /function makeTesseractProjection\(\)/);
   assert.match(museum, /vertex \^ \(1 << dimension\)/);
   assert.match(museum, /const faces: Array<\[number, number, number, number\]> = \[\]/);

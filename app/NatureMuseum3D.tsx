@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
+import { createAdaptiveResolutionController, getAutoRenderProfile } from "./adaptive-rendering";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 import { observeMathAction } from "./math-observer-events";
@@ -1438,7 +1439,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     container.dataset.webglReady = "false";
     container.dataset.webglError = "false";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const lowPower = (navigator.hardwareConcurrency ?? 8) <= 4 || window.innerWidth < 700 || window.matchMedia("(pointer: coarse)").matches;
+    const renderProfile = getAutoRenderProfile();
+    const lowPower = renderProfile.lowDetail;
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: !lowPower, powerPreference: lowPower ? "low-power" : "high-performance" });
@@ -1447,8 +1449,13 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       container.dataset.webglError = "true";
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
-    renderer.setSize(container.clientWidth, container.clientHeight);
+    const applyPixelRatio = (pixelRatio: number) => {
+      renderer.setPixelRatio(pixelRatio);
+      renderer.setSize(container.clientWidth, container.clientHeight, false);
+      container.dataset.pixelRatio = pixelRatio.toFixed(2);
+    };
+    const adaptiveResolution = createAdaptiveResolutionController(renderProfile, applyPixelRatio, (fps) => { container.dataset.measuredFps = fps.toFixed(1); });
+    applyPixelRatio(adaptiveResolution.pixelRatio);
     renderer.shadowMap.enabled = !lowPower;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1457,8 +1464,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     renderer.domElement.setAttribute("role", "img");
     renderer.domElement.setAttribute("aria-label", "数学美学展连续 WebGL 展馆，可拖动视角并点击展板探索");
     container.appendChild(renderer.domElement);
-    container.dataset.quality = lowPower ? "eco" : "standard";
-    container.dataset.targetFps = lowPower ? "30" : "60";
+    container.dataset.quality = lowPower ? "eco" : "adaptive";
+    container.dataset.targetFps = String(renderProfile.targetFps);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#070910");
@@ -1864,7 +1871,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     let frame = 0;
     let metricsFrame = 0;
     let lastFrameAt = 0;
-    const minimumFrameInterval = lowPower ? 1000 / 30 : 0;
+    const minimumFrameInterval = renderProfile.targetFps === 30 ? 1000 / 30 : 0;
     let activeStop = 0;
     let transitionStarted = 0;
     const transitionFromPosition = camera.position.clone();
@@ -1876,7 +1883,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       frame = requestAnimationFrame(animate);
       if (minimumFrameInterval && now - lastFrameAt < minimumFrameInterval) return;
       lastFrameAt = now;
-      if (!isSceneVisible || document.hidden || document.body.classList.contains("exhibit-mode")) return;
+      if (!isSceneVisible || document.hidden || document.body.classList.contains("exhibit-mode")) { adaptiveResolution.pause(); return; }
       const elapsed = clock.getElapsedTime();
       const requestedHallIndex = Math.max(-1, Math.min(HALLS.length - 1, hallIndexRef.current));
       loadOnlyHall(requestedHallIndex);
@@ -1966,6 +1973,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       squareRootFormula.visible = loadedHallIndex < 0 && showSquareRootSurface;
       tesseractFormula.visible = loadedHallIndex < 0 && !showSquareRootSurface;
       renderer.render(scene, camera);
+      adaptiveResolution.sample(now);
       metricsFrame++;
       if (metricsFrame % 30 === 0) {
         container.dataset.renderCalls = String(renderer.info.render.calls);
@@ -1979,11 +1987,11 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       if (!container.clientWidth || !container.clientHeight) return;
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.5));
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(adaptiveResolution.pixelRatio);
+      renderer.setSize(container.clientWidth, container.clientHeight, false);
       if (atriumFloor instanceof Reflector) {
         const targetResolution = THREE.MathUtils.clamp(
-          Math.round(Math.max(container.clientWidth, container.clientHeight) * Math.min(window.devicePixelRatio || 1, 1.5) * .72),
+          Math.round(Math.max(container.clientWidth, container.clientHeight) * Math.min(adaptiveResolution.pixelRatio, 1.75) * .72),
           768,
           reflectionMaxResolution,
         );
@@ -2007,6 +2015,9 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       renderer.domElement.remove();
       delete container.dataset.webglReady;
       delete container.dataset.webglError;
+      delete container.dataset.quality;
+      delete container.dataset.pixelRatio;
+      delete container.dataset.measuredFps;
     };
   }, [retryKey]);
 

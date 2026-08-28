@@ -43,7 +43,7 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, hometown, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, mascotAsset, mascotSequenceAsset] = await Promise.all([
+  const [museum, garden, hometown, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, adaptiveRendering, mascotAsset, mascotSequenceAsset] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/HometownMathWorld.tsx", import.meta.url), "utf8"),
@@ -60,6 +60,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/audio.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/viewport.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/adaptive-rendering.ts", import.meta.url), "utf8"),
     readFile(new URL("../public/math-observer-talk-0.png", import.meta.url)),
     readFile(new URL("../public/math-observer-talk-sequence.png", import.meta.url)),
   ]);
@@ -243,7 +244,16 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /disposeObject\(activeHallScene\.root\)/);
   assert.match(museum, /loadOnlyHall\(requestedHallIndex\)/);
   assert.match(museum, /container\.dataset\.loadedHall/);
-  assert.match(museum, /container\.dataset\.targetFps = lowPower \? "30" : "60"/);
+  assert.match(museum, /container\.dataset\.targetFps = String\(renderProfile\.targetFps\)/);
+  assert.match(museum, /createAdaptiveResolutionController\(renderProfile/);
+  assert.match(garden, /createAdaptiveResolutionController\(renderProfile/);
+  assert.match(garden, /startAdaptiveResolutionMonitor\(adaptiveResolution/);
+  assert.match(museum, /const renderProfile = getAutoRenderProfile\(\);\n    const lowPower = renderProfile\.lowDetail;/);
+  assert.doesNotMatch(garden, /window\.innerWidth<700\|\|window\.matchMedia\("\(pointer: coarse\)"\)\.matches/);
+  assert.match(adaptiveRendering, /highPerformance \? 1\.65/);
+  assert.match(adaptiveRendering, /highPerformance \? 1\.9/);
+  assert.match(adaptiveRendering, /fps < profile\.targetFps \* \.72/);
+  assert.match(adaptiveRendering, /fps > profile\.targetFps \* \.92/);
   assert.match(museum, /const minimumFrameInterval = lowPower \? 1000 \/ 30 : 0/);
   assert.match(museum, /if \(loadedHallIndex < 0\)/);
   assert.match(museum, /\["fibonacci", "architecture", "fourier", "galaxy"\]/);

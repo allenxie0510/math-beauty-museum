@@ -533,7 +533,9 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         {GARDEN_ITEMS.map(item=><button key={item.id} className={`${selectedId===item.id?"active":""} ${discoveries.has(item.id)?"found":""}`} onClick={()=>select(item.id)} style={{"--item-color":item.color} as React.CSSProperties}><i>{item.icon}</i><span>{item.name}</span><b>{discoveries.has(item.id)?"✓":"+"}</b></button>)}
       </div>
 
-      {selected&&<aside className="garden-info-panel" role="dialog" aria-modal="true" aria-label={`${selected.name}探索面板`} style={{"--item-color":selected.color} as React.CSSProperties}>
+      {selected&&<div className="garden-info-backdrop">
+      <button className="dialog-outside-dismiss" onClick={()=>{setMathObserverScene("garden",{view:"world"});setActiveControlKey(null);setSelectedId(null)}} aria-label="关闭发现窗口" tabIndex={-1}/>
+      <aside className="garden-info-panel" role="dialog" aria-modal="true" aria-label={`${selected.name}探索面板`} style={{"--item-color":selected.color} as React.CSSProperties}>
         <button className="garden-panel-close" onClick={()=>{setMathObserverScene("garden",{view:"world"});setActiveControlKey(null);setSelectedId(null)}} aria-label="关闭发现窗口">×</button>
         <span className="garden-panel-index">DISCOVERY {String(GARDEN_ITEMS.findIndex(i=>i.id===selected.id)+1).padStart(2,"0")}</span>
         <div className="garden-panel-icon">{selected.icon}</div>
@@ -552,7 +554,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
           <button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"音乐正在驱动喷泉":"启动音乐可视化"}<small>实时频谱控制水柱高度与声波圆环</small></span></button>
         </div>}
         <div className="garden-reward"><span>🌱 +1 数学种子</span><span>⭐ +2 美学星星</span></div>
-      </aside>}
+      </aside></div>}
     </section>
   );
 }

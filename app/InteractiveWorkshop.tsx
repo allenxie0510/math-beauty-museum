@@ -643,8 +643,9 @@ function PaperCutPreview({ close }: { close: () => void }) {
 
   return (
     <div className="papercut-backdrop" role="dialog" aria-modal="true" aria-labelledby="papercut-title">
+      <button className="dialog-outside-dismiss" onClick={close} aria-label="关闭剪纸互动" tabIndex={-1}/>
+      <button className="papercut-close" onClick={close} aria-label="关闭剪纸互动">×</button>
       <div className="papercut-shell">
-        <button className="papercut-close" onClick={close} aria-label="关闭剪纸互动">×</button>
         <header><span>PAPER CUT · 旋转与对称</span><h2 id="papercut-title">圈出形状，剪掉区域，<br />看看图案怎样重复</h2><p>按住鼠标或触摸屏描画轮廓，松开后轮廓会自动闭合，内部区域将被准确剪掉。</p></header>
         <section className={`papercut-preview-stage ${stage}`}>
           <div className="papercut-canvas-wrap">

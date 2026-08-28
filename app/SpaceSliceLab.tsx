@@ -658,8 +658,9 @@ export function SpaceSliceLab({ close }: { close: () => void }) {
 
   return (
     <div className="space-slice-backdrop" role="dialog" aria-modal="true" aria-labelledby="space-slice-title">
+      <button className="dialog-outside-dismiss" onClick={close} aria-label="关闭空间切片实验室" tabIndex={-1}/>
+      <button className="space-slice-close" onClick={close} aria-label="关闭空间切片实验室">×</button>
       <article className="space-slice-lab">
-        <button className="space-slice-close" onClick={close} aria-label="关闭空间切片实验室">×</button>
         <header className="space-slice-header">
           <div><span>SPACE SLICE LAB · 空间几何</span><h2 id="space-slice-title">空间切片实验室</h2><p>一刀切开，里面藏着什么形状？</p></div>
           <div className="space-slice-shape-tabs" role="tablist" aria-label="选择立体">

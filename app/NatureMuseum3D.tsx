@@ -3228,8 +3228,9 @@ export function NatureMuseumWorld() {
           onWheel={(event) => event.stopPropagation()}
           onTouchMove={(event) => event.stopPropagation()}
         >
+          <button className="dialog-outside-dismiss" onClick={() => { setSelectedId(null); setIsAutoPlaying(false); }} aria-label="关闭并返回当前展馆" tabIndex={-1}/>
+          <button className="nature-lab-close" onClick={() => { setSelectedId(null); setIsAutoPlaying(false); }} aria-label="关闭并返回当前展馆">×</button>
           <div className={"nature-lab-shell " + (hall.key === "sound" ? "sound-lab-shell" : "")} style={{ "--nature-color": selected.color } as React.CSSProperties}>
-            <button className="nature-lab-close" onClick={() => { setSelectedId(null); setIsAutoPlaying(false); }} aria-label="关闭并返回当前展馆">×</button>
             <header className="immersive-lab-header">
               <span className="nature-lab-index">{hall.english} / DISCOVERY {selected.index}</span>
               <div className="nature-lab-heading"><i>{selected.icon}</i><div><h3>{selected.name}</h3><p>{selected.english}</p></div></div>

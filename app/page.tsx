@@ -144,8 +144,9 @@ function DeferredMathGarden({ onProgress }: { onProgress: (count: number) => voi
 function Certificate({ name, setName, close }: { name: string; setName: (name: string) => void; close: () => void }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="数学之美发现者证书">
+      <button className="dialog-outside-dismiss" onClick={close} aria-label="关闭证书" tabIndex={-1}/>
+      <button className="modal-close" onClick={close} aria-label="关闭证书">×</button>
       <div className="certificate-modal">
-        <button className="modal-close" onClick={close} aria-label="关闭证书">×</button>
         <div className="certificate-inner">
           <div className="certificate-orbit orbit-a" />
           <div className="certificate-orbit orbit-b" />

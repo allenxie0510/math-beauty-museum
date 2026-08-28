@@ -594,8 +594,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /html\{scroll-snap-type:y mandatory/);
   assert.match(css, /scroll-snap-stop:always/);
   assert.match(css, /body:not\(\.page-detail-open\) \.site-header\{[^}]*display:flex!important/);
-  assert.match(garden, /className="garden-info-backdrop"/);
-  assert.match(garden, /className="dialog-outside-dismiss"/);
+  assert.doesNotMatch(garden, /garden-info-backdrop|className="dialog-outside-dismiss"/);
+  assert.match(garden, /section\.addEventListener\("pointerdown",down,true\)/);
+  assert.match(garden, /Math\.hypot\(event\.clientX-gesture\.x,event\.clientY-gesture\.y\)>gesture\.threshold/);
+  assert.match(garden, /!current\.moved&&distance<=current\.threshold&&!endedInsidePanel/);
   assert.match(museum, /className="dialog-outside-dismiss"/);
   assert.match(workshop, /className="dialog-outside-dismiss"/);
   assert.match(spaceSlice, /className="dialog-outside-dismiss"/);

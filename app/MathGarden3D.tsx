@@ -430,6 +430,7 @@ function MathGardenCanvas({ selectedId, onSelect, settings, audioAnalyserRef, po
 
 export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>void }) {
   const gardenSection=useRef<HTMLElement>(null);
+  const gardenPanel=useRef<HTMLElement>(null);
   const [gardenCanvasReady,setGardenCanvasReady]=useState(false);
   const [selectedId,setSelectedId]=useState<GardenId|null>(null);
   const [discoveries,setDiscoveries]=useState<Set<GardenId>>(()=>new Set());
@@ -448,8 +449,35 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
   useEffect(()=>{pondPlayingRef.current=pondPlaying},[pondPlaying]);
   const selected=useMemo(()=>GARDEN_ITEMS.find(item=>item.id===selectedId)??null,[selectedId]);
   const count=discoveries.size,seeds=count,stars=count*2,badges=(count>=3?1:0)+(count>=5?1:0)+(count===GARDEN_ITEMS.length?1:0);
+  const closePanel=useCallback(()=>{setMathObserverScene("garden",{view:"world"});setActiveControlKey(null);setSelectedId(null)},[]);
   useEffect(()=>onProgress(count),[count,onProgress]);
   useEffect(()=>{document.body.classList.toggle("garden-detail-mode",Boolean(selectedId));return()=>document.body.classList.remove("garden-detail-mode")},[selectedId]);
+  useEffect(()=>{
+    const section=gardenSection.current;
+    if(!section||!selectedId)return;
+    let gesture:{pointerId:number;x:number;y:number;threshold:number;moved:boolean}|null=null;
+    const down=(event:PointerEvent)=>{
+      if(!event.isPrimary||event.button!==0||gardenPanel.current?.contains(event.target as Node)){gesture=null;return}
+      gesture={pointerId:event.pointerId,x:event.clientX,y:event.clientY,threshold:event.pointerType==="touch"?14:8,moved:false};
+    };
+    const move=(event:PointerEvent)=>{
+      if(!gesture||gesture.pointerId!==event.pointerId)return;
+      if(Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>gesture.threshold)gesture.moved=true;
+    };
+    const finish=(event:PointerEvent)=>{
+      if(!gesture||gesture.pointerId!==event.pointerId)return;
+      const current=gesture;gesture=null;
+      const endedInsidePanel=gardenPanel.current?.contains(event.target as Node);
+      const distance=Math.hypot(event.clientX-current.x,event.clientY-current.y);
+      if(!current.moved&&distance<=current.threshold&&!endedInsidePanel)closePanel();
+    };
+    const cancel=()=>{gesture=null};
+    section.addEventListener("pointerdown",down,true);
+    window.addEventListener("pointermove",move,true);
+    window.addEventListener("pointerup",finish,true);
+    window.addEventListener("pointercancel",cancel,true);
+    return()=>{section.removeEventListener("pointerdown",down,true);window.removeEventListener("pointermove",move,true);window.removeEventListener("pointerup",finish,true);window.removeEventListener("pointercancel",cancel,true)};
+  },[closePanel,selectedId]);
   useEffect(()=>{
     const section=gardenSection.current;if(!section||gardenCanvasReady)return;
     if(!("IntersectionObserver" in window)){const timer=window.setTimeout(()=>setGardenCanvasReady(true),0);return()=>window.clearTimeout(timer)}
@@ -533,10 +561,8 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         {GARDEN_ITEMS.map(item=><button key={item.id} className={`${selectedId===item.id?"active":""} ${discoveries.has(item.id)?"found":""}`} onClick={()=>select(item.id)} style={{"--item-color":item.color} as React.CSSProperties}><i>{item.icon}</i><span>{item.name}</span><b>{discoveries.has(item.id)?"✓":"+"}</b></button>)}
       </div>
 
-      {selected&&<div className="garden-info-backdrop">
-      <button className="dialog-outside-dismiss" onClick={()=>{setMathObserverScene("garden",{view:"world"});setActiveControlKey(null);setSelectedId(null)}} aria-label="关闭发现窗口" tabIndex={-1}/>
-      <aside className="garden-info-panel" role="dialog" aria-modal="true" aria-label={`${selected.name}探索面板`} style={{"--item-color":selected.color} as React.CSSProperties}>
-        <button className="garden-panel-close" onClick={()=>{setMathObserverScene("garden",{view:"world"});setActiveControlKey(null);setSelectedId(null)}} aria-label="关闭发现窗口">×</button>
+      {selected&&<aside ref={gardenPanel} className="garden-info-panel" role="dialog" aria-modal="true" aria-label={`${selected.name}探索面板`} style={{"--item-color":selected.color} as React.CSSProperties}>
+        <button className="garden-panel-close" onClick={closePanel} aria-label="关闭发现窗口">×</button>
         <span className="garden-panel-index">DISCOVERY {String(GARDEN_ITEMS.findIndex(i=>i.id===selected.id)+1).padStart(2,"0")}</span>
         <div className="garden-panel-icon">{selected.icon}</div>
         <h3>{selected.discovery}</h3><p className="garden-object-name">{selected.name}<small>{selected.english}</small></p>
@@ -554,7 +580,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
           <button className={`pond-sound-button ${pondPlaying?"playing":""}`} onClick={togglePondSound}><i>{pondPlaying?"Ⅱ":"▶"}</i><span>{pondPlaying?"音乐正在驱动喷泉":"启动音乐可视化"}<small>实时频谱控制水柱高度与声波圆环</small></span></button>
         </div>}
         <div className="garden-reward"><span>🌱 +1 数学种子</span><span>⭐ +2 美学星星</span></div>
-      </aside></div>}
+      </aside>}
     </section>
   );
 }

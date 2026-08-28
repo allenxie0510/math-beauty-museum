@@ -361,3 +361,13 @@ footer{min-height:190px;border-top:1px solid rgba(255,255,255,.08);padding:55px 
 .studio-formula-preview>strong.math-formula{font-size:16px;line-height:1.4}
 .slice-insight>small.math-formula{font-size:11px;line-height:1.4}
 @media(max-width:700px){.nature-lab-formula .nature-formula-expression>strong.math-formula{max-height:3em;overflow-x:auto!important;overflow-y:auto!important;white-space:pre!important;font-size:16px!important;line-height:1.25}.garden-formula>strong.math-formula{font-size:15px}.hometown-formula-card>strong.math-formula{font-size:17px}.studio-formula-preview>strong.math-formula{font-size:14px}.slice-insight>small.math-formula{font-size:10px}}
+
+/* Full-screen primary navigation and reliable detail scroll isolation. */
+html{scroll-snap-type:y mandatory;scroll-padding:0;overscroll-behavior-y:none}
+.immersive-main{scroll-snap-type:none}
+.immersive-main>:is(#hall,#workshop,#garden,#hometown){height:100dvh!important;min-height:100dvh!important;scroll-snap-align:start;scroll-snap-stop:always}
+body.page-detail-open{overflow:hidden!important;overscroll-behavior:none}
+body.page-detail-open .site-header{display:none!important}
+body:not(.page-detail-open) .site-header{z-index:160;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+[aria-modal="true"],.garden-info-panel{overscroll-behavior:contain}
+@media(min-width:701px){.hometown-story-card{overflow-y:auto;overscroll-behavior:contain}}

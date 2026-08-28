@@ -533,7 +533,7 @@ export function MathGardenWorld({ onProgress }: { onProgress:(count:number)=>voi
         {GARDEN_ITEMS.map(item=><button key={item.id} className={`${selectedId===item.id?"active":""} ${discoveries.has(item.id)?"found":""}`} onClick={()=>select(item.id)} style={{"--item-color":item.color} as React.CSSProperties}><i>{item.icon}</i><span>{item.name}</span><b>{discoveries.has(item.id)?"✓":"+"}</b></button>)}
       </div>
 
-      {selected&&<aside className="garden-info-panel" style={{"--item-color":selected.color} as React.CSSProperties}>
+      {selected&&<aside className="garden-info-panel" role="dialog" aria-modal="true" aria-label={`${selected.name}探索面板`} style={{"--item-color":selected.color} as React.CSSProperties}>
         <button className="garden-panel-close" onClick={()=>{setMathObserverScene("garden",{view:"world"});setActiveControlKey(null);setSelectedId(null)}} aria-label="关闭发现窗口">×</button>
         <span className="garden-panel-index">DISCOVERY {String(GARDEN_ITEMS.findIndex(i=>i.id===selected.id)+1).padStart(2,"0")}</span>
         <div className="garden-panel-icon">{selected.icon}</div>

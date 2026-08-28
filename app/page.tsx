@@ -40,6 +40,9 @@ function scrollToId(id: string, behavior: ScrollBehavior = "smooth") {
   window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior });
 }
 
+const PRIMARY_SECTION_IDS = ["hall", "workshop", "garden", "hometown"] as const;
+const DETAIL_SURFACE_SELECTOR = '[aria-modal="true"], .garden-info-panel';
+
 function Mark({ children }: { children: React.ReactNode }) {
   return <span className="eyebrow">{children}</span>;
 }
@@ -174,6 +177,79 @@ export default function Home() {
   const [hometownPreview, setHometownPreview] = useState<import("./hometown-math/domain/types").HometownSceneManifest | null>(null);
   const hometownReturnExhibit = useRef<string | null>(null);
   const certificateUnlocked = useRef(false);
+
+  useEffect(() => {
+    const body = document.body;
+    const root = document.documentElement;
+    const initialBodyOverflow = body.style.overflow;
+    const initialRootOverflow = root.style.overflow;
+    const initialOverscroll = root.style.overscrollBehavior;
+    const detailModeClasses = ["exhibit-mode", "garden-detail-mode", "workshop-detail-mode", "hometown-detail-mode"];
+    let locked = false;
+    let frame = 0;
+
+    const synchronizeDetailState = () => {
+      const detailOpen = Boolean(document.querySelector(DETAIL_SURFACE_SELECTOR));
+      if (body.classList.contains("page-detail-open") !== detailOpen) body.classList.toggle("page-detail-open", detailOpen);
+      if (!detailOpen) detailModeClasses.forEach((className) => { if (body.classList.contains(className)) body.classList.remove(className); });
+      if (detailOpen === locked) return;
+      locked = detailOpen;
+      body.style.overflow = detailOpen ? "hidden" : initialBodyOverflow;
+      root.style.overflow = detailOpen ? "hidden" : initialRootOverflow;
+      root.style.overscrollBehavior = detailOpen ? "none" : initialOverscroll;
+    };
+    const scheduleSynchronization = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(synchronizeDetailState);
+    };
+    const observer = new MutationObserver(scheduleSynchronization);
+    observer.observe(body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    synchronizeDetailState();
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+      body.classList.remove("page-detail-open", ...detailModeClasses);
+      body.style.overflow = initialBodyOverflow;
+      root.style.overflow = initialRootOverflow;
+      root.style.overscrollBehavior = initialOverscroll;
+    };
+  }, []);
+
+  useEffect(() => {
+    let accumulatedDelta = 0;
+    let cooldownUntil = 0;
+    let resetTimer = 0;
+    const handlePrimaryWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || document.body.classList.contains("page-detail-open")) return;
+      if (document.querySelector(DETAIL_SURFACE_SELECTOR)) { event.preventDefault(); event.stopPropagation(); return; }
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const now = performance.now();
+      if (now < cooldownUntil) return;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+      const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
+      if (Math.sign(delta) !== Math.sign(accumulatedDelta)) accumulatedDelta = 0;
+      accumulatedDelta += delta;
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => { accumulatedDelta = 0; }, 180);
+      if (Math.abs(accumulatedDelta) < 36) return;
+
+      const sections = PRIMARY_SECTION_IDS.map((id) => document.getElementById(id)).filter((section): section is HTMLElement => Boolean(section));
+      if (!sections.length) return;
+      const currentIndex = sections.reduce((closest, section, index) => Math.abs(section.getBoundingClientRect().top) < Math.abs(sections[closest].getBoundingClientRect().top) ? index : closest, 0);
+      const nextIndex = Math.max(0, Math.min(sections.length - 1, currentIndex + (accumulatedDelta > 0 ? 1 : -1)));
+      accumulatedDelta = 0;
+      if (nextIndex === currentIndex) return;
+      cooldownUntil = now + 760;
+      scrollToId(sections[nextIndex].id, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+    };
+    window.addEventListener("wheel", handlePrimaryWheel, { passive: false, capture: true });
+    return () => {
+      window.clearTimeout(resetTimer);
+      window.removeEventListener("wheel", handlePrimaryWheel, true);
+    };
+  }, []);
 
   const updateGardenProgress = useCallback((value: number) => {
     setGardenProgress(value);

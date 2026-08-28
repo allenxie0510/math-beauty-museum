@@ -2967,8 +2967,6 @@ export function NatureMuseumWorld() {
   const [transition, setTransition] = useState<"idle" | "leaving" | "entering">("idle");
   const [transitionDirection, setTransitionDirection] = useState<"previous" | "next">("next");
   const transitionTimers = useRef<number[]>([]);
-  const wheelAccumulator = useRef(0);
-  const wheelCooldownUntil = useRef(0);
   const galleryRef = useRef<HTMLElement>(null);
   const soundSignalRef = useRef<SoundSignal>({ ...EMPTY_SOUND_SIGNAL });
   const linkedDemoOpen = useRef(false);
@@ -3051,38 +3049,6 @@ export function NatureMuseumWorld() {
     }, 180);
     transitionTimers.current.push(swapTimer);
   }, [hallIndex, transition]);
-
-  const handleHallWheel = useCallback((event: WheelEvent) => {
-    if (selectedId) return;
-    event.preventDefault();
-    event.stopPropagation();
-    document.body.classList.remove("site-nav-visible", "exhibit-nav-visible");
-    if (transition !== "idle") return;
-    const now = performance.now();
-    if (now < wheelCooldownUntil.current) return;
-    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-    const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
-    if (!delta) return;
-    if (Math.sign(delta) !== Math.sign(wheelAccumulator.current)) wheelAccumulator.current = 0;
-    wheelAccumulator.current += delta;
-    if (Math.abs(wheelAccumulator.current) < 48) return;
-    const direction = wheelAccumulator.current > 0 ? -1 : 1;
-    wheelAccumulator.current = 0;
-    wheelCooldownUntil.current = now + 900;
-    switchHall(direction);
-  }, [selectedId, switchHall, transition]);
-
-  useEffect(() => {
-    const gallery = galleryRef.current;
-    if (!gallery) return;
-    const handleMuseumWheel = (event: WheelEvent) => {
-      const bounds = gallery.getBoundingClientRect();
-      if (bounds.bottom <= 0 || bounds.top >= window.innerHeight) return;
-      handleHallWheel(event);
-    };
-    window.addEventListener("wheel", handleMuseumWheel, { passive: false });
-    return () => window.removeEventListener("wheel", handleMuseumWheel);
-  }, [handleHallWheel]);
 
   useEffect(() => {
     const body = document.body;

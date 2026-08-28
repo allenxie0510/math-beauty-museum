@@ -61,7 +61,7 @@ type BrowserSpeechRecognition = {
   lang: string;
   maxAlternatives: number;
   onresult: ((event: { resultIndex: number; results: ArrayLike<BrowserSpeechRecognitionResult> }) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: { error?: string; message?: string }) => void) | null;
   onend: (() => void) | null;
   start(): void;
   abort(): void;
@@ -182,7 +182,6 @@ export function MathObserver() {
   const lastSpokenAtRef = useRef(0);
   const lastInteractionAtRef = useRef(0);
   const activeInteractionRef = useRef(false);
-  const sessionCueCountRef = useRef(0);
   const spokenIdsRef = useRef(new Set<string>());
   const recentMessagesRef = useRef<string[]>([]);
   const recentCueIdsRef = useRef<string[]>([]);
@@ -201,8 +200,12 @@ export function MathObserver() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const wakeRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const beginVoiceSessionRef = useRef<() => void>(() => undefined);
-  const enableVoiceRef = useRef<() => void>(() => undefined);
-  const voiceAttemptedRef = useRef(false);
+  const enableVoiceRef = useRef<(askNow?: boolean) => void>(() => undefined);
+  const voiceEnablingRef = useRef(false);
+  const pendingVoiceQuestionRef = useRef(false);
+  const voiceRetryAtRef = useRef(0);
+  const voiceRecoveryAttemptsRef = useRef(0);
+  const wakeRecognitionBlockedRef = useRef(false);
   const activeSceneRef = useRef("hall");
   const activeSceneContextRef = useRef<Record<string, string | number | boolean | null>>({});
   const activeSceneKeyRef = useRef(sceneKey({ scene: "hall" }));
@@ -340,6 +343,19 @@ export function MathObserver() {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
     });
     mediaStreamRef.current = stream;
+    stream.getAudioTracks().forEach((track) => track.addEventListener("ended", () => {
+      if (mediaStreamRef.current !== stream || participationRef.current === "quiet") return;
+      mediaStreamRef.current = null;
+      voiceEnabledRef.current = false;
+      voiceRetryAtRef.current = Date.now() + 1200;
+      setVoiceEnabled(false);
+      setVoiceState("error");
+      const timer = window.setTimeout(() => {
+        timersRef.current.delete(timer);
+        if (participationRef.current !== "quiet" && Date.now() >= voiceRetryAtRef.current) enableVoiceRef.current();
+      }, 1400);
+      timersRef.current.add(timer);
+    }, { once: true }));
     return stream;
   }, []);
 
@@ -524,15 +540,13 @@ export function MathObserver() {
   const deliverCue = useCallback(async (
     cue: MathObserverCue,
     force = false,
-    options: { affectCooldown?: boolean; countSession?: boolean } = {},
+    options: { affectCooldown?: boolean } = {},
   ) => {
     if (!unlockedRef.current || participationRef.current === "quiet" || voiceBusyRef.current) return false;
     if (cue.once && spokenIdsRef.current.has(cue.id) && !force) return false;
-    const profile = MATH_OBSERVER_PROFILES[participationRef.current];
     const now = performance.now();
     const customCooldown = cue.cooldownMs ?? cooldownMsRef.current;
     if (!force && (speakingRef.current || requestingSpeechRef.current || now - lastSpokenAtRef.current < customCooldown)) return false;
-    if (!force && sessionCueCountRef.current >= profile.maxSessionCues) return false;
     if (!force && recentMessagesRef.current.includes(cue.message)) return false;
     if (force || (cue.priority ?? 1) >= 3) stopSpeech();
 
@@ -544,7 +558,6 @@ export function MathObserver() {
     if (sceneVersion !== sceneVersionRef.current) return false;
     spokenIdsRef.current.add(cue.id);
     if (options.affectCooldown !== false) lastSpokenAtRef.current = performance.now();
-    if (options.countSession !== false) sessionCueCountRef.current += 1;
     recentMessagesRef.current = [...recentMessagesRef.current.slice(-7), cue.message];
     recentCueIdsRef.current = [...recentCueIdsRef.current.slice(-11), cue.id];
     return true;
@@ -610,11 +623,9 @@ export function MathObserver() {
     recentEventsRef.current = [...recentEventsRef.current.slice(-9), action];
     if (action.once && spokenIdsRef.current.has(action.id)) return;
     const level = participationRef.current;
-    const profile = MATH_OBSERVER_PROFILES[level];
     const score = observerActionScore(action, level);
     const immediate = action.action === "paper_pattern_revealed";
     if (!immediate && !observerShouldConsider(action, level)) return;
-    if (!immediate && sessionCueCountRef.current >= profile.maxSessionCues) return;
     const now = performance.now();
     const cooldownRemaining = Math.max(0, cooldownMsRef.current - (now - lastSpokenAtRef.current));
     if (!immediate && cooldownRemaining > 0) {
@@ -688,7 +699,7 @@ export function MathObserver() {
       setReady(true);
       const timer = window.setTimeout(() => {
         timersRef.current.delete(timer);
-        deliverCue(WELCOME, true, { affectCooldown: false, countSession: false });
+        deliverCue(WELCOME, true, { affectCooldown: false });
       }, 420);
       timersRef.current.add(timer);
     };
@@ -696,7 +707,7 @@ export function MathObserver() {
       activeInteractionRef.current = true;
       lastInteractionAtRef.current = performance.now();
       unlock();
-      if (participationRef.current !== "quiet" && !voiceEnabledRef.current && !voiceAttemptedRef.current) enableVoiceRef.current();
+      if (participationRef.current !== "quiet" && !voiceEnabledRef.current && !voiceEnablingRef.current && Date.now() >= voiceRetryAtRef.current) enableVoiceRef.current();
     };
     const interactionEnd = () => { activeInteractionRef.current = false; lastInteractionAtRef.current = performance.now(); };
     const activity = () => { lastInteractionAtRef.current = performance.now(); };
@@ -745,16 +756,32 @@ export function MathObserver() {
 
   useEffect(() => {
     const Recognition = speechRecognitionConstructor();
-    if (!Recognition || !voiceEnabled || voiceState !== "idle" || speaking || participation === "quiet" || document.visibilityState !== "visible") return;
+    if (!Recognition || wakeRecognitionBlockedRef.current || !voiceEnabled || voiceState !== "idle" || speaking || participation === "quiet" || document.visibilityState !== "visible") return;
     const recognition = new Recognition();
     let restartTimer = 0;
     let disposed = false;
+    const scheduleRestart = () => {
+      if (disposed || wakeRecognitionBlockedRef.current || voiceBusyRef.current || !voiceEnabledRef.current || participationRef.current === "quiet" || document.visibilityState !== "visible") return;
+      const attempt = Math.min(4, voiceRecoveryAttemptsRef.current);
+      voiceRecoveryAttemptsRef.current += 1;
+      const delay = Math.min(4000, 450 * (2 ** attempt));
+      window.clearTimeout(restartTimer);
+      restartTimer = window.setTimeout(() => {
+        if (disposed || wakeRecognitionBlockedRef.current || voiceBusyRef.current || !voiceEnabledRef.current || participationRef.current === "quiet" || document.visibilityState !== "visible") return;
+        try {
+          recognition.start();
+        } catch {
+          setVoiceEpoch((value) => value + 1);
+        }
+      }, delay);
+    };
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "zh-CN";
     recognition.maxAlternatives = 1;
     wakeRecognitionRef.current = recognition;
     recognition.onresult = (event) => {
+      voiceRecoveryAttemptsRef.current = 0;
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         const transcript = event.results[index]?.[0]?.transcript ?? "";
         if (!VOICE_WAKE_PATTERN.test(transcript)) continue;
@@ -763,25 +790,44 @@ export function MathObserver() {
         break;
       }
     };
-    recognition.onerror = () => undefined;
-    recognition.onend = () => {
-      if (disposed || voiceBusyRef.current || !voiceEnabledRef.current || participationRef.current === "quiet" || document.visibilityState !== "visible") return;
-      restartTimer = window.setTimeout(() => {
-        if (disposed) return;
-        try { recognition.start(); } catch { /* Browser may still be ending the previous recognition turn. */ }
-      }, 450);
+    recognition.onerror = (event) => {
+      const error = event.error ?? "unknown";
+      if (error === "not-allowed" || error === "service-not-allowed") {
+        wakeRecognitionBlockedRef.current = true;
+        setVoiceState("idle");
+        return;
+      }
+      if (error === "audio-capture") {
+        releaseVoiceStream();
+        voiceEnabledRef.current = false;
+        voiceRetryAtRef.current = Date.now() + 1500;
+        setVoiceEnabled(false);
+        setVoiceState("error");
+        const timer = window.setTimeout(() => {
+          timersRef.current.delete(timer);
+          if (participationRef.current !== "quiet") enableVoiceRef.current();
+        }, 1700);
+        timersRef.current.add(timer);
+      }
     };
-    try { recognition.start(); } catch { /* Voice wake remains unavailable until the browser can restart it. */ }
+    recognition.onend = () => {
+      scheduleRestart();
+    };
+    try { recognition.start(); } catch { scheduleRestart(); }
     return () => {
       disposed = true;
       window.clearTimeout(restartTimer);
       if (wakeRecognitionRef.current === recognition) stopWakeRecognition();
     };
-  }, [participation, speaking, stopWakeRecognition, voiceEnabled, voiceEpoch, voiceState]);
+  }, [participation, releaseVoiceStream, speaking, stopWakeRecognition, voiceEnabled, voiceEpoch, voiceState]);
 
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState !== "visible") cancelVoiceSession();
+      else {
+        wakeRecognitionBlockedRef.current = false;
+        voiceRecoveryAttemptsRef.current = 0;
+      }
       setVoiceEpoch((value) => value + 1);
     };
     document.addEventListener("visibilitychange", handleVisibility);
@@ -854,7 +900,8 @@ export function MathObserver() {
     setParticipation(next);
     try { localStorage.setItem("math-observer-participation", next); } catch { /* Preference remains in memory. */ }
     if (next !== "quiet") {
-      voiceAttemptedRef.current = false;
+      voiceRetryAtRef.current = 0;
+      wakeRecognitionBlockedRef.current = false;
       enableVoiceRef.current();
       return;
     }
@@ -867,25 +914,49 @@ export function MathObserver() {
     }
     pendingActionRef.current = null;
     recentEventsRef.current = [];
-    voiceAttemptedRef.current = false;
+    pendingVoiceQuestionRef.current = false;
+    voiceRetryAtRef.current = 0;
+    voiceRecoveryAttemptsRef.current = 0;
+    wakeRecognitionBlockedRef.current = false;
     cancelVoiceSession(true);
   };
 
-  const enableVoice = useCallback(async () => {
-    if (participationRef.current === "quiet") return;
-    voiceAttemptedRef.current = true;
+  const enableVoice = useCallback(async (askNow = false) => {
+    if (askNow) pendingVoiceQuestionRef.current = true;
+    if (participationRef.current === "quiet") {
+      pendingVoiceQuestionRef.current = false;
+      return;
+    }
+    if (voiceEnabledRef.current) {
+      if (pendingVoiceQuestionRef.current && !voiceBusyRef.current) {
+        pendingVoiceQuestionRef.current = false;
+        beginVoiceSessionRef.current();
+      }
+      return;
+    }
+    if (voiceEnablingRef.current) return;
+    voiceEnablingRef.current = true;
     try {
       await ensureVoiceStream();
       voiceEnabledRef.current = true;
+      voiceRetryAtRef.current = 0;
+      voiceRecoveryAttemptsRef.current = 0;
       setVoiceEnabled(true);
       setVoiceState("idle");
+      if (pendingVoiceQuestionRef.current) {
+        pendingVoiceQuestionRef.current = false;
+        window.setTimeout(() => beginVoiceSessionRef.current(), 0);
+      }
     } catch {
       voiceEnabledRef.current = false;
+      voiceRetryAtRef.current = Date.now() + 4000;
       setVoiceEnabled(false);
       setVoiceState("error");
+    } finally {
+      voiceEnablingRef.current = false;
     }
   }, [ensureVoiceStream]);
-  useEffect(() => { enableVoiceRef.current = () => { void enableVoice(); }; }, [enableVoice]);
+  useEffect(() => { enableVoiceRef.current = (askNow = false) => { void enableVoice(askNow); }; }, [enableVoice]);
 
   const changeCooldown = (seconds: number) => {
     const next = Math.max(MIN_COOLDOWN_SECONDS, Math.min(MAX_COOLDOWN_SECONDS, seconds));
@@ -894,8 +965,6 @@ export function MathObserver() {
     try { localStorage.setItem("math-observer-cooldown-seconds", String(next)); } catch { /* Preference remains in memory. */ }
     if (pendingActionRef.current) queueAction(pendingActionRef.current, Math.max(250, next * 1000 - (performance.now() - lastSpokenAtRef.current) + 120));
   };
-
-  const replay = () => deliverCue({ id: "observer-replay", message: lastMessageRef.current, priority: 3 }, true);
 
   useEffect(() => {
     try {
@@ -948,12 +1017,14 @@ export function MathObserver() {
     try { localStorage.setItem("math-observer-position", JSON.stringify(finalPosition)); } catch { /* Position remains in memory. */ }
   };
 
-  const replayUnlessDragged = () => {
+  const wakeUnlessDragged = () => {
     if (suppressReplayRef.current) {
       suppressReplayRef.current = false;
       return;
     }
-    replay();
+    if (participationRef.current === "quiet" || voiceBusyRef.current) return;
+    if (voiceEnabledRef.current) beginVoiceSessionRef.current();
+    else enableVoiceRef.current(true);
   };
 
   const observerStyle: CSSProperties | undefined = observerPosition
@@ -965,7 +1036,7 @@ export function MathObserver() {
 
   return (
     <aside ref={observerRef} style={observerStyle} className={`math-observer ${ready ? "is-ready" : ""} ${speaking ? "is-speaking" : ""} ${dragging ? "is-dragging" : ""} ${voiceEnabled ? "voice-enabled" : ""} voice-${voiceState} ${settingsToRight ? "settings-to-right" : ""} ${settingsDown ? "settings-down" : ""}`} aria-label="数学观察员小π">
-      <button className="math-observer-character" type="button" onClick={replayUnlessDragged} onPointerDown={beginObserverDrag} onPointerMove={moveObserver} onPointerUp={endObserverDrag} onPointerCancel={endObserverDrag} title="拖动小π改变位置，点击重复语音" aria-label="拖动数学观察员小π改变位置，点击可重复刚才的语音">
+      <button className="math-observer-character" type="button" onClick={wakeUnlessDragged} onPointerDown={beginObserverDrag} onPointerMove={moveObserver} onPointerUp={endObserverDrag} onPointerCancel={endObserverDrag} title="拖动小π改变位置，点击唤醒语音提问" aria-label="拖动数学观察员小π改变位置，点击可唤醒语音提问">
         <span className="math-observer-halo" aria-hidden="true" />
         <Image src="/math-observer-talk-0.png" alt="数学观察员小π" width={512} height={512} draggable={false} unoptimized />
         <span className="math-observer-talk-sequence" aria-hidden="true" />

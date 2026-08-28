@@ -504,7 +504,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /math-observer-position/);
   assert.match(observer, /setPointerCapture/);
   assert.match(observer, /clampObserverPosition/);
-  assert.match(observer, /replayUnlessDragged/);
+  assert.match(observer, /wakeUnlessDragged/);
   assert.match(observer, /ParticipationIcon/);
   assert.match(observer, /level === "balanced" \? 1 : 2/);
   assert.match(css, /\.math-observer-level-icon/);
@@ -512,7 +512,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.math-observer\.is-dragging/);
   assert.match(css, /\.math-observer\.settings-to-right/);
   assert.match(observer, /pendingActionRef/);
-  assert.match(observer, /affectCooldown: false, countSession: false/);
+  assert.match(observer, /affectCooldown: false/);
+  assert.match(observer, /voiceRecoveryAttemptsRef/);
+  assert.match(observer, /pendingVoiceQuestionRef/);
+  assert.match(observer, /voiceRetryAtRef/);
+  assert.doesNotMatch(observer, /sessionCueCountRef|maxSessionCues/);
+  assert.doesNotMatch(observerPolicy, /maxSessionCues/);
   assert.match(observer, /activeInteractionRef/);
   assert.match(observerEvents, /math-observer-cue/);
   assert.match(observerEvents, /math-observer-action/);

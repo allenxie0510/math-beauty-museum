@@ -826,34 +826,6 @@ function makeTextMaterial(text: string, color: string, fontSize = 118, square = 
   });
 }
 
-function makeChevronMaterial(color: string) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext("2d")!;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = color;
-  ctx.globalAlpha = .78;
-  ctx.lineWidth = 42;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.beginPath();
-  ctx.moveTo(92, 344);
-  ctx.lineTo(256, 190);
-  ctx.lineTo(420, 344);
-  ctx.stroke();
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  return new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    opacity: .72,
-    depthWrite: false,
-    toneMapped: false,
-  });
-}
-
 function makeFormulaHologram(formula: string, color: string, lowPower: boolean) {
   const group = new THREE.Group();
   group.name = "atrium-formula-hologram";
@@ -1420,16 +1392,16 @@ function buildHallScene(hallIndex: number, lowPower: boolean): HallSceneBundle {
   return { root, hologram, portals };
 }
 
+const ATRIUM_ARTWORK_DURATION_MS = 12_000;
+
 function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallIndex: number; atriumArtwork: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [retryKey, setRetryKey] = useState(0);
   const fallbackHall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const onSelectRef = useRef(onSelect);
-  const onEnterRef = useRef(onEnter);
   const hallIndexRef = useRef(hallIndex);
   const atriumArtworkRef = useRef(atriumArtwork);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
-  useEffect(() => { onEnterRef.current = onEnter; }, [onEnter]);
   useEffect(() => { hallIndexRef.current = hallIndex; }, [hallIndex]);
   useEffect(() => { atriumArtworkRef.current = atriumArtwork; }, [atriumArtwork]);
 
@@ -1563,7 +1535,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
           vec3 reflected = texture2DProj(tDiffuse, vUv).rgb;
           float luminance = dot(reflected, vec3(0.2126, 0.7152, 0.0722));
           vec3 desaturated = mix(vec3(luminance), reflected, 0.26);
-          vec3 softened = mix(desaturated, color, 0.58) * 0.58;
+          vec3 softened = mix(desaturated, color, 0.72) * 0.42;
           gl_FragColor = vec4(softened, 1.0);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -1594,22 +1566,6 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     atriumFloor.position.set(0, -1.18, -36);
     atriumFloor.renderOrder = -2;
     scene.add(atriumFloor);
-
-    const entranceGuide = new THREE.Group();
-    entranceGuide.position.set(0, -.72, 5.45);
-    entranceGuide.userData.museumAction = "enter-first-hall";
-    const entranceHitArea = new THREE.Mesh(
-      new THREE.CircleGeometry(1.55, 32),
-      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
-    );
-    entranceHitArea.rotation.x = -Math.PI / 2;
-    entranceGuide.add(entranceHitArea);
-    const entranceArrow = new THREE.Mesh(new THREE.PlaneGeometry(.9, .9), makeChevronMaterial("#fff0ca"));
-    entranceArrow.rotation.x = -Math.PI / 2;
-    entranceArrow.position.y = .065;
-    entranceGuide.add(entranceArrow);
-    entranceGuide.traverse((object) => { object.userData.museumAction = "enter-first-hall"; });
-    scene.add(entranceGuide);
 
     const atriumPortalMaterial = physical(atriumBlue, {
       roughness: .2,
@@ -1766,7 +1722,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     continuum.add(beamRig);
     const floorLightPool = new THREE.Mesh(
       new THREE.CircleGeometry(2.9, lowPower ? 48 : 96),
-      new THREE.MeshBasicMaterial({ color: atriumBlueGlow, transparent: true, opacity: lowPower ? .08 : .13, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+      new THREE.MeshBasicMaterial({ color: atriumBlueGlow, transparent: true, opacity: lowPower ? .055 : .085, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
     );
     floorLightPool.rotation.x = -Math.PI / 2;
     floorLightPool.position.y = -4.226;
@@ -1819,7 +1775,6 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       atriumPortals.visible = atriumIsActive;
       floor.visible = !atriumIsActive;
       continuum.visible = atriumIsActive;
-      entranceGuide.visible = atriumIsActive;
       atriumLight.visible = atriumIsActive;
 
       if (nextHallIndex >= 0 && nextHallIndex < HALLS.length) {
@@ -1846,12 +1801,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       let object: THREE.Object3D | null = null;
       for (const hit of hits) {
         let candidate: THREE.Object3D | null = hit.object;
-        while (candidate && !candidate.userData.itemId && !candidate.userData.museumAction) candidate = candidate.parent;
-        if (candidate?.userData.itemId || candidate?.userData.museumAction) { object = candidate; break; }
-      }
-      if (object?.userData.museumAction === "enter-first-hall") {
-        onEnterRef.current();
-        return;
+        while (candidate && !candidate.userData.itemId) candidate = candidate.parent;
+        if (candidate?.userData.itemId) { object = candidate; break; }
       }
       const id = object?.userData.itemId as string | undefined;
       const itemHallIndex = object?.userData.hallIndex as number | undefined;
@@ -1874,6 +1825,9 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     const minimumFrameInterval = renderProfile.targetFps === 30 ? 1000 / 30 : 0;
     let activeStop = 0;
     let transitionStarted = 0;
+    let activeAtriumArtwork = atriumArtworkRef.current;
+    let artworkStartedAt = 0;
+    let atriumWasActive = false;
     const transitionFromPosition = camera.position.clone();
     const transitionFromTarget = controls.target.clone();
     const clock = new THREE.Clock();
@@ -1887,6 +1841,14 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       const elapsed = clock.getElapsedTime();
       const requestedHallIndex = Math.max(-1, Math.min(HALLS.length - 1, hallIndexRef.current));
       loadOnlyHall(requestedHallIndex);
+      const atriumIsActiveNow = loadedHallIndex < 0;
+      const requestedArtwork = atriumArtworkRef.current;
+      if ((atriumIsActiveNow && !atriumWasActive) || requestedArtwork !== activeAtriumArtwork) {
+        activeAtriumArtwork = requestedArtwork;
+        artworkStartedAt = elapsed;
+      }
+      atriumWasActive = atriumIsActiveNow;
+      const artworkProgress = Math.min(1, Math.max(0, (elapsed - artworkStartedAt) / (ATRIUM_ARTWORK_DURATION_MS / 1000)));
       const desiredStop = Math.max(0, Math.min(MUSEUM_CAMERA_STOPS.length - 1, hallIndexRef.current + 1));
       controls.minDistance = desiredStop === 0 ? 7.5 : 4.8;
       controls.maxDistance = desiredStop === 0 ? 20 : 11.5;
@@ -1908,16 +1870,13 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       }
       if (!reducedMotion) {
         if (loadedHallIndex < 0) {
-          const entrancePulse = 1 + Math.sin(elapsed * 2.1) * .035;
-          entranceGuide.scale.set(entrancePulse, 1, entrancePulse);
-          entranceArrow.material.opacity = .62 + Math.sin(elapsed * 2.1) * .1;
           surfaceParameters.time.value = elapsed * 1.9;
           surfaceParameters.opening.value = 1 + Math.sin(elapsed * .88) * .25;
           surfaceParameters.twist.value = Math.sin(elapsed * .63 + .7) * .62;
           surfaceParameters.shear.value = Math.sin(elapsed * .47 + 1.6) * .12;
           surfaceParameters.lift.value = Math.cos(elapsed * .71 + .2) * .1;
           const radialParameter = 1 + Math.sin(elapsed * .74 + 1.1) * .075;
-          surface.rotation.set(-.18 + Math.sin(elapsed * .42) * .055, .18 + elapsed * .055, -.12 + Math.cos(elapsed * .36) * .05);
+          surface.rotation.set(-.18 + Math.sin(elapsed * .42) * .035, .18, -.12 + artworkProgress * Math.PI * 2);
           surface.position.y = Math.sin(elapsed * .56) * .16;
           surface.scale.set(1.04 * radialParameter, 1.04 + Math.cos(elapsed * .51) * .07, 1.04 * radialParameter);
           updateTesseractProjection(tesseract, elapsed * 1.15);
@@ -2986,6 +2945,21 @@ export function NatureMuseumWorld() {
   const currentDiscoveries = hall?.items.filter((item) => discoveries.has(item.id)).length ?? 0;
 
   useEffect(() => {
+    if (hallIndex !== -1 || transition !== "idle") return;
+    const gallery = galleryRef.current;
+    if (!gallery) return;
+    let timer = 0;
+    const stopCycling = () => { window.clearInterval(timer); timer = 0; };
+    const stopObserving = observeElementVisibility(gallery, (visible) => {
+      stopCycling();
+      if (!visible) return;
+      setAtriumArtwork(0);
+      timer = window.setInterval(() => setAtriumArtwork((current) => current === 0 ? 1 : 0), ATRIUM_ARTWORK_DURATION_MS);
+    });
+    return () => { stopCycling(); stopObserving(); };
+  }, [hallIndex, transition]);
+
+  useEffect(() => {
     if (hallIndex < 0 || transition !== "idle") return;
     const messages = [
       "自然很少只画直线。先找重复，再看它怎样变化。",
@@ -3194,21 +3168,6 @@ export function NatureMuseumWorld() {
         <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
         <p>{hall?.category ?? "参观序章"}<br /><b>{hall ? currentDiscoveries === 3 ? "全部发现" : "等待探索" : "连续体正在变化"}</b></p>
       </div>
-
-      {hallIndex < 0 && (
-        <div className="atrium-artwork-carousel" role="group" aria-label="切换序厅数学装置">
-          {["复平方根曲面", "四维超立方体"].map((label, index) => (
-            <button
-              key={label}
-              type="button"
-              className={atriumArtwork === index ? "active" : ""}
-              aria-label={`显示${label}`}
-              aria-pressed={atriumArtwork === index}
-              onClick={() => setAtriumArtwork(index)}
-            ><span>{label}</span></button>
-          ))}
-        </div>
-      )}
 
       <div className="museum-route-indicator" aria-label="展馆参观进度">
         {["序", "自然", "建筑", "声音", "宇宙"].map((label, index) => <i key={label} className={hallIndex + 1 === index ? "active" : hallIndex + 1 > index ? "passed" : ""}><span>{label}</span></i>)}

@@ -1,6 +1,7 @@
 "use client";
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { getAutoRenderProfile } from "./adaptive-rendering";
 import { cueMathObserver, setMathObserverScene } from "./math-observer-events";
 
 const LazyMathObserver = lazy(async () => {
@@ -178,6 +179,14 @@ export default function Home() {
   const [hometownPreview, setHometownPreview] = useState<import("./hometown-math/domain/types").HometownSceneManifest | null>(null);
   const hometownReturnExhibit = useRef<string | null>(null);
   const certificateUnlocked = useRef(false);
+
+  useEffect(() => {
+    const supportsBackdropFilter = CSS.supports("backdrop-filter", "blur(1px)") || CSS.supports("-webkit-backdrop-filter", "blur(1px)");
+    const phoneLikeDevice = window.innerWidth < 900 && window.matchMedia("(pointer: coarse)").matches;
+    const enablePremiumGlass = supportsBackdropFilter && (!phoneLikeDevice || !getAutoRenderProfile().lowDetail);
+    document.body.classList.toggle("premium-nav-glass", enablePremiumGlass);
+    return () => document.body.classList.remove("premium-nav-glass");
+  }, []);
 
   useEffect(() => {
     const body = document.body;

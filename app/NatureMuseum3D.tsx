@@ -546,7 +546,46 @@ function drawMiniArtwork(ctx: CanvasRenderingContext2D, item: MuseumItem, width:
   ctx.globalAlpha = .62;
   ctx.shadowColor = item.color;
   ctx.shadowBlur = 18;
-  if (item.visual === "golden" || item.visual === "phyllotaxis" || item.visual === "spiral") {
+  if (item.visual === "golden") {
+    const phi = (1 + Math.sqrt(5)) / 2;
+    let rect = { x: -145, y: -145 / phi, width: 290, height: 290 / phi };
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = .68;
+    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    for (let step = 0; step < 8; step++) {
+      const direction = step % 4;
+      let square = { x: rect.x, y: rect.y, size: Math.min(rect.width, rect.height) };
+      if (direction === 0) {
+        square = { x: rect.x, y: rect.y, size: rect.height };
+        rect = { x: rect.x + rect.height, y: rect.y, width: rect.width - rect.height, height: rect.height };
+      } else if (direction === 1) {
+        square = { x: rect.x, y: rect.y, size: rect.width };
+        rect = { x: rect.x, y: rect.y + rect.width, width: rect.width, height: rect.height - rect.width };
+      } else if (direction === 2) {
+        square = { x: rect.x + rect.width - rect.height, y: rect.y, size: rect.height };
+        rect = { x: rect.x, y: rect.y, width: rect.width - rect.height, height: rect.height };
+      } else {
+        square = { x: rect.x, y: rect.y + rect.height - rect.width, size: rect.width };
+        rect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height - rect.width };
+      }
+      ctx.globalAlpha = .26 + step * .035;
+      ctx.strokeRect(square.x, square.y, square.size, square.size);
+      const arc = direction === 0
+        ? { x: square.x + square.size, y: square.y + square.size, start: Math.PI, end: Math.PI * 1.5 }
+        : direction === 1
+          ? { x: square.x, y: square.y + square.size, start: Math.PI * 1.5, end: Math.PI * 2 }
+          : direction === 2
+            ? { x: square.x, y: square.y, start: 0, end: Math.PI * .5 }
+            : { x: square.x + square.size, y: square.y, start: Math.PI * .5, end: Math.PI };
+      ctx.globalAlpha = .82;
+      ctx.beginPath();
+      ctx.arc(arc.x, arc.y, square.size, arc.start, arc.end);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = .72;
+    ctx.font = "italic 24px Georgia, serif";
+    ctx.fillText("φ", 165, 112);
+  } else if (item.visual === "phyllotaxis" || item.visual === "spiral") {
     ctx.beginPath();
     for (let t = 0; t < Math.PI * 8; t += .06) {
       const radius = 4.5 * Math.exp(.13 * t);
@@ -634,27 +673,30 @@ function drawMiniArtwork(ctx: CanvasRenderingContext2D, item: MuseumItem, width:
   ctx.restore();
 }
 
-function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
+function makeBoardTexture(item: MuseumItem, hall: HallDefinition, textureScale: number, maxAnisotropy: number) {
+  const boardWidth = 960;
+  const boardHeight = 1440;
   const canvas = document.createElement("canvas");
-  canvas.width = 960;
-  canvas.height = 1440;
+  canvas.width = Math.round(boardWidth * textureScale);
+  canvas.height = Math.round(boardHeight * textureScale);
   const ctx = canvas.getContext("2d")!;
+  ctx.scale(textureScale, textureScale);
   const secondaryColor: Record<HallKey, string> = {
     nature: "#6f8de8",
     architecture: "#bd6fd8",
     sound: "#55d5dd",
     cosmos: "#ad7bde",
   };
-  const baseGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  const baseGradient = ctx.createLinearGradient(0, 0, boardWidth, boardHeight);
   baseGradient.addColorStop(0, "#0d111b");
   baseGradient.addColorStop(.62, "#080b13");
   baseGradient.addColorStop(1, "#05070c");
   ctx.fillStyle = baseGradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, boardWidth, boardHeight);
 
   const posterX = 38;
   const posterY = 36;
-  const posterWidth = canvas.width - posterX * 2;
+  const posterWidth = boardWidth - posterX * 2;
   const posterHeight = 970;
   ctx.save();
   roundedRectPath(ctx, posterX, posterY, posterWidth, posterHeight, 34);
@@ -666,7 +708,7 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   posterGradient.addColorStop(1, "rgba(7,10,17,.96)");
   ctx.fillStyle = posterGradient;
   ctx.fillRect(posterX, posterY, posterWidth, posterHeight);
-  const halo = ctx.createRadialGradient(canvas.width * .62, 530, 16, canvas.width * .62, 530, 520);
+  const halo = ctx.createRadialGradient(boardWidth * .62, 530, 16, boardWidth * .62, 530, 520);
   halo.addColorStop(0, "rgba(255,255,255,.16)");
   halo.addColorStop(.42, item.color + "22");
   halo.addColorStop(1, "rgba(255,255,255,0)");
@@ -703,7 +745,7 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
     ctx.font = `italic ${boardFormulaSize}px "STIX Two Math", "Cambria Math", Georgia, serif`;
   }
   ctx.fillText(boardFormula, 76, 326);
-  drawMiniArtwork(ctx, item, canvas.width, canvas.height, 670, 1.22);
+  drawMiniArtwork(ctx, item, boardWidth, boardHeight, 670, 1.22);
   ctx.fillStyle = "rgba(255,255,255,.38)";
   ctx.font = "600 17px Arial, sans-serif";
   ctx.fillText("FORM · NUMBER · PATTERN", 76, 952);
@@ -723,11 +765,14 @@ function makeBoardTexture(item: MuseumItem, hall: HallDefinition) {
   ctx.fillText("→", 842, 1340);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
   return texture;
 }
 
-function addBoard(parent: THREE.Object3D, item: MuseumItem, hall: HallDefinition, position: THREE.Vector3, rotationY = 0) {
+function addBoard(parent: THREE.Object3D, item: MuseumItem, hall: HallDefinition, position: THREE.Vector3, textureScale: number, maxAnisotropy: number, rotationY = 0) {
   const group = new THREE.Group();
   const panel = new THREE.Mesh(new THREE.BoxGeometry(3.28, 5.08, .24), physical("#171a22", {
     roughness: .38,
@@ -740,7 +785,7 @@ function addBoard(parent: THREE.Object3D, item: MuseumItem, hall: HallDefinition
   const face = new THREE.Mesh(
     new THREE.PlaneGeometry(3.08, 4.9),
     new THREE.MeshBasicMaterial({
-      map: makeBoardTexture(item, hall),
+      map: makeBoardTexture(item, hall, textureScale, maxAnisotropy),
       toneMapped: false,
       transparent: true,
       opacity: .88,
@@ -1319,7 +1364,7 @@ type HallSceneBundle = {
   portals: THREE.Group[];
 };
 
-function buildHallScene(hallIndex: number, lowPower: boolean): HallSceneBundle {
+function buildHallScene(hallIndex: number, lowPower: boolean, boardTextureScale: number, maxAnisotropy: number): HallSceneBundle {
   const hall = HALLS[hallIndex];
   const center = HALL_CENTERS[hallIndex];
   const accent = hall.accent;
@@ -1342,7 +1387,7 @@ function buildHallScene(hallIndex: number, lowPower: boolean): HallSceneBundle {
     backing.position.set(center.x + offset, 3.88, center.z - 6.23);
     backing.receiveShadow = true;
     root.add(backing);
-    addBoard(root, hall.items[boardIndex], hall, new THREE.Vector3(center.x + offset, 3.55, center.z - 6.05));
+    addBoard(root, hall.items[boardIndex], hall, new THREE.Vector3(center.x + offset, 3.55, center.z - 6.05), boardTextureScale, maxAnisotropy);
     const wash = new THREE.PointLight(accent, lowPower ? 2.4 : 4.8, 7.5, 2);
     wash.position.set(center.x + offset, 6.8, center.z - 2.7);
     root.add(wash);
@@ -1433,6 +1478,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.18;
+    const boardTextureScale = lowPower ? 1.5 : 2;
+    const boardTextureAnisotropy = renderer.capabilities.getMaxAnisotropy();
     renderer.domElement.setAttribute("role", "img");
     renderer.domElement.setAttribute("aria-label", "数学美学展连续 WebGL 展馆，可拖动视角并点击展板探索");
     container.appendChild(renderer.domElement);
@@ -1778,7 +1825,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
       atriumLight.visible = atriumIsActive;
 
       if (nextHallIndex >= 0 && nextHallIndex < HALLS.length) {
-        activeHallScene = buildHallScene(nextHallIndex, lowPower);
+        activeHallScene = buildHallScene(nextHallIndex, lowPower, boardTextureScale, boardTextureAnisotropy);
         scene.add(activeHallScene.root);
       }
       container.dataset.loadedHall = atriumIsActive ? "atrium" : HALLS[nextHallIndex].key;

@@ -194,6 +194,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /surface\.position\.y = Math\.sin\(elapsed \* \.56\) \* \.16/);
   assert.match(museum, /surface\.rotation\.set\(-\.18 \+ Math\.sin/);
   assert.match(museum, /surface\.rotation\.set\(-\.18 \+ Math\.sin\(elapsed \* \.42\) \* \.035, \.18 \+ artworkProgress \* Math\.PI \* 2, -\.12\)/);
+  assert.match(museum, /item\.visual === "golden"/);
+  assert.match(museum, /const phi = \(1 \+ Math\.sqrt\(5\)\) \/ 2/);
+  assert.match(museum, /ctx\.fillText\("φ", 165, 112\)/);
+  assert.match(museum, /const boardTextureScale = lowPower \? 1\.5 : 2/);
+  assert.match(museum, /canvas\.width = Math\.round\(boardWidth \* textureScale\)/);
+  assert.match(museum, /texture\.minFilter = THREE\.LinearMipmapLinearFilter/);
   assert.match(museum, /function makeTesseractProjection\(\)/);
   assert.match(museum, /vertex \^ \(1 << dimension\)/);
   assert.match(museum, /const faces: Array<\[number, number, number, number\]> = \[\]/);

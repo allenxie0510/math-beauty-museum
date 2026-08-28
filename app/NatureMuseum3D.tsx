@@ -7,7 +7,7 @@ import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { createAdaptiveResolutionController, getAutoRenderProfile } from "./adaptive-rendering";
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
-import { observeMathAction } from "./math-observer-events";
+import { observeMathAction, setMathObserverScene } from "./math-observer-events";
 
 type HallKey = "nature" | "architecture" | "sound" | "cosmos";
 type VisualKind =
@@ -2943,6 +2943,27 @@ export function NatureMuseumWorld() {
   const hall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const selected = useMemo(() => hall?.items.find((item) => item.id === selectedId) ?? null, [hall, selectedId]);
   const currentDiscoveries = hall?.items.filter((item) => discoveries.has(item.id)).length ?? 0;
+
+  useEffect(() => {
+    if (hallIndex < 0) {
+      setMathObserverScene("hall", { view: "atrium", name: "数学美学展序厅" });
+      return;
+    }
+    const currentHall = HALLS[hallIndex];
+    const currentItem = currentHall.items.find((item) => item.id === selectedId);
+    setMathObserverScene("hall", currentItem ? {
+      view: "exhibit",
+      hall: currentHall.key,
+      hallName: currentHall.name,
+      item: currentItem.id,
+      name: currentItem.name,
+      formula: currentItem.formula,
+    } : {
+      view: "hall",
+      hall: currentHall.key,
+      hallName: currentHall.name,
+    });
+  }, [hallIndex, selectedId]);
 
   useEffect(() => {
     if (hallIndex !== -1 || transition !== "idle") return;

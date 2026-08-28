@@ -43,7 +43,7 @@ test("server-renders the finished mathematics museum", async () => {
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
-  const [museum, garden, hometown, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, page, layout, css, audio, viewport, adaptiveRendering, mascotAsset, mascotSequenceAsset] = await Promise.all([
+  const [museum, garden, hometown, workshop, spaceSlice, sliceGeometry, observer, observerEvents, observerPolicy, observerDecide, observerSpeech, observerListen, observerAsk, page, layout, css, audio, viewport, adaptiveRendering, mascotAsset, mascotSequenceAsset] = await Promise.all([
     readFile(new URL("../app/NatureMuseum3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MathGarden3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/HometownMathWorld.tsx", import.meta.url), "utf8"),
@@ -55,6 +55,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
     readFile(new URL("../app/math-observer-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/observer/decide/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/observer/speech/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/observer/listen/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/observer/ask/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -481,6 +483,15 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /utterance\.pitch = 1/);
   assert.match(observer, /\/api\/observer\/decide/);
   assert.match(observer, /\/api\/observer\/speech/);
+  assert.match(observer, /VOICE_WAKE_PATTERN/);
+  assert.match(observer, /小\\s\*\(\?:π\|派/);
+  assert.match(observer, /\/api\/observer\/listen/);
+  assert.match(observer, /\/api\/observer\/ask/);
+  assert.match(observer, /voiceBusyRef/);
+  assert.match(observerListen, /qwen3-asr-flash|config\.asrModel/);
+  assert.match(observerListen, /input_audio/);
+  assert.match(observerAsk, /数学观察员“小π”/);
+  assert.match(observerAsk, /最多40个汉字/);
   assert.match(observer, /math-observer-participation/);
   assert.match(observer, /math-observer-cooldown-seconds/);
   assert.match(observer, /math-observer-settings/);

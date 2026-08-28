@@ -1,8 +1,11 @@
 export function qwenConfig() {
   const baseUrl = (process.env.QWEN_DASHSCOPE_BASE_URL || "https://dashscope.aliyuncs.com").replace(/\/$/, "");
+  const asrBaseUrl = (process.env.QWEN_ASR_BASE_URL || `${baseUrl}/compatible-mode/v1`).replace(/\/$/, "");
   return {
     apiKey: process.env.DASHSCOPE_API_KEY?.trim() || "",
     baseUrl,
+    asrBaseUrl,
+    asrModel: process.env.QWEN_ASR_MODEL?.trim() || "qwen3-asr-flash",
     observerModel: process.env.QWEN_OBSERVER_MODEL?.trim() || "qwen-plus",
     ttsModel: process.env.QWEN_TTS_MODEL?.trim() || "qwen3-tts-vd-2026-01-26",
     ttsVoice: process.env.QWEN_TTS_VOICE?.trim() || "",

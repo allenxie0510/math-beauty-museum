@@ -15,7 +15,7 @@ import { MATH_OBSERVER_PROFILES, observerActionScore, observerShouldConsider } f
 
 const WELCOME: MathObserverCue = {
   id: "observer-welcome",
-  message: "我是小观。先别急着找答案，动一动，再看哪里发生了变化。",
+  message: "我是小派。叫我小派，就能向我提问。先动一动，再看哪里发生了变化。",
   priority: 3,
   once: true,
 };
@@ -51,6 +51,44 @@ const PARTICIPATION_ORDER: MathObserverParticipation[] = ["quiet", "balanced", "
 const PARTICIPATION_LABEL: Record<MathObserverParticipation, string> = { quiet: "静音", balanced: "平衡", active: "积极" };
 const MIN_COOLDOWN_SECONDS = 3;
 const MAX_COOLDOWN_SECONDS = 30;
+const VOICE_WAKE_PATTERN = /小\s*(?:π|派|拍|pai)/i;
+
+type VoiceState = "idle" | "waking" | "listening" | "thinking" | "answering" | "error";
+type BrowserSpeechRecognitionResult = { isFinal?: boolean; 0?: { transcript?: string } };
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  onresult: ((event: { resultIndex: number; results: ArrayLike<BrowserSpeechRecognitionResult> }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  abort(): void;
+};
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+function speechRecognitionConstructor() {
+  const speechWindow = window as typeof window & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  };
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+}
+
+function recorderMimeType() {
+  return ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
+}
+
+function voiceStateLabel(state: VoiceState, enabled: boolean, wakeSupported: boolean) {
+  if (!enabled) return "开启语音问答";
+  if (state === "waking") return "小π：我在";
+  if (state === "listening") return "小π正在听";
+  if (state === "thinking") return "小π正在思考";
+  if (state === "answering") return "小π正在回答";
+  if (state === "error") return "语音暂不可用，点击重试";
+  return wakeSupported ? "等待“小派”唤醒，点击也可提问" : "点击向小π提问";
+}
 
 function ParticipationIcon({ level }: { level: MathObserverParticipation }) {
   if (level === "quiet") {
@@ -129,6 +167,10 @@ export function MathObserver() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [observerPosition, setObserverPosition] = useState<ObserverPosition | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [wakeSupported, setWakeSupported] = useState(false);
+  const [voiceEpoch, setVoiceEpoch] = useState(0);
   const observerRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; left: number; top: number; width: number; height: number; moved: boolean } | null>(null);
   const suppressReplayRef = useRef(false);
@@ -152,6 +194,14 @@ export function MathObserver() {
   const decisionControllerRef = useRef<AbortController | null>(null);
   const speechControllerRef = useRef<AbortController | null>(null);
   const speechRunRef = useRef(0);
+  const voiceEnabledRef = useRef(false);
+  const voiceBusyRef = useRef(false);
+  const voiceSessionRef = useRef(0);
+  const voiceRequestControllerRef = useRef<AbortController | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const wakeRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const beginVoiceSessionRef = useRef<() => void>(() => undefined);
   const activeSceneRef = useRef("hall");
   const activeSceneContextRef = useRef<Record<string, string | number | boolean | null>>({});
   const activeSceneKeyRef = useRef(sceneKey({ scene: "hall" }));
@@ -265,12 +315,217 @@ export function MathObserver() {
     }
   }, [browserSpeech, stopSpeech]);
 
+  const stopWakeRecognition = useCallback(() => {
+    const recognition = wakeRecognitionRef.current;
+    wakeRecognitionRef.current = null;
+    if (!recognition) return;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try { recognition.abort(); } catch { /* Recognition may already be stopped. */ }
+  }, []);
+
+  const releaseVoiceStream = useCallback(() => {
+    const stream = mediaStreamRef.current;
+    mediaStreamRef.current = null;
+    stream?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  const ensureVoiceStream = useCallback(async () => {
+    const current = mediaStreamRef.current;
+    if (current?.active && current.getAudioTracks().some((track) => track.readyState === "live")) return current;
+    if (!navigator.mediaDevices?.getUserMedia || !("MediaRecorder" in window)) throw new Error("voice-input-unsupported");
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+    });
+    mediaStreamRef.current = stream;
+    return stream;
+  }, []);
+
+  const waitForSpeechToFinish = useCallback(async (session: number, sceneVersion: number) => {
+    const startedAt = performance.now();
+    while (session === voiceSessionRef.current && sceneVersion === sceneVersionRef.current) {
+      if (!speakingRef.current && !requestingSpeechRef.current) return true;
+      if (performance.now() - startedAt > 20000) return false;
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+    }
+    return false;
+  }, []);
+
+  const recordQuestion = useCallback(async (session: number, followup: boolean) => {
+    const stream = await ensureVoiceStream();
+    if (session !== voiceSessionRef.current) return null;
+    setVoiceState("listening");
+    return await new Promise<Blob | null>((resolve) => {
+      const mimeType = recorderMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      const chunks: BlobPart[] = [];
+      const startedAt = performance.now();
+      const noSpeechLimit = followup ? 5200 : 8500;
+      const maximumLength = followup ? 10000 : 12000;
+      let heardSpeech = false;
+      let lastSpeechAt = startedAt;
+      let frame = 0;
+      let audioContext: AudioContext | null = null;
+      let analyser: AnalyserNode | null = null;
+      let samples: Uint8Array<ArrayBuffer> | null = null;
+
+      try {
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = .45;
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+        samples = new Uint8Array(analyser.fftSize);
+      } catch {
+        heardSpeech = true;
+      }
+
+      const stop = () => {
+        if (recorder.state !== "inactive") recorder.stop();
+      };
+      const watch = () => {
+        if (recorder.state === "inactive") return;
+        const now = performance.now();
+        if (analyser && samples) {
+          analyser.getByteTimeDomainData(samples);
+          let energy = 0;
+          for (const sample of samples) {
+            const amplitude = (sample - 128) / 128;
+            energy += amplitude * amplitude;
+          }
+          const rms = Math.sqrt(energy / samples.length);
+          if (rms > .022) {
+            heardSpeech = true;
+            lastSpeechAt = now;
+          }
+        }
+        if ((heardSpeech && now - lastSpeechAt > 1100 && now - startedAt > 900)
+          || (!heardSpeech && now - startedAt > noSpeechLimit)
+          || now - startedAt > maximumLength
+          || session !== voiceSessionRef.current) {
+          stop();
+          return;
+        }
+        frame = window.requestAnimationFrame(watch);
+      };
+
+      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      recorder.onerror = stop;
+      recorder.onstop = () => {
+        window.cancelAnimationFrame(frame);
+        if (mediaRecorderRef.current === recorder) mediaRecorderRef.current = null;
+        void audioContext?.close();
+        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        resolve(session === voiceSessionRef.current && heardSpeech && blob.size > 200 ? blob : null);
+      };
+      recorder.start(250);
+      frame = window.requestAnimationFrame(watch);
+    });
+  }, [ensureVoiceStream]);
+
+  const runVoiceConversation = useCallback(async (session: number) => {
+    const sceneVersion = sceneVersionRef.current;
+    voiceBusyRef.current = true;
+    stopWakeRecognition();
+    stopSpeech();
+    decisionControllerRef.current?.abort();
+    voiceRequestControllerRef.current?.abort();
+    setVoiceState("waking");
+    lastMessageRef.current = "我在";
+    setLastMessage("我在");
+    const acknowledged = await playSpeech("我在", true, sceneVersion);
+    if (!acknowledged || !await waitForSpeechToFinish(session, sceneVersion)) return;
+
+    for (let round = 0; round < 2 && session === voiceSessionRef.current && sceneVersion === sceneVersionRef.current; round += 1) {
+      const audio = await recordQuestion(session, round > 0).catch(() => null);
+      if (!audio || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
+      setVoiceState("thinking");
+      const controller = new AbortController();
+      voiceRequestControllerRef.current = controller;
+      try {
+        const form = new FormData();
+        form.append("audio", audio, `xiaopi-question.${audio.type.includes("mp4") ? "m4a" : "webm"}`);
+        const listenResponse = await fetch("/api/observer/listen", { method: "POST", body: form, signal: controller.signal });
+        if (!listenResponse.ok) throw new Error("observer-asr-unavailable");
+        const { transcript } = await listenResponse.json() as { transcript?: string };
+        if (!transcript?.trim()) throw new Error("observer-empty-transcript");
+        const answerResponse = await fetch("/api/observer/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            question: transcript,
+            currentScene: { scene: activeSceneRef.current, context: activeSceneContextRef.current },
+            recentEvents: recentEventsRef.current,
+          }),
+        });
+        if (!answerResponse.ok) throw new Error("observer-answer-unavailable");
+        const { answer } = await answerResponse.json() as { answer?: string };
+        if (!answer?.trim() || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
+        lastMessageRef.current = answer;
+        setLastMessage(answer);
+        setVoiceState("answering");
+        const started = await playSpeech(answer, true, sceneVersion);
+        if (!started || !await waitForSpeechToFinish(session, sceneVersion)) break;
+      } catch (error) {
+        if ((error as Error).name === "AbortError" || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
+        const fallback = "刚才没听清，请再叫我小派。";
+        lastMessageRef.current = fallback;
+        setLastMessage(fallback);
+        setVoiceState("answering");
+        await playSpeech(fallback, true, sceneVersion);
+        await waitForSpeechToFinish(session, sceneVersion);
+        break;
+      } finally {
+        if (voiceRequestControllerRef.current === controller) voiceRequestControllerRef.current = null;
+      }
+    }
+
+    if (session === voiceSessionRef.current) {
+      voiceBusyRef.current = false;
+      setVoiceState("idle");
+    }
+  }, [playSpeech, recordQuestion, stopSpeech, stopWakeRecognition, waitForSpeechToFinish]);
+
+  const beginVoiceSession = useCallback(() => {
+    if (!voiceEnabledRef.current || participationRef.current === "quiet" || voiceBusyRef.current) return;
+    const session = ++voiceSessionRef.current;
+    void runVoiceConversation(session).finally(() => {
+      if (session === voiceSessionRef.current) {
+        voiceBusyRef.current = false;
+        setVoiceState("idle");
+      }
+    });
+  }, [runVoiceConversation]);
+  useEffect(() => { beginVoiceSessionRef.current = beginVoiceSession; }, [beginVoiceSession]);
+
+  const cancelVoiceSession = useCallback((disable = false) => {
+    voiceSessionRef.current += 1;
+    voiceBusyRef.current = false;
+    voiceRequestControllerRef.current?.abort();
+    voiceRequestControllerRef.current = null;
+    stopWakeRecognition();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    mediaRecorderRef.current = null;
+    stopSpeech();
+    setVoiceState("idle");
+    setVoiceEpoch((value) => value + 1);
+    if (disable) {
+      voiceEnabledRef.current = false;
+      setVoiceEnabled(false);
+      releaseVoiceStream();
+    }
+  }, [releaseVoiceStream, stopSpeech, stopWakeRecognition]);
+
   const deliverCue = useCallback(async (
     cue: MathObserverCue,
     force = false,
     options: { affectCooldown?: boolean; countSession?: boolean } = {},
   ) => {
-    if (!unlockedRef.current || participationRef.current === "quiet") return false;
+    if (!unlockedRef.current || participationRef.current === "quiet" || voiceBusyRef.current) return false;
     if (cue.once && spokenIdsRef.current.has(cue.id) && !force) return false;
     const profile = MATH_OBSERVER_PROFILES[participationRef.current];
     const now = performance.now();
@@ -315,11 +570,11 @@ export function MathObserver() {
     recentCueIdsRef.current = [];
     recentMessagesRef.current = [];
     lastInteractionAtRef.current = performance.now();
-    stopSpeech();
+    cancelVoiceSession();
     const replayCue = SCENE_REPLAY_CUES[normalized] ?? "我已经跟到当前场景。先动一动，再观察变化。";
     lastMessageRef.current = replayCue;
     setLastMessage(replayCue);
-  }, [stopSpeech]);
+  }, [cancelVoiceSession]);
 
   const queueAction = useCallback((action: MathObserverAction, waitMs: number) => {
     const current = pendingActionRef.current;
@@ -343,7 +598,7 @@ export function MathObserver() {
   const considerAction = useCallback(async (action: MathObserverAction) => {
     const actionScene = normalizeScene(action.scene);
     if (actionScene !== activeSceneRef.current) return;
-    if (!unlockedRef.current || participationRef.current === "quiet") return;
+    if (!unlockedRef.current || participationRef.current === "quiet" || voiceBusyRef.current) return;
     const sceneVersion = sceneVersionRef.current;
     action = {
       ...action,
@@ -390,7 +645,7 @@ export function MathObserver() {
       });
       if (!response.ok) throw new Error("qwen-observer-unavailable");
       const decision = await response.json() as ObserverDecision;
-      if (participationRef.current === "quiet" || sceneVersion !== sceneVersionRef.current || actionScene !== activeSceneRef.current) return;
+      if (participationRef.current !== level || sceneVersion !== sceneVersionRef.current || actionScene !== activeSceneRef.current) return;
       if (decision.action !== "speak" || !decision.text) return;
       await deliverCue({
         id: decision.cueId || action.id,
@@ -483,6 +738,62 @@ export function MathObserver() {
   }, [considerAction, transitionScene]);
 
   useEffect(() => {
+    const Recognition = speechRecognitionConstructor();
+    if (!Recognition || !voiceEnabled || voiceState !== "idle" || speaking || participation === "quiet" || document.visibilityState !== "visible") return;
+    const recognition = new Recognition();
+    let restartTimer = 0;
+    let disposed = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "zh-CN";
+    recognition.maxAlternatives = 1;
+    wakeRecognitionRef.current = recognition;
+    recognition.onresult = (event) => {
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const transcript = event.results[index]?.[0]?.transcript ?? "";
+        if (!VOICE_WAKE_PATTERN.test(transcript)) continue;
+        stopWakeRecognition();
+        beginVoiceSessionRef.current();
+        break;
+      }
+    };
+    recognition.onerror = () => undefined;
+    recognition.onend = () => {
+      if (disposed || voiceBusyRef.current || !voiceEnabledRef.current || participationRef.current === "quiet" || document.visibilityState !== "visible") return;
+      restartTimer = window.setTimeout(() => {
+        if (disposed) return;
+        try { recognition.start(); } catch { /* Browser may still be ending the previous recognition turn. */ }
+      }, 450);
+    };
+    try { recognition.start(); } catch { /* The microphone button remains available as a fallback. */ }
+    return () => {
+      disposed = true;
+      window.clearTimeout(restartTimer);
+      if (wakeRecognitionRef.current === recognition) stopWakeRecognition();
+    };
+  }, [participation, speaking, stopWakeRecognition, voiceEnabled, voiceEpoch, voiceState]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setWakeSupported(!!speechRecognitionConstructor()), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") cancelVoiceSession();
+      setVoiceEpoch((value) => value + 1);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [cancelVoiceSession]);
+
+  useEffect(() => () => {
+    voiceRequestControllerRef.current?.abort();
+    stopWakeRecognition();
+    releaseVoiceStream();
+  }, [releaseVoiceStream, stopWakeRecognition]);
+
+  useEffect(() => {
     if (!("IntersectionObserver" in window)) return;
     const observer = new IntersectionObserver((entries) => {
       if (!unlockedRef.current) return;
@@ -551,7 +862,39 @@ export function MathObserver() {
     }
     pendingActionRef.current = null;
     recentEventsRef.current = [];
-    stopSpeech();
+    cancelVoiceSession(true);
+  };
+
+  const setVoicePreference = async (enabled: boolean, askNow = false) => {
+    if (!enabled) {
+      cancelVoiceSession(true);
+      return;
+    }
+    if (participationRef.current === "quiet") return;
+    try {
+      await ensureVoiceStream();
+      voiceEnabledRef.current = true;
+      setVoiceEnabled(true);
+      setVoiceState("idle");
+      if (askNow) window.setTimeout(() => beginVoiceSessionRef.current(), 0);
+    } catch {
+      voiceEnabledRef.current = false;
+      setVoiceEnabled(false);
+      setVoiceState("error");
+    }
+  };
+
+  const askWithVoice = () => {
+    if (participationRef.current === "quiet") return;
+    if (!voiceEnabledRef.current) {
+      void setVoicePreference(true, true);
+      return;
+    }
+    if (voiceState === "error") {
+      void setVoicePreference(true, true);
+      return;
+    }
+    beginVoiceSessionRef.current();
   };
 
   const changeCooldown = (seconds: number) => {
@@ -628,23 +971,26 @@ export function MathObserver() {
     : undefined;
   const settingsToRight = observerPosition !== null && observerPosition.left < 260;
   const settingsDown = observerPosition !== null && observerPosition.top < 250;
+  const voiceStatus = voiceStateLabel(voiceState, voiceEnabled, wakeSupported);
 
   return (
-    <aside ref={observerRef} style={observerStyle} className={`math-observer ${ready ? "is-ready" : ""} ${speaking ? "is-speaking" : ""} ${dragging ? "is-dragging" : ""} ${settingsToRight ? "settings-to-right" : ""} ${settingsDown ? "settings-down" : ""}`} aria-label="数学观察员小观">
-      <button className="math-observer-character" type="button" onClick={replayUnlessDragged} onPointerDown={beginObserverDrag} onPointerMove={moveObserver} onPointerUp={endObserverDrag} onPointerCancel={endObserverDrag} title="拖动小观改变位置，点击重复语音" aria-label="拖动数学观察员小观改变位置，点击可重复刚才的语音">
+    <aside ref={observerRef} style={observerStyle} className={`math-observer ${ready ? "is-ready" : ""} ${speaking ? "is-speaking" : ""} ${dragging ? "is-dragging" : ""} ${voiceEnabled ? "voice-enabled" : ""} voice-${voiceState} ${settingsToRight ? "settings-to-right" : ""} ${settingsDown ? "settings-down" : ""}`} aria-label="数学观察员小π">
+      <button className="math-observer-character" type="button" onClick={replayUnlessDragged} onPointerDown={beginObserverDrag} onPointerMove={moveObserver} onPointerUp={endObserverDrag} onPointerCancel={endObserverDrag} title="拖动小π改变位置，点击重复语音" aria-label="拖动数学观察员小π改变位置，点击可重复刚才的语音">
         <span className="math-observer-halo" aria-hidden="true" />
-        <Image src="/math-observer-talk-0.png" alt="数学观察员小观" width={512} height={512} draggable={false} unoptimized />
+        <Image src="/math-observer-talk-0.png" alt="数学观察员小π" width={512} height={512} draggable={false} unoptimized />
         <span className="math-observer-talk-sequence" aria-hidden="true" />
       </button>
       <div className="math-observer-preferences">
-        <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小观参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}><ParticipationIcon level={participation} /></button>
-        {settingsOpen && <div className="math-observer-settings" role="group" aria-label="小观参与设置">
+        <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小π参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}><ParticipationIcon level={participation} /></button>
+        {settingsOpen && <div className="math-observer-settings" role="group" aria-label="小π参与设置">
           <span>参与度</span>
           <div>{PARTICIPATION_ORDER.map((level) => <button key={level} type="button" className={participation === level ? "active" : ""} aria-pressed={participation === level} onClick={() => selectParticipation(level)}>{PARTICIPATION_LABEL[level]}</button>)}</div>
+          <button className={`math-observer-voice-toggle ${voiceEnabled ? "active" : ""}`} type="button" disabled={participation === "quiet"} aria-pressed={voiceEnabled} onClick={() => void setVoicePreference(!voiceEnabled)}><span className="math-observer-mic-glyph" aria-hidden="true" />语音问答<b>{participation === "quiet" ? "静音中" : voiceEnabled ? "已开启" : "开启"}</b></button>
           <label><span>提示间隔 <b>{cooldownSeconds} 秒</b></span><input type="range" min={MIN_COOLDOWN_SECONDS} max={MAX_COOLDOWN_SECONDS} step="1" value={cooldownSeconds} style={{ background: `linear-gradient(90deg, #368e97 0 ${((cooldownSeconds - MIN_COOLDOWN_SECONDS) / (MAX_COOLDOWN_SECONDS - MIN_COOLDOWN_SECONDS)) * 100}%, #dcebed ${((cooldownSeconds - MIN_COOLDOWN_SECONDS) / (MAX_COOLDOWN_SECONDS - MIN_COOLDOWN_SECONDS)) * 100}% 100%)` }} onChange={(event) => changeCooldown(Number(event.target.value))} /></label>
         </div>}
       </div>
-      <span className="math-observer-live" role="status" aria-live="polite">{speaking ? lastMessage : `小观参与度：${PARTICIPATION_LABEL[participation]}`}</span>
+      <button className="math-observer-voice" type="button" disabled={participation === "quiet" || (voiceState !== "idle" && voiceState !== "error")} onClick={askWithVoice} title={voiceStatus} aria-label={voiceStatus} aria-pressed={voiceEnabled}><span className="math-observer-mic-glyph" aria-hidden="true" /></button>
+      <span className="math-observer-live" role="status" aria-live="polite">{voiceState !== "idle" ? voiceStatus : speaking ? lastMessage : `小π参与度：${PARTICIPATION_LABEL[participation]}`}</span>
     </aside>
   );
 }

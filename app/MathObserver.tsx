@@ -80,14 +80,14 @@ function recorderMimeType() {
   return ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
 }
 
-function voiceStateLabel(state: VoiceState, enabled: boolean, wakeSupported: boolean) {
-  if (!enabled) return "开启语音问答";
+function voiceStateLabel(state: VoiceState, enabled: boolean) {
+  if (!enabled) return "语音问答已关闭";
   if (state === "waking") return "小π：我在";
   if (state === "listening") return "小π正在听";
   if (state === "thinking") return "小π正在思考";
   if (state === "answering") return "小π正在回答";
-  if (state === "error") return "语音暂不可用，点击重试";
-  return wakeSupported ? "等待“小派”唤醒，点击也可提问" : "点击向小π提问";
+  if (state === "error") return "语音暂不可用";
+  return "等待“小派”唤醒";
 }
 
 function ParticipationIcon({ level }: { level: MathObserverParticipation }) {
@@ -169,7 +169,6 @@ export function MathObserver() {
   const [dragging, setDragging] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
-  const [wakeSupported, setWakeSupported] = useState(false);
   const [voiceEpoch, setVoiceEpoch] = useState(0);
   const observerRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; left: number; top: number; width: number; height: number; moved: boolean } | null>(null);
@@ -202,6 +201,8 @@ export function MathObserver() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const wakeRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const beginVoiceSessionRef = useRef<() => void>(() => undefined);
+  const enableVoiceRef = useRef<() => void>(() => undefined);
+  const voiceAttemptedRef = useRef(false);
   const activeSceneRef = useRef("hall");
   const activeSceneContextRef = useRef<Record<string, string | number | boolean | null>>({});
   const activeSceneKeyRef = useRef(sceneKey({ scene: "hall" }));
@@ -691,7 +692,12 @@ export function MathObserver() {
       }, 420);
       timersRef.current.add(timer);
     };
-    const interactionStart = () => { activeInteractionRef.current = true; lastInteractionAtRef.current = performance.now(); unlock(); };
+    const interactionStart = () => {
+      activeInteractionRef.current = true;
+      lastInteractionAtRef.current = performance.now();
+      unlock();
+      if (participationRef.current !== "quiet" && !voiceEnabledRef.current && !voiceAttemptedRef.current) enableVoiceRef.current();
+    };
     const interactionEnd = () => { activeInteractionRef.current = false; lastInteractionAtRef.current = performance.now(); };
     const activity = () => { lastInteractionAtRef.current = performance.now(); };
     window.addEventListener("pointerdown", interactionStart, { capture: true });
@@ -765,18 +771,13 @@ export function MathObserver() {
         try { recognition.start(); } catch { /* Browser may still be ending the previous recognition turn. */ }
       }, 450);
     };
-    try { recognition.start(); } catch { /* The microphone button remains available as a fallback. */ }
+    try { recognition.start(); } catch { /* Voice wake remains unavailable until the browser can restart it. */ }
     return () => {
       disposed = true;
       window.clearTimeout(restartTimer);
       if (wakeRecognitionRef.current === recognition) stopWakeRecognition();
     };
   }, [participation, speaking, stopWakeRecognition, voiceEnabled, voiceEpoch, voiceState]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setWakeSupported(!!speechRecognitionConstructor()), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -852,7 +853,11 @@ export function MathObserver() {
     participationRef.current = next;
     setParticipation(next);
     try { localStorage.setItem("math-observer-participation", next); } catch { /* Preference remains in memory. */ }
-    if (next !== "quiet") return;
+    if (next !== "quiet") {
+      voiceAttemptedRef.current = false;
+      enableVoiceRef.current();
+      return;
+    }
     decisionControllerRef.current?.abort();
     decisionControllerRef.current = null;
     if (pendingActionTimerRef.current !== null) {
@@ -862,40 +867,25 @@ export function MathObserver() {
     }
     pendingActionRef.current = null;
     recentEventsRef.current = [];
+    voiceAttemptedRef.current = false;
     cancelVoiceSession(true);
   };
 
-  const setVoicePreference = async (enabled: boolean, askNow = false) => {
-    if (!enabled) {
-      cancelVoiceSession(true);
-      return;
-    }
+  const enableVoice = useCallback(async () => {
     if (participationRef.current === "quiet") return;
+    voiceAttemptedRef.current = true;
     try {
       await ensureVoiceStream();
       voiceEnabledRef.current = true;
       setVoiceEnabled(true);
       setVoiceState("idle");
-      if (askNow) window.setTimeout(() => beginVoiceSessionRef.current(), 0);
     } catch {
       voiceEnabledRef.current = false;
       setVoiceEnabled(false);
       setVoiceState("error");
     }
-  };
-
-  const askWithVoice = () => {
-    if (participationRef.current === "quiet") return;
-    if (!voiceEnabledRef.current) {
-      void setVoicePreference(true, true);
-      return;
-    }
-    if (voiceState === "error") {
-      void setVoicePreference(true, true);
-      return;
-    }
-    beginVoiceSessionRef.current();
-  };
+  }, [ensureVoiceStream]);
+  useEffect(() => { enableVoiceRef.current = () => { void enableVoice(); }; }, [enableVoice]);
 
   const changeCooldown = (seconds: number) => {
     const next = Math.max(MIN_COOLDOWN_SECONDS, Math.min(MAX_COOLDOWN_SECONDS, seconds));
@@ -971,7 +961,7 @@ export function MathObserver() {
     : undefined;
   const settingsToRight = observerPosition !== null && observerPosition.left < 260;
   const settingsDown = observerPosition !== null && observerPosition.top < 250;
-  const voiceStatus = voiceStateLabel(voiceState, voiceEnabled, wakeSupported);
+  const voiceStatus = voiceStateLabel(voiceState, voiceEnabled);
 
   return (
     <aside ref={observerRef} style={observerStyle} className={`math-observer ${ready ? "is-ready" : ""} ${speaking ? "is-speaking" : ""} ${dragging ? "is-dragging" : ""} ${voiceEnabled ? "voice-enabled" : ""} voice-${voiceState} ${settingsToRight ? "settings-to-right" : ""} ${settingsDown ? "settings-down" : ""}`} aria-label="数学观察员小π">
@@ -979,17 +969,16 @@ export function MathObserver() {
         <span className="math-observer-halo" aria-hidden="true" />
         <Image src="/math-observer-talk-0.png" alt="数学观察员小π" width={512} height={512} draggable={false} unoptimized />
         <span className="math-observer-talk-sequence" aria-hidden="true" />
+        <span className="math-observer-antenna-listen" aria-hidden="true"><i /></span>
       </button>
       <div className="math-observer-preferences">
         <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小π参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}><ParticipationIcon level={participation} /></button>
         {settingsOpen && <div className="math-observer-settings" role="group" aria-label="小π参与设置">
           <span>参与度</span>
           <div>{PARTICIPATION_ORDER.map((level) => <button key={level} type="button" className={participation === level ? "active" : ""} aria-pressed={participation === level} onClick={() => selectParticipation(level)}>{PARTICIPATION_LABEL[level]}</button>)}</div>
-          <button className={`math-observer-voice-toggle ${voiceEnabled ? "active" : ""}`} type="button" disabled={participation === "quiet"} aria-pressed={voiceEnabled} onClick={() => void setVoicePreference(!voiceEnabled)}><span className="math-observer-mic-glyph" aria-hidden="true" />语音问答<b>{participation === "quiet" ? "静音中" : voiceEnabled ? "已开启" : "开启"}</b></button>
           <label><span>提示间隔 <b>{cooldownSeconds} 秒</b></span><input type="range" min={MIN_COOLDOWN_SECONDS} max={MAX_COOLDOWN_SECONDS} step="1" value={cooldownSeconds} style={{ background: `linear-gradient(90deg, #368e97 0 ${((cooldownSeconds - MIN_COOLDOWN_SECONDS) / (MAX_COOLDOWN_SECONDS - MIN_COOLDOWN_SECONDS)) * 100}%, #dcebed ${((cooldownSeconds - MIN_COOLDOWN_SECONDS) / (MAX_COOLDOWN_SECONDS - MIN_COOLDOWN_SECONDS)) * 100}% 100%)` }} onChange={(event) => changeCooldown(Number(event.target.value))} /></label>
         </div>}
       </div>
-      <button className="math-observer-voice" type="button" disabled={participation === "quiet" || (voiceState !== "idle" && voiceState !== "error")} onClick={askWithVoice} title={voiceStatus} aria-label={voiceStatus} aria-pressed={voiceEnabled}><span className="math-observer-mic-glyph" aria-hidden="true" /></button>
       <span className="math-observer-live" role="status" aria-live="polite">{voiceState !== "idle" ? voiceStatus : speaking ? lastMessage : `小π参与度：${PARTICIPATION_LABEL[participation]}`}</span>
     </aside>
   );

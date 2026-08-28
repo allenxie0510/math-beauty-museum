@@ -488,6 +488,12 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /\/api\/observer\/listen/);
   assert.match(observer, /\/api\/observer\/ask/);
   assert.match(observer, /voiceBusyRef/);
+  assert.match(observer, /enableVoiceRef\.current\(\)/);
+  assert.match(observer, /math-observer-antenna-listen/);
+  assert.doesNotMatch(observer, /className="math-observer-voice"|math-observer-voice-toggle|math-observer-mic-glyph/);
+  assert.match(css, /@keyframes observerAntennaListen/);
+  assert.match(css, /voice-listening:not\(\.is-speaking\)/);
+  assert.doesNotMatch(css, /math-observer-mic-glyph|math-observer-voice-toggle/);
   assert.match(observerListen, /qwen3-asr-flash|config\.asrModel/);
   assert.match(observerListen, /input_audio/);
   assert.match(observerAsk, /数学观察员“小π”/);

@@ -514,8 +514,15 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /wakeUnlessDragged/);
   assert.match(observer, /ParticipationIcon/);
   assert.match(observer, /level === "balanced" \? 1 : 2/);
+  assert.match(observer, /thinking \? 3 : level === "balanced" \? 1 : 2/);
+  assert.match(observer, /now - lastSpeechAt > 700/);
+  assert.match(observer, /recorder\.start\(160\)/);
   assert.match(css, /\.math-observer-level-icon/);
   assert.match(css, /\.math-observer-level-dots/);
+  assert.match(css, /\.math-observer\.voice-thinking \.math-observer-character/);
+  assert.match(css, /@keyframes observerThinkingDot/);
+  assert.match(observerAsk, /enable_thinking: false/);
+  assert.match(observerAsk, /max_tokens: 64/);
   assert.match(css, /\.math-observer\.is-dragging/);
   assert.match(css, /\.math-observer\.settings-to-right/);
   assert.match(observer, /pendingActionRef/);

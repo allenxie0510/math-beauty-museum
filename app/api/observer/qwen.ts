@@ -6,7 +6,7 @@ export function qwenConfig() {
     baseUrl,
     asrBaseUrl,
     asrModel: process.env.QWEN_ASR_MODEL?.trim() || "qwen3-asr-flash",
-    observerModel: process.env.QWEN_OBSERVER_MODEL?.trim() || "qwen-plus",
+    observerModel: process.env.QWEN_OBSERVER_MODEL?.trim() || "qwen3.5-flash",
     ttsModel: process.env.QWEN_TTS_MODEL?.trim() || "qwen3-tts-vd-2026-01-26",
     ttsVoice: process.env.QWEN_TTS_VOICE?.trim() || "",
   };

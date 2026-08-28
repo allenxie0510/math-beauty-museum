@@ -90,7 +90,7 @@ function voiceStateLabel(state: VoiceState, enabled: boolean) {
   return "等待“小派”唤醒";
 }
 
-function ParticipationIcon({ level }: { level: MathObserverParticipation }) {
+function ParticipationIcon({ level, thinking = false }: { level: MathObserverParticipation; thinking?: boolean }) {
   if (level === "quiet") {
     return <svg className="math-observer-level-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M4 9.5v5h3.4l4.6 3.8V5.7L7.4 9.5H4Z" fill="currentColor" />
@@ -99,7 +99,7 @@ function ParticipationIcon({ level }: { level: MathObserverParticipation }) {
   }
 
   return <span className="math-observer-level-dots" aria-hidden="true">
-    {Array.from({ length: level === "balanced" ? 1 : 2 }, (_, index) => <i key={index} />)}
+    {Array.from({ length: thinking ? 3 : level === "balanced" ? 1 : 2 }, (_, index) => <i key={index} />)}
   </span>;
 }
 
@@ -418,7 +418,7 @@ export function MathObserver() {
             lastSpeechAt = now;
           }
         }
-        if ((heardSpeech && now - lastSpeechAt > 1100 && now - startedAt > 900)
+        if ((heardSpeech && now - lastSpeechAt > 700 && now - startedAt > 650)
           || (!heardSpeech && now - startedAt > noSpeechLimit)
           || now - startedAt > maximumLength
           || session !== voiceSessionRef.current) {
@@ -437,7 +437,7 @@ export function MathObserver() {
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
         resolve(session === voiceSessionRef.current && heardSpeech && blob.size > 200 ? blob : null);
       };
-      recorder.start(250);
+      recorder.start(160);
       frame = window.requestAnimationFrame(watch);
     });
   }, [ensureVoiceStream]);
@@ -1043,7 +1043,7 @@ export function MathObserver() {
         <span className="math-observer-antenna-listen" aria-hidden="true"><i /></span>
       </button>
       <div className="math-observer-preferences">
-        <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小π参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}><ParticipationIcon level={participation} /></button>
+        <button className="math-observer-level" type="button" onClick={() => setSettingsOpen((open) => !open)} title={`参与度：${PARTICIPATION_LABEL[participation]} · 冷却 ${cooldownSeconds} 秒`} aria-label={`设置小π参与度与冷却时间，当前${PARTICIPATION_LABEL[participation]}，${cooldownSeconds}秒`} aria-expanded={settingsOpen} data-level={participation}><ParticipationIcon level={participation} thinking={voiceState === "thinking"} /></button>
         {settingsOpen && <div className="math-observer-settings" role="group" aria-label="小π参与设置">
           <span>参与度</span>
           <div>{PARTICIPATION_ORDER.map((level) => <button key={level} type="button" className={participation === level ? "active" : ""} aria-pressed={participation === level} onClick={() => selectParticipation(level)}>{PARTICIPATION_LABEL[level]}</button>)}</div>

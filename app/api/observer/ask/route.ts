@@ -51,8 +51,9 @@ export async function POST(request: Request) {
           { role: "system", content: system },
           { role: "user", content: JSON.stringify({ currentScene, recentEvents, question }) },
         ],
+        enable_thinking: false,
         temperature: .18,
-        max_tokens: 96,
+        max_tokens: 64,
       }),
     });
     if (!response.ok) return jsonError("Qwen answer request failed", 502);

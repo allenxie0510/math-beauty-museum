@@ -67,6 +67,14 @@ type BrowserSpeechRecognition = {
   abort(): void;
 };
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+type BrowserAudioSession = { type: "auto" | "ambient" | "playback" | "play-and-record" | "transient" | "transient-solo" };
+
+function setBrowserAudioSession(type: BrowserAudioSession["type"]) {
+  const audioNavigator = navigator as Navigator & { audioSession?: BrowserAudioSession };
+  try {
+    if (audioNavigator.audioSession) audioNavigator.audioSession.type = type;
+  } catch { /* Audio Session API is optional and varies between Safari versions. */ }
+}
 
 function speechRecognitionConstructor() {
   const speechWindow = window as typeof window & {
@@ -228,12 +236,14 @@ export function MathObserver() {
     }
     if (audioRef.current) {
       const audio = audioRef.current;
-      audioRef.current = null;
-      audio.onplay = null;
+      audio.onplaying = null;
       audio.onended = null;
       audio.onerror = null;
+      audio.onstalled = null;
       audio.pause();
       audio.currentTime = 0;
+      audio.removeAttribute("src");
+      audio.load();
     }
     speakingRef.current = false;
     requestingSpeechRef.current = false;
@@ -241,8 +251,8 @@ export function MathObserver() {
   }, []);
 
   const browserSpeech = useCallback((text: string, runId: number, sceneVersion: number) => {
-    if (!("speechSynthesis" in window)) return false;
-    if (runId !== speechRunRef.current || sceneVersion !== sceneVersionRef.current) return false;
+    if (!("speechSynthesis" in window)) return Promise.resolve(false);
+    if (runId !== speechRunRef.current || sceneVersion !== sceneVersionRef.current) return Promise.resolve(false);
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utteranceRef.current = utterance;
@@ -253,19 +263,40 @@ export function MathObserver() {
     const voice = preferredVoice();
     if (voice) utterance.voice = voice;
     const isCurrent = () => utteranceRef.current === utterance && runId === speechRunRef.current && sceneVersion === sceneVersionRef.current;
-    utterance.onstart = () => { if (isCurrent()) { speakingRef.current = true; setSpeaking(true); } };
-    const finish = () => {
-      if (!isCurrent()) return;
-      utteranceRef.current = null;
-      speakingRef.current = false;
-      setSpeaking(false);
-    };
-    utterance.onend = finish;
-    utterance.onerror = finish;
-    speakingRef.current = true;
-    setSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-    return true;
+    return new Promise<boolean>((resolve) => {
+      let started = false;
+      let settled = false;
+      const settle = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(startTimer);
+        resolve(value);
+      };
+      utterance.onstart = () => {
+        if (!isCurrent()) return;
+        started = true;
+        speakingRef.current = true;
+        setSpeaking(true);
+        settle(true);
+      };
+      const finish = () => {
+        if (!isCurrent()) return;
+        utteranceRef.current = null;
+        speakingRef.current = false;
+        setSpeaking(false);
+        if (!started) settle(false);
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      const startTimer = window.setTimeout(() => {
+        if (!started && isCurrent()) {
+          window.speechSynthesis.cancel();
+          finish();
+        }
+        settle(false);
+      }, 1800);
+      window.speechSynthesis.speak(utterance);
+    });
   }, []);
 
   const playSpeech = useCallback(async (text: string, force = false, sceneVersion = sceneVersionRef.current) => {
@@ -292,27 +323,70 @@ export function MathObserver() {
         audioUrlsRef.current.set(text, objectUrl);
       }
       if (controller.signal.aborted || runId !== speechRunRef.current || sceneVersion !== sceneVersionRef.current) return false;
-      const audio = new Audio(objectUrl);
-      audio.volume = .9;
-      audio.preload = "auto";
-      audioRef.current = audio;
+      const audio = audioRef.current;
+      if (!audio) throw new Error("observer-audio-not-ready");
       const isCurrent = () => audioRef.current === audio && runId === speechRunRef.current && sceneVersion === sceneVersionRef.current;
-      audio.onplay = () => { if (isCurrent()) { speakingRef.current = true; setSpeaking(true); } };
+      let started = false;
       const finish = () => {
         if (!isCurrent()) return;
-        audioRef.current = null;
         speakingRef.current = false;
         setSpeaking(false);
       };
-      audio.onended = finish;
-      audio.onerror = finish;
-      speakingRef.current = true;
-      setSpeaking(true);
-      await audio.play();
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const settle = (error?: unknown) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(startTimer);
+          controller.signal.removeEventListener("abort", handleAbort);
+          if (error) reject(error);
+          else resolve();
+        };
+        const handleAbort = () => settle(new DOMException("Speech playback aborted", "AbortError"));
+        audio.onplaying = () => {
+          if (!isCurrent()) return;
+          started = true;
+          speakingRef.current = true;
+          setSpeaking(true);
+          settle();
+        };
+        audio.onended = () => {
+          if (!started) settle(new Error("observer-audio-ended-before-playing"));
+          finish();
+        };
+        audio.onerror = () => {
+          const mediaCode = audio.error?.code ?? 0;
+          settle(new Error(`observer-audio-error-${mediaCode}`));
+          finish();
+        };
+        audio.onstalled = () => console.warn("[MathObserver] speech audio stalled", { readyState: audio.readyState, networkState: audio.networkState });
+        const startTimer = window.setTimeout(() => settle(new Error("observer-audio-start-timeout")), 3000);
+        controller.signal.addEventListener("abort", handleAbort, { once: true });
+        audio.src = objectUrl;
+        audio.load();
+        void audio.play().catch(settle);
+      });
       return true;
     } catch (error) {
       if (controller.signal.aborted || (error as Error).name === "AbortError" || runId !== speechRunRef.current || sceneVersion !== sceneVersionRef.current) return false;
-      return browserSpeech(text, runId, sceneVersion);
+      const failedAudio = audioRef.current;
+      if (failedAudio) {
+        failedAudio.onplaying = null;
+        failedAudio.onended = null;
+        failedAudio.onerror = null;
+        failedAudio.onstalled = null;
+        failedAudio.pause();
+        failedAudio.removeAttribute("src");
+        failedAudio.load();
+      }
+      speakingRef.current = false;
+      setSpeaking(false);
+      console.warn("[MathObserver] speech audio playback failed; using browser voice", {
+        name: (error as Error).name,
+        message: (error as Error).message,
+        userAgent: navigator.userAgent,
+      });
+      return await browserSpeech(text, runId, sceneVersion);
     } finally {
       if (speechControllerRef.current === controller) speechControllerRef.current = null;
       if (runId === speechRunRef.current) requestingSpeechRef.current = false;
@@ -333,15 +407,23 @@ export function MathObserver() {
     const stream = mediaStreamRef.current;
     mediaStreamRef.current = null;
     stream?.getTracks().forEach((track) => track.stop());
+    setBrowserAudioSession("playback");
   }, []);
 
   const ensureVoiceStream = useCallback(async () => {
     const current = mediaStreamRef.current;
     if (current?.active && current.getAudioTracks().some((track) => track.readyState === "live")) return current;
     if (!navigator.mediaDevices?.getUserMedia || !("MediaRecorder" in window)) throw new Error("voice-input-unsupported");
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-    });
+    setBrowserAudioSession("play-and-record");
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      });
+    } catch (error) {
+      setBrowserAudioSession("playback");
+      throw error;
+    }
     mediaStreamRef.current = stream;
     stream.getAudioTracks().forEach((track) => track.addEventListener("ended", () => {
       if (mediaStreamRef.current !== stream || participationRef.current === "quiet") return;
@@ -371,11 +453,20 @@ export function MathObserver() {
 
   const recordQuestion = useCallback(async (session: number, followup: boolean) => {
     const stream = await ensureVoiceStream();
-    if (session !== voiceSessionRef.current) return null;
+    if (session !== voiceSessionRef.current) {
+      releaseVoiceStream();
+      return null;
+    }
     setVoiceState("listening");
     return await new Promise<Blob | null>((resolve) => {
       const mimeType = recorderMimeType();
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      let recorder: MediaRecorder;
+      try {
+        recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      } catch (error) {
+        releaseVoiceStream();
+        throw error;
+      }
       mediaRecorderRef.current = recorder;
       const chunks: BlobPart[] = [];
       const startedAt = performance.now();
@@ -435,12 +526,13 @@ export function MathObserver() {
         if (mediaRecorderRef.current === recorder) mediaRecorderRef.current = null;
         void audioContext?.close();
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        releaseVoiceStream();
         resolve(session === voiceSessionRef.current && heardSpeech && blob.size > 200 ? blob : null);
       };
       recorder.start(160);
       frame = window.requestAnimationFrame(watch);
     });
-  }, [ensureVoiceStream]);
+  }, [ensureVoiceStream, releaseVoiceStream]);
 
   const runVoiceConversation = useCallback(async (session: number) => {
     const sceneVersion = sceneVersionRef.current;
@@ -530,10 +622,10 @@ export function MathObserver() {
     stopSpeech();
     setVoiceState("idle");
     setVoiceEpoch((value) => value + 1);
+    releaseVoiceStream();
     if (disable) {
       voiceEnabledRef.current = false;
       setVoiceEnabled(false);
-      releaseVoiceStream();
     }
   }, [releaseVoiceStream, stopSpeech, stopWakeRecognition]);
 
@@ -938,6 +1030,7 @@ export function MathObserver() {
     voiceEnablingRef.current = true;
     try {
       await ensureVoiceStream();
+      releaseVoiceStream();
       voiceEnabledRef.current = true;
       voiceRetryAtRef.current = 0;
       voiceRecoveryAttemptsRef.current = 0;
@@ -955,7 +1048,7 @@ export function MathObserver() {
     } finally {
       voiceEnablingRef.current = false;
     }
-  }, [ensureVoiceStream]);
+  }, [ensureVoiceStream, releaseVoiceStream]);
   useEffect(() => { enableVoiceRef.current = (askNow = false) => { void enableVoice(askNow); }; }, [enableVoice]);
 
   const changeCooldown = (seconds: number) => {
@@ -1051,6 +1144,9 @@ export function MathObserver() {
         </div>}
       </div>
       <span className="math-observer-live" role="status" aria-live="polite">{voiceState !== "idle" ? voiceStatus : speaking ? lastMessage : `小π参与度：${PARTICIPATION_LABEL[participation]}`}</span>
+      {/* The spoken answer is mirrored in the live text status above. */}
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio ref={audioRef} preload="auto" aria-hidden="true" />
     </aside>
   );
 }

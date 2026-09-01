@@ -517,6 +517,11 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /thinking \? 3 : level === "balanced" \? 1 : 2/);
   assert.match(observer, /now - lastSpeechAt > 700/);
   assert.match(observer, /recorder\.start\(160\)/);
+  assert.match(observer, /setBrowserAudioSession\("playback"\)/);
+  assert.match(observer, /releaseVoiceStream\(\);\s+resolve\(/);
+  assert.match(observer, /audio\.onplaying/);
+  assert.match(observer, /<audio ref=\{audioRef\}/);
+  assert.doesNotMatch(observer, /const audio = new Audio\(objectUrl\)/);
   assert.match(css, /\.math-observer-level-icon/);
   assert.match(css, /\.math-observer-level-dots/);
   assert.match(css, /\.math-observer\.voice-thinking \.math-observer-character/);

@@ -518,7 +518,13 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /ParticipationIcon/);
   assert.match(observer, /level === "balanced" \? 1 : 2/);
   assert.match(observer, /thinking \? 3 : level === "balanced" \? 1 : 2/);
-  assert.match(observer, /now - lastSpeechAt > 700/);
+  assert.match(observer, /QUESTION_END_SILENCE_MS = 1200/);
+  assert.match(observer, /transcribeQuestion/);
+  assert.match(observer, /attempt < 2/);
+  assert.match(observer, /recognition-empty/);
+  assert.match(observer, /answer-service/);
+  assert.match(observer, /我只听到了一小段，你可以慢一点再说一次。/);
+  assert.doesNotMatch(observer, /刚才没听清，请再叫我小派。/);
   assert.match(observer, /recorder\.start\(160\)/);
   assert.match(observer, /setBrowserAudioSession\("playback"\)/);
   assert.match(observer, /releaseVoiceStream\(\);\s+resolve\(/);

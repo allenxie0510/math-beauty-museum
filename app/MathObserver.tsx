@@ -52,6 +52,8 @@ const PARTICIPATION_LABEL: Record<MathObserverParticipation, string> = { quiet: 
 const MIN_COOLDOWN_SECONDS = 3;
 const MAX_COOLDOWN_SECONDS = 30;
 const VOICE_WAKE_PATTERN = /小\s*(?:π|派|拍|pai)/i;
+const QUESTION_END_SILENCE_MS = 1200;
+const VOICE_SERVICE_RETRY_MS = 420;
 
 type VoiceState = "idle" | "waking" | "listening" | "thinking" | "answering" | "error";
 type BrowserSpeechRecognitionResult = { isFinal?: boolean; 0?: { transcript?: string } };
@@ -115,6 +117,62 @@ function ParticipationIcon({ level, thinking = false }: { level: MathObserverPar
 
 type ObserverDecision = { action?: "silent" | "speak"; cueId?: string; text?: string; priority?: number };
 type ObserverPosition = { left: number; top: number };
+type VoiceFailureStage = "recognition-empty" | "recognition-busy" | "recognition-service" | "answer-busy" | "answer-service";
+
+class ObserverVoiceFailure extends Error {
+  stage: VoiceFailureStage;
+  status: number;
+
+  constructor(stage: VoiceFailureStage, status = 0) {
+    super(stage);
+    this.name = "ObserverVoiceFailure";
+    this.stage = stage;
+    this.status = status;
+  }
+}
+
+function voiceFailureMessage(stage: VoiceFailureStage) {
+  if (stage === "recognition-empty") return "我只听到了一小段，你可以慢一点再说一次。";
+  if (stage === "recognition-busy") return "我正在接住好多声音，稍等一下再问我吧。";
+  if (stage === "answer-busy") return "我听懂了，刚刚想得有点慢，稍等一下再问我吧。";
+  if (stage === "answer-service") return "我听懂了，回答刚刚慢了一步，等一秒再问我吧。";
+  return "刚刚连接有点慢，等一秒再问我就好。";
+}
+
+async function transcribeQuestion(audio: Blob, signal: AbortSignal) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const form = new FormData();
+    form.append("audio", audio, `xiaopi-question.${audio.type.includes("mp4") ? "m4a" : "webm"}`);
+    let response: Response;
+    try {
+      response = await fetch("/api/observer/listen", { method: "POST", body: form, signal });
+    } catch (error) {
+      if ((error as Error).name === "AbortError") throw error;
+      if (attempt === 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, VOICE_SERVICE_RETRY_MS));
+        if (signal.aborted) throw new DOMException("Voice request aborted", "AbortError");
+        continue;
+      }
+      throw new ObserverVoiceFailure("recognition-service");
+    }
+
+    if (response.status === 422) throw new ObserverVoiceFailure("recognition-empty", response.status);
+    if (response.status === 429) throw new ObserverVoiceFailure("recognition-busy", response.status);
+    if (!response.ok) {
+      if (attempt === 0 && response.status >= 500) {
+        await new Promise((resolve) => window.setTimeout(resolve, VOICE_SERVICE_RETRY_MS));
+        if (signal.aborted) throw new DOMException("Voice request aborted", "AbortError");
+        continue;
+      }
+      throw new ObserverVoiceFailure("recognition-service", response.status);
+    }
+
+    const { transcript } = await response.json().catch(() => ({})) as { transcript?: string };
+    if (!transcript?.trim()) throw new ObserverVoiceFailure("recognition-empty", 422);
+    return transcript.trim();
+  }
+  throw new ObserverVoiceFailure("recognition-service");
+}
 
 function clampObserverPosition(left: number, top: number, width: number, height: number): ObserverPosition {
   const margin = 8;
@@ -529,7 +587,7 @@ export function MathObserver() {
             lastSpeechAt = now;
           }
         }
-        if ((heardSpeech && now - lastSpeechAt > 700 && now - startedAt > 650)
+        if ((heardSpeech && now - lastSpeechAt > QUESTION_END_SILENCE_MS && now - startedAt > 650)
           || (!heardSpeech && now - startedAt > noSpeechLimit)
           || now - startedAt > maximumLength
           || session !== voiceSessionRef.current) {
@@ -567,19 +625,50 @@ export function MathObserver() {
     const acknowledged = await playSpeech("我在", true, sceneVersion);
     if (!acknowledged || !await waitForSpeechToFinish(session, sceneVersion)) return;
 
-    for (let round = 0; round < 2 && session === voiceSessionRef.current && sceneVersion === sceneVersionRef.current; round += 1) {
-      const audio = await recordQuestion(session, round > 0).catch(() => null);
-      if (!audio || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
+    const sayConversationMessage = async (message: string) => {
+      lastMessageRef.current = message;
+      setLastMessage(message);
+      setVoiceState("answering");
+      const started = await playSpeech(message, true, sceneVersion);
+      return started && await waitForSpeechToFinish(session, sceneVersion);
+    };
+
+    conversation: for (let round = 0; round < 2 && session === voiceSessionRef.current && sceneVersion === sceneVersionRef.current; round += 1) {
+      let transcript = "";
+      for (let captureAttempt = 0; captureAttempt < 2 && session === voiceSessionRef.current && sceneVersion === sceneVersionRef.current; captureAttempt += 1) {
+        const audio = await recordQuestion(session, round > 0 || captureAttempt > 0).catch(() => null);
+        if (!audio || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) {
+          if (round === 0 && captureAttempt === 0 && session === voiceSessionRef.current && sceneVersion === sceneVersionRef.current) {
+            if (await sayConversationMessage("我还没听到完整的问题，你可以靠近一点再说。")) continue;
+          }
+          break conversation;
+        }
+        setVoiceState("thinking");
+        const controller = new AbortController();
+        voiceRequestControllerRef.current = controller;
+        try {
+          transcript = await transcribeQuestion(audio, controller.signal);
+          break;
+        } catch (error) {
+          if ((error as Error).name === "AbortError" || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break conversation;
+          const failure = error instanceof ObserverVoiceFailure ? error : new ObserverVoiceFailure("recognition-service");
+          console.warn("[MathObserver] voice question failed", { stage: failure.stage, status: failure.status });
+          if (failure.stage === "recognition-empty" && captureAttempt === 0) {
+            if (await sayConversationMessage(voiceFailureMessage(failure.stage))) continue;
+            break conversation;
+          }
+          await sayConversationMessage(voiceFailureMessage(failure.stage));
+          break conversation;
+        } finally {
+          if (voiceRequestControllerRef.current === controller) voiceRequestControllerRef.current = null;
+        }
+      }
+      if (!transcript || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
+
       setVoiceState("thinking");
       const controller = new AbortController();
       voiceRequestControllerRef.current = controller;
       try {
-        const form = new FormData();
-        form.append("audio", audio, `xiaopi-question.${audio.type.includes("mp4") ? "m4a" : "webm"}`);
-        const listenResponse = await fetch("/api/observer/listen", { method: "POST", body: form, signal: controller.signal });
-        if (!listenResponse.ok) throw new Error("observer-asr-unavailable");
-        const { transcript } = await listenResponse.json() as { transcript?: string };
-        if (!transcript?.trim()) throw new Error("observer-empty-transcript");
         const answerResponse = await fetch("/api/observer/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -590,22 +679,17 @@ export function MathObserver() {
             recentEvents: recentEventsRef.current,
           }),
         });
-        if (!answerResponse.ok) throw new Error("observer-answer-unavailable");
-        const { answer } = await answerResponse.json() as { answer?: string };
-        if (!answer?.trim() || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
-        lastMessageRef.current = answer;
-        setLastMessage(answer);
-        setVoiceState("answering");
-        const started = await playSpeech(answer, true, sceneVersion);
-        if (!started || !await waitForSpeechToFinish(session, sceneVersion)) break;
+        if (answerResponse.status === 429) throw new ObserverVoiceFailure("answer-busy", answerResponse.status);
+        if (!answerResponse.ok) throw new ObserverVoiceFailure("answer-service", answerResponse.status);
+        const { answer } = await answerResponse.json().catch(() => ({})) as { answer?: string };
+        if (!answer?.trim()) throw new ObserverVoiceFailure("answer-service", 502);
+        if (session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
+        if (!await sayConversationMessage(answer.trim())) break;
       } catch (error) {
         if ((error as Error).name === "AbortError" || session !== voiceSessionRef.current || sceneVersion !== sceneVersionRef.current) break;
-        const fallback = "刚才没听清，请再叫我小派。";
-        lastMessageRef.current = fallback;
-        setLastMessage(fallback);
-        setVoiceState("answering");
-        await playSpeech(fallback, true, sceneVersion);
-        await waitForSpeechToFinish(session, sceneVersion);
+        const failure = error instanceof ObserverVoiceFailure ? error : new ObserverVoiceFailure("answer-service");
+        console.warn("[MathObserver] voice answer failed", { stage: failure.stage, status: failure.status });
+        await sayConversationMessage(voiceFailureMessage(failure.stage));
         break;
       } finally {
         if (voiceRequestControllerRef.current === controller) voiceRequestControllerRef.current = null;

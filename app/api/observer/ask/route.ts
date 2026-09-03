@@ -37,10 +37,18 @@ function extractText(result: QwenChatResponse) {
 }
 
 export async function POST(request: Request) {
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
   const denied = protectObserverRequest(request, "ask", 20);
-  if (denied) return denied;
+  if (denied) {
+    console.warn("[observer/ask] request rejected", { requestId, stage: "rate-limit", status: denied.status, durationMs: Date.now() - startedAt });
+    return denied;
+  }
   const config = qwenConfig();
-  if (!config.apiKey) return jsonError("Qwen observer is not configured", 503);
+  if (!config.apiKey) {
+    console.warn("[observer/ask] unavailable", { requestId, stage: "configuration", status: 503, durationMs: Date.now() - startedAt });
+    return jsonError("Qwen observer is not configured", 503);
+  }
 
   const payload = await request.json().catch(() => null) as AskPayload | null;
   const question = typeof payload?.question === "string" ? payload.question.replace(/\s+/g, " ").trim().slice(0, 240) : "";
@@ -77,15 +85,22 @@ export async function POST(request: Request) {
         max_tokens: 64,
       }),
     });
-    if (!response.ok) return jsonError("Qwen answer request failed", 502);
+    if (!response.ok) {
+      console.warn("[observer/ask] upstream failure", { requestId, stage: "upstream", status: 502, upstreamStatus: response.status, durationMs: Date.now() - startedAt });
+      return jsonError("Qwen answer request failed", 502);
+    }
     const answer = extractText(await response.json() as QwenChatResponse)
       .replace(/^[“"']|[”"']$/g, "")
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 48);
-    if (!answer) return jsonError("Qwen returned an empty answer", 502);
+    if (!answer) {
+      console.warn("[observer/ask] empty answer", { requestId, stage: "empty-answer", status: 502, durationMs: Date.now() - startedAt });
+      return jsonError("Qwen returned an empty answer", 502);
+    }
     return Response.json({ answer }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
+  } catch (error) {
+    console.warn("[observer/ask] exception", { requestId, stage: "exception", status: 502, errorName: (error as Error).name, durationMs: Date.now() - startedAt });
     return jsonError("Qwen answer is temporarily unavailable", 502);
   }
 }

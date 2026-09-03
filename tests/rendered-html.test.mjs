@@ -484,6 +484,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.space-slice-lab/);
   assert.match(css, /\.math-observer\{position:fixed/);
   assert.match(observer, /SpeechSynthesisUtterance/);
+  assert.match(observer, /嗨，我是小π！我最喜欢发现藏在世界里的数学。我们一起看看，这里有什么规律？/);
   assert.match(observer, /math-observer-talk-0\.png/);
   assert.match(observer, /math-observer-talk-sequence/);
   assert.match(css, /@keyframes observerTalkSequence/);

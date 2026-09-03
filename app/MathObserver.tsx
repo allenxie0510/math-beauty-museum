@@ -15,7 +15,7 @@ import { MATH_OBSERVER_PROFILES, observerActionScore, observerShouldConsider } f
 
 const WELCOME: MathObserverCue = {
   id: "observer-welcome",
-  message: "我是小派。叫我小派，就能向我提问。先动一动，再看哪里发生了变化。",
+  message: "嗨，我是小π！我最喜欢发现藏在世界里的数学。我们一起看看，这里有什么规律？",
   priority: 3,
   once: true,
 };

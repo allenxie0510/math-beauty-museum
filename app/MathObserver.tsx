@@ -60,6 +60,8 @@ type BrowserSpeechRecognition = {
   interimResults: boolean;
   lang: string;
   maxAlternatives: number;
+  onstart: (() => void) | null;
+  onaudiostart: (() => void) | null;
   onresult: ((event: { resultIndex: number; results: ArrayLike<BrowserSpeechRecognitionResult> }) => void) | null;
   onerror: ((event: { error?: string; message?: string }) => void) | null;
   onend: (() => void) | null;
@@ -223,6 +225,18 @@ export function MathObserver() {
   const pendingActionTimerRef = useRef<number | null>(null);
   const considerActionRef = useRef<(action: MathObserverAction) => void>(() => undefined);
 
+  const stopWakeRecognition = useCallback(() => {
+    const recognition = wakeRecognitionRef.current;
+    wakeRecognitionRef.current = null;
+    if (!recognition) return;
+    recognition.onstart = null;
+    recognition.onaudiostart = null;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try { recognition.abort(); } catch { /* Recognition may already be stopped. */ }
+  }, []);
+
   const stopSpeech = useCallback(() => {
     speechRunRef.current += 1;
     speechControllerRef.current?.abort();
@@ -303,6 +317,8 @@ export function MathObserver() {
     if (!unlockedRef.current || participationRef.current === "quiet") return false;
     if (force) stopSpeech();
     if (requestingSpeechRef.current || speakingRef.current) return false;
+    // Never let the wake-word recognizer hear and trigger on Xiao Pi's own voice.
+    stopWakeRecognition();
     const runId = ++speechRunRef.current;
     const controller = new AbortController();
     speechControllerRef.current = controller;
@@ -391,23 +407,13 @@ export function MathObserver() {
       if (speechControllerRef.current === controller) speechControllerRef.current = null;
       if (runId === speechRunRef.current) requestingSpeechRef.current = false;
     }
-  }, [browserSpeech, stopSpeech]);
+  }, [browserSpeech, stopSpeech, stopWakeRecognition]);
 
-  const stopWakeRecognition = useCallback(() => {
-    const recognition = wakeRecognitionRef.current;
-    wakeRecognitionRef.current = null;
-    if (!recognition) return;
-    recognition.onresult = null;
-    recognition.onerror = null;
-    recognition.onend = null;
-    try { recognition.abort(); } catch { /* Recognition may already be stopped. */ }
-  }, []);
-
-  const releaseVoiceStream = useCallback(() => {
+  const releaseVoiceStream = useCallback((nextSession: BrowserAudioSession["type"] = "playback") => {
     const stream = mediaStreamRef.current;
     mediaStreamRef.current = null;
     stream?.getTracks().forEach((track) => track.stop());
-    setBrowserAudioSession("playback");
+    setBrowserAudioSession(nextSession);
   }, []);
 
   const ensureVoiceStream = useCallback(async () => {
@@ -851,27 +857,47 @@ export function MathObserver() {
     if (!Recognition || wakeRecognitionBlockedRef.current || !voiceEnabled || voiceState !== "idle" || speaking || participation === "quiet" || document.visibilityState !== "visible") return;
     const recognition = new Recognition();
     let restartTimer = 0;
+    let startupTimer = 0;
+    let rotationTimer = 0;
     let disposed = false;
-    const scheduleRestart = () => {
+    let restartScheduled = false;
+    const canRestart = () => !disposed && !wakeRecognitionBlockedRef.current && !voiceBusyRef.current && voiceEnabledRef.current && participationRef.current !== "quiet" && document.visibilityState === "visible";
+    const scheduleRestart = (delay = 600) => {
+      if (!canRestart() || restartScheduled) return;
+      restartScheduled = true;
+      window.clearTimeout(startupTimer);
+      window.clearTimeout(rotationTimer);
+      window.clearTimeout(restartTimer);
+      restartTimer = window.setTimeout(() => {
+        if (!canRestart()) return;
+        setVoiceEpoch((value) => value + 1);
+      }, delay);
+    };
+    const markListening = () => {
+      if (disposed) return;
+      window.clearTimeout(startupTimer);
+      window.clearTimeout(rotationTimer);
+      voiceRecoveryAttemptsRef.current = 0;
+      // Periodically recreate the recognizer so a silent browser-side hang cannot last forever.
+      rotationTimer = window.setTimeout(() => {
+        if (!canRestart()) return;
+        try { recognition.abort(); } catch { /* It may already be ending. */ }
+        scheduleRestart(350);
+      }, 30000);
+    };
+    const recoverAfterError = (delay: number) => {
       if (disposed || wakeRecognitionBlockedRef.current || voiceBusyRef.current || !voiceEnabledRef.current || participationRef.current === "quiet" || document.visibilityState !== "visible") return;
       const attempt = Math.min(4, voiceRecoveryAttemptsRef.current);
       voiceRecoveryAttemptsRef.current += 1;
-      const delay = Math.min(4000, 450 * (2 ** attempt));
-      window.clearTimeout(restartTimer);
-      restartTimer = window.setTimeout(() => {
-        if (disposed || wakeRecognitionBlockedRef.current || voiceBusyRef.current || !voiceEnabledRef.current || participationRef.current === "quiet" || document.visibilityState !== "visible") return;
-        try {
-          recognition.start();
-        } catch {
-          setVoiceEpoch((value) => value + 1);
-        }
-      }, delay);
+      scheduleRestart(Math.min(4000, delay * (2 ** attempt)));
     };
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "zh-CN";
     recognition.maxAlternatives = 1;
     wakeRecognitionRef.current = recognition;
+    recognition.onstart = markListening;
+    recognition.onaudiostart = markListening;
     recognition.onresult = (event) => {
       voiceRecoveryAttemptsRef.current = 0;
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
@@ -889,6 +915,7 @@ export function MathObserver() {
         setVoiceState("idle");
         return;
       }
+      console.warn("[MathObserver] wake recognition error", { error, message: event.message ?? "" });
       if (error === "audio-capture") {
         releaseVoiceStream();
         voiceEnabledRef.current = false;
@@ -900,15 +927,28 @@ export function MathObserver() {
           if (participationRef.current !== "quiet") enableVoiceRef.current();
         }, 1700);
         timersRef.current.add(timer);
+        return;
       }
+      recoverAfterError(error === "no-speech" ? 500 : 850);
     };
-    recognition.onend = () => {
-      scheduleRestart();
-    };
-    try { recognition.start(); } catch { scheduleRestart(); }
+    recognition.onend = () => scheduleRestart(500);
+    setBrowserAudioSession("play-and-record");
+    try {
+      recognition.start();
+      startupTimer = window.setTimeout(() => {
+        if (!canRestart()) return;
+        console.warn("[MathObserver] wake recognition did not become ready; rebuilding it");
+        try { recognition.abort(); } catch { /* It may already be ending. */ }
+        scheduleRestart(350);
+      }, 4500);
+    } catch {
+      recoverAfterError(700);
+    }
     return () => {
       disposed = true;
       window.clearTimeout(restartTimer);
+      window.clearTimeout(startupTimer);
+      window.clearTimeout(rotationTimer);
       if (wakeRecognitionRef.current === recognition) stopWakeRecognition();
     };
   }, [participation, releaseVoiceStream, speaking, stopWakeRecognition, voiceEnabled, voiceEpoch, voiceState]);
@@ -1030,7 +1070,10 @@ export function MathObserver() {
     voiceEnablingRef.current = true;
     try {
       await ensureVoiceStream();
-      releaseVoiceStream();
+      // Keep capture routing active for SpeechRecognition, but release the
+      // temporary permission stream before the recognizer owns the microphone.
+      releaseVoiceStream("play-and-record");
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
       voiceEnabledRef.current = true;
       voiceRetryAtRef.current = 0;
       voiceRecoveryAttemptsRef.current = 0;

@@ -534,6 +534,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observer, /pendingActionRef/);
   assert.match(observer, /affectCooldown: false/);
   assert.match(observer, /voiceRecoveryAttemptsRef/);
+  assert.match(observer, /wake recognition did not become ready; rebuilding it/);
+  assert.match(observer, /releaseVoiceStream\("play-and-record"\)/);
+  assert.match(observer, /stopWakeRecognition\(\);\s+const runId/);
   assert.match(observer, /pendingVoiceQuestionRef/);
   assert.match(observer, /voiceRetryAtRef/);
   assert.doesNotMatch(observer, /sessionCueCountRef|maxSessionCues/);

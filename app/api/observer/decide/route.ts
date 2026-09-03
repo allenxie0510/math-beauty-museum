@@ -35,6 +35,25 @@ function parseDecision(raw: string, fallbackId: string) {
   };
 }
 
+const CONTEXT_SCOPE_KEYS = ["item", "exhibit", "shape", "demo", "hall"] as const;
+
+function scopedEventMatches(currentScene: Record<string, unknown>, event: Record<string, unknown>) {
+  const sceneName = typeof currentScene.scene === "string" ? currentScene.scene : "";
+  const eventScene = typeof event.scene === "string" ? event.scene : "";
+  if (sceneName && eventScene && sceneName !== eventScene) return false;
+  const currentContext = currentScene.context && typeof currentScene.context === "object"
+    ? currentScene.context as Record<string, unknown>
+    : {};
+  const eventContext = event.context && typeof event.context === "object"
+    ? event.context as Record<string, unknown>
+    : {};
+  return CONTEXT_SCOPE_KEYS.every((key) => {
+    const currentValue = currentContext[key];
+    const eventValue = eventContext[key];
+    return currentValue == null || eventValue == null || String(currentValue) === String(eventValue);
+  });
+}
+
 export async function POST(request: Request) {
   const denied = protectObserverRequest(request, "decide", 24);
   if (denied) return denied;
@@ -45,16 +64,23 @@ export async function POST(request: Request) {
   if (!payload?.event || typeof payload.event !== "object") return jsonError("Invalid observer event", 400);
 
   const event = JSON.parse(JSON.stringify(payload.event).slice(0, 2600)) as Record<string, unknown>;
-  const recentEvents = Array.isArray(payload.recentEvents) ? payload.recentEvents.slice(-10) : [];
   const recentCueIds = Array.isArray(payload.recentCueIds) ? payload.recentCueIds.slice(-12) : [];
   const currentScene = payload.currentScene && typeof payload.currentScene === "object"
     ? JSON.parse(JSON.stringify(payload.currentScene).slice(0, 1200)) as Record<string, unknown>
     : { scene: event.scene };
+  if (!scopedEventMatches(currentScene, event)) {
+    return Response.json({ action: "silent", cueId: "scene-mismatch", text: "", priority: 0 }, { headers: { "Cache-Control": "no-store" } });
+  }
+  const recentEvents = Array.isArray(payload.recentEvents)
+    ? payload.recentEvents.slice(-10).filter((recentEvent) => scopedEventMatches(currentScene, recentEvent))
+    : [];
   const eventId = typeof event.id === "string" ? event.id : "observer-cue";
   const eventAction = typeof event.action === "string" ? event.action : "";
   const system = [
     "你是儿童数学美学馆的数学观察员“小π”，读作“小派”。你的首要能力是克制：用户正在顺利探索时保持安静，只在关键发现、连续受挫、明确空闲或安全问题时开口。",
+    "currentScene 是当前唯一有效的场景锚点。所有判断、提问和引导都必须只围绕其中的当前展厅、展品、公式与参数；禁止联想到其他展厅或展品。",
     "你只能依据给出的事件判断，不得虚构用户行为或数学结论。可以沿用 suggestedCue 中的事实，但要让表达自然、口语化。",
+    "若 event 或 recentEvents 与 currentScene 的展品、形状或展厅不一致，必须 silent；不得提及已离开的场景。",
     "若开口，只说一句中文，8到28个汉字；只提出一个问题或一个下一步；不直接泄露挑战答案；避免空泛夸奖、播音腔和连续打扰。",
     "数学花园中的选择、再次查看、参数调整、目标达成或音乐可视化事件，表示前端冷却检查已经通过；除非与 recentCueIds 完全重复，否则应开口，具体回应用户刚做的操作，再给一个简短观察方向；不要只说自己在花园里。",
     "当 action 是 paper_pattern_revealed 时必须开口：先真诚肯定孩子刚完成的创作，再轻轻邀请他观察一个规律；保持积极、温暖，每次换一种自然说法。",

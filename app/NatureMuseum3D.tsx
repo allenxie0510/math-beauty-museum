@@ -3040,6 +3040,15 @@ export function NatureMuseumWorld() {
 
   const select = useCallback((id: string, targetHallIndex: number) => {
     const item = HALLS[targetHallIndex]?.items.find((candidate) => candidate.id === id);
+    const targetHall = HALLS[targetHallIndex];
+    setMathObserverScene("hall", {
+      view: "exhibit",
+      hall: targetHall?.key ?? "unknown",
+      hallName: targetHall?.name ?? "数学展厅",
+      item: item?.id ?? id,
+      name: item?.name ?? id,
+      formula: item?.formula ?? "",
+    });
     setHallIndex(targetHallIndex);
     setSelectedId(id);
     setIsAutoPlaying(false);

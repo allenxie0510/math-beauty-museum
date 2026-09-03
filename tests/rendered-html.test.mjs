@@ -506,6 +506,8 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observerListen, /input_audio/);
   assert.match(observerAsk, /数学观察员“小π”/);
   assert.match(observerAsk, /最多40个汉字/);
+  assert.match(observerAsk, /currentScene 是当前唯一有效的主题锚点/);
+  assert.match(observerAsk, /belongsToCurrentScene/);
   assert.match(observer, /math-observer-participation/);
   assert.match(observer, /math-observer-cooldown-seconds/);
   assert.match(observer, /math-observer-settings/);
@@ -549,6 +551,9 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(observerPolicy, /active: \{ threshold: \.53/);
   assert.match(observerDecide, /compatible-mode\/v1\/chat\/completions/);
   assert.match(observerDecide, /action.*silent\|speak/);
+  assert.match(observerDecide, /scene-mismatch/);
+  assert.match(observer, /actionMatchesCurrentContext/);
+  assert.match(observer, /alreadyInSection/);
   assert.match(observerSpeech, /config\.ttsModel/);
   assert.match(observerSpeech, /multimodal-generation\/generation/);
   assert.match(observerSpeech, /SpeechSynthesizer/);

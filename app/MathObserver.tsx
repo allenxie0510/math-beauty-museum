@@ -133,6 +133,20 @@ function sceneKey(scene: MathObserverScene) {
   return JSON.stringify([normalizeScene(scene.scene), context]);
 }
 
+const CONTEXT_SCOPE_KEYS = ["item", "exhibit", "shape", "demo", "hall"] as const;
+
+function actionMatchesCurrentContext(
+  action: MathObserverAction,
+  activeContext: Record<string, string | number | boolean | null>,
+) {
+  const actionContext = action.context ?? {};
+  return CONTEXT_SCOPE_KEYS.every((key) => {
+    const activeValue = activeContext[key];
+    const actionValue = actionContext[key];
+    return activeValue == null || actionValue == null || String(activeValue) === String(actionValue);
+  });
+}
+
 function activeSectionId() {
   const center = window.innerHeight / 2;
   return ["hall", "workshop", "garden", "hometown"]
@@ -710,6 +724,7 @@ export function MathObserver() {
   const considerAction = useCallback(async (action: MathObserverAction) => {
     const actionScene = normalizeScene(action.scene);
     if (actionScene !== activeSceneRef.current) return;
+    if (!actionMatchesCurrentContext(action, activeSceneContextRef.current)) return;
     if (!unlockedRef.current || participationRef.current === "quiet" || voiceBusyRef.current) return;
     const sceneVersion = sceneVersionRef.current;
     action = {
@@ -980,7 +995,10 @@ export function MathObserver() {
       const section = visible?.target.id;
       if (!section || !SECTION_CUES[section]) return;
       const detailedWorkshopOpen = section === "workshop" && activeSceneRef.current.startsWith("workshop-");
-      if (!detailedWorkshopOpen) transitionScene({ scene: section });
+      const alreadyInSection = section === activeSceneRef.current;
+      // Preserve exhibit/item context supplied by the active 3D surface. Replacing
+      // it with a generic primary-section scene makes later cues lose their anchor.
+      if (!detailedWorkshopOpen && !alreadyInSection) transitionScene({ scene: section });
       considerAction({
         id: `observer-section-${section}`,
         scene: section,

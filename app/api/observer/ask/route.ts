@@ -10,6 +10,25 @@ type QwenChatResponse = {
   choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
 };
 
+const CONTEXT_SCOPE_KEYS = ["item", "exhibit", "shape", "demo", "hall"] as const;
+
+function belongsToCurrentScene(currentScene: Record<string, unknown>, event: Record<string, unknown>) {
+  const sceneName = typeof currentScene.scene === "string" ? currentScene.scene : "";
+  const eventScene = typeof event.scene === "string" ? event.scene : "";
+  if (sceneName && eventScene && sceneName !== eventScene) return false;
+  const currentContext = currentScene.context && typeof currentScene.context === "object"
+    ? currentScene.context as Record<string, unknown>
+    : {};
+  const eventContext = event.context && typeof event.context === "object"
+    ? event.context as Record<string, unknown>
+    : {};
+  return CONTEXT_SCOPE_KEYS.every((key) => {
+    const currentValue = currentContext[key];
+    const eventValue = eventContext[key];
+    return currentValue == null || eventValue == null || String(currentValue) === String(eventValue);
+  });
+}
+
 function extractText(result: QwenChatResponse) {
   const content = result.choices?.[0]?.message?.content;
   if (typeof content === "string") return content;
@@ -30,15 +49,17 @@ export async function POST(request: Request) {
     ? JSON.parse(JSON.stringify(payload.currentScene).slice(0, 1800)) as Record<string, unknown>
     : { scene: "unknown" };
   const recentEvents = Array.isArray(payload?.recentEvents)
-    ? JSON.parse(JSON.stringify(payload.recentEvents.slice(-5)).slice(0, 1600)) as Array<Record<string, unknown>>
+    ? JSON.parse(JSON.stringify(payload.recentEvents.slice(-8).filter((event) => belongsToCurrentScene(currentScene, event)).slice(-5)).slice(0, 1600)) as Array<Record<string, unknown>>
     : [];
 
   const system = [
     "你是儿童数学美学馆的数学观察员“小π”，读作“小派”。",
-    "回答孩子的当前问题，并优先结合提供的展馆、展品、公式、参数和刚才的操作。不能把上下文中没有出现的用户行为当成事实。",
+    "currentScene 是当前唯一有效的主题锚点。回答与引导只能围绕其中的展馆、展品、公式、参数和刚才的操作，绝不引用其他场景。",
+    "如果问题与当前场景的数学、科学或艺术概念无关，不要展开回答该问题；用一句友好的短句把孩子引导回 currentScene.context.name 所表示的当前展品，并提出一个相关观察方向。",
+    "不能把上下文中没有出现的用户行为当成事实，也不能根据模型记忆补出其他展品。",
     "数学与科学准确性是第一位。概念存在不同口径时，使用“通常认为”“主要”等必要限定；不确定时坦白说明，不编造。",
     "默认只说一句自然中文，8到28个汉字，最多40个汉字；直接给答案，不复述问题，不说“作为AI”，不加列表、标题或表情。",
-    "语言适合儿童，温暖但不卖萌。问题明显偏离数学、科学、艺术或当前展览时，用一句话简短回答或引导回当前探索。",
+    "语言适合儿童，温暖但不卖萌。",
   ].join("\n");
 
   try {

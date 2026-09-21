@@ -366,6 +366,7 @@ export default function Home() {
           <button onClick={() => scrollToId("workshop")}>互动工坊</button>
           <button onClick={() => scrollToId("garden")}>数学花园</button>
           <button onClick={() => scrollToId("hometown")}>我的家乡数学馆</button>
+          <button onClick={() => window.location.assign("/about")}>关于</button>
         </nav>
         <button
           className={"progress-button " + (gardenProgress >= 5 ? "certificate-ready" : "")}

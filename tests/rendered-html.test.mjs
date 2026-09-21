@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readdir, readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", String(process.pid) + "-" + String(Date.now()));
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", {
+    new Request(`http://localhost${path}`, {
       headers: { accept: "text/html" },
     }),
     {
@@ -40,6 +40,16 @@ test("server-renders the finished mathematics museum", async () => {
   assert.match(html, /我的家乡数学馆/);
   assert.doesNotMatch(html, /journey-intro|class="exhibit|互动实验台/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/i);
+});
+
+test("serves the about page and its contact story", async () => {
+  const response = await render("/about");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /关于数学美学馆/);
+  assert.match(html, /小产品经理/);
+  assert.match(html, /Vibe coder/);
+  assert.match(html, /wechat-qr\.jpg/);
 });
 
 test("ships four interactive WebGL halls and twelve concepts", async () => {
@@ -403,6 +413,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.brand\{min-height:44px\}/);
   assert.match(page, /src="\/forma-animation-math\.svg"/);
   assert.match(page, /src="\/forma-animation-math-white\.svg"/);
+  assert.match(page, /window\.location\.assign\("\/about"\)/);
   assert.doesNotMatch(page, /className="brand-mark"/);
   assert.match(css, /\.garden-nav-theme \.brand-animation-on-light,\.workshop-nav-theme \.brand-animation-on-light\{opacity:1\}/);
   assert.match(css, /\.nature-lab-control>span\{font-size:10px\}/);

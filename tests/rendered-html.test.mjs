@@ -401,6 +401,10 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /height:100dvh/);
   assert.match(css, /Mobile child-friendly readability and cross-browser touch targets/);
   assert.match(css, /\.brand\{min-height:44px\}/);
+  assert.match(page, /src="\/forma-animation-math\.svg"/);
+  assert.match(page, /src="\/forma-animation-math-white\.svg"/);
+  assert.doesNotMatch(page, /className="brand-mark"/);
+  assert.match(css, /\.garden-nav-theme \.brand-animation-on-light,\.workshop-nav-theme \.brand-animation-on-light\{opacity:1\}/);
   assert.match(css, /\.nature-lab-control>span\{font-size:10px\}/);
   assert.match(css, /input\[type=range\]::-moz-range-thumb\{width:20px;height:20px\}/);
   assert.match(css, /data-webgl-ready="false"\] canvas\{opacity:0\}/);

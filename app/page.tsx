@@ -355,8 +355,11 @@ export default function Home() {
     <main className={`immersive-main ${certificateOpen ? "certificate-mode" : ""} ${studioOpen ? "studio-mode" : ""}`}>
       <header className="site-header">
         <button className="brand" onClick={() => scrollToId("hall")}>
-          <span className="brand-mark">φ</span>
-          <span>数学美学展<small>Math Beauty Museum</small></span>
+          <span className="brand-animation" aria-hidden="true">
+            <img className="brand-animation-on-light" src="/forma-animation-math.svg" width="512" height="512" alt="" />
+            <img className="brand-animation-on-dark" src="/forma-animation-math-white.svg" width="512" height="512" alt="" />
+          </span>
+          <span className="brand-copy">数学美学展<small>Math Beauty Museum</small></span>
         </button>
         <nav aria-label="沉浸空间导航">
           <button onClick={() => scrollToId("hall")}>四展馆</button>

@@ -679,7 +679,7 @@ export function InteractiveWorkshop() {
   const [retryKey, setRetryKey] = useState(0);
   const openDetail = useCallback((id: "paper" | "slice" | "mahler") => {
     const scene = id === "mahler" ? "workshop-mahler" : id === "slice" ? "workshop-slice" : "workshop-paper";
-    setMathObserverScene(scene, { game: id, ...(id === "mahler" ? { name: "Mahler 凸体对偶", formula: "|K| |K°| ≥ 8" } : {}) });
+    setMathObserverScene(scene, { game: id, ...(id === "mahler" ? { name: "Mahler 凸体对偶", formula: "|K| |K°| ≥ 32/3（三维）" } : {}) });
     setDetailOpen(id);
     observeMathAction({
       id: `workshop-open-${id}`,
@@ -687,7 +687,7 @@ export function InteractiveWorkshop() {
       action: "workshop_game_opened",
       outcome: "discovery",
       importance: .72,
-      suggestedCue: id === "mahler" ? "先把圆变成菱形，再只改变剪切，看看面积乘积。" : id === "slice" ? "先拖动光片，不急着切开。看实时截面怎样变化。" : "先圈出一个小形状，再展开看它怎样重复。",
+      suggestedCue: id === "mahler" ? "先比较八面体与立方体，再转动或剪切，看看体积乘积。" : id === "slice" ? "先拖动光片，不急着切开。看实时截面怎样变化。" : "先圈出一个小形状，再展开看它怎样重复。",
       once: true,
       context: { game: id },
     });

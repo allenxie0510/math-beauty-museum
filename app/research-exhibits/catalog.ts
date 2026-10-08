@@ -25,10 +25,10 @@ export type ResearchRecord = {
 
 export const mahlerResearch: ResearchRecord = {
   familyId: "087", title: "The symmetric Mahler conjecture and its equality cases",
-  frontierTitle: "从二维对偶，走向所有维数的体积乘积",
+  frontierTitle: "从低维对偶，走向所有维数的体积乘积",
   version: "2026-09-22 手稿 · 2026-10-08 调研快照",
-  classicalBackground: "极对偶、二维对称凸体面积乘积下界 8，以及可逆线性变换下乘积不变，都是已有数学知识。",
-  experimentScope: "这里操作的是二维对称 Lp 单位球与极对偶。面积为边界采样近似；二维画面不验证高维结论。",
+  classicalBackground: "极对偶、二维对称下界 8、三维对称下界 32/3，以及可逆线性变换下乘积不变，都是已有数学知识。三维对称情形由 Iriyeh–Shibata 证明（2017预印本，2020发表）。",
+  experimentScope: "这里操作二维／三维对称 Lp 单位球及其剪切与极对偶。二维面积由边界采样近似；三维体积由经典解析公式计算，显示曲面为网格近似。它不验证所有凸体或所有维数的结论。",
   claim: "手稿声称：所有维数的原点对称凸体都满足 |K|·|K°| ≥ 4ⁿ/n!，并把等号情形刻画为 Hanner 凸体的可逆线性像。",
   verification: "范围页列出对称不等式与等号刻画。已核对所选 Comparator 的对称性、紧致性、凸性与非空内部条件；该文件含 sorry，是待比对的声明，不能当作完整证明。范围页对非对称结果的文字存在不一致，本展品只引用对称主张。本馆未运行 Lean 或独立审查证明。",
   paperUrl: `${researchRoot}/preprints/The-symmetric-Mahler-conjecture-and-its-equality-cases-September-22-2026/paper.pdf`,

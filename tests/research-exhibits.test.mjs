@@ -109,3 +109,65 @@ test("nodal extraction produces finite zero contours, including the analytic sin
   }
   assert.throws(() => nodal.nodalSegments({ m: 0, n: 0, mix: 0, phase: 0 }), RangeError);
 });
+
+function meshVolume(mesh) {
+  let volume = 0;
+  for (const face of mesh.faces) for (let j = 1; j + 1 < face.length; j++) {
+    const [a, b, c] = [face[0], face[j], face[j + 1]].map((i) => mesh.vertices[i]);
+    volume += (a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6;
+  }
+  return volume;
+}
+
+test("3D Mahler exact polyhedra, sphere and analytic volumes agree with independent integration", () => {
+  const octa = mahler.mahlerPair3(1, 0);
+  assert.equal(octa.body.faces.length, 8); assert.equal(octa.polar.faces.length, 6);
+  near(meshVolume(octa.body), 4 / 3); near(meshVolume(octa.polar), 8); near(octa.product, 32 / 3);
+  near(mahler.mahlerPair3(2, 0).product, 16 * Math.PI ** 2 / 9);
+  // Integrate the height of the solid above a uniform grid in one octant.
+  for (const p of [1.05, 1.5, 2, 4, 8, 21]) {
+    const resolution = 1000;
+    let volume = 0;
+    for (let i = 0; i < resolution; i++) {
+      const xp = ((i + .5) / resolution) ** p;
+      for (let j = 0; j < resolution; j++) {
+        const remainder = 1 - xp - ((j + .5) / resolution) ** p;
+        if (remainder > 0) volume += remainder ** (1 / p);
+      }
+    }
+    near(8 * volume / resolution ** 2, mahler.lpVolume3(p), .0015);
+  }
+  for (const p of [1, 1.05, 2, 8, 21, Infinity]) {
+    const coarse = meshVolume(mahler.lpSurface3(p, 12)), fine = meshVolume(mahler.lpSurface3(p, 48)), exact = mahler.lpVolume3(p);
+    assert.ok(fine <= exact + 1e-10);
+    assert.ok(Math.abs(exact - fine) <= Math.abs(exact - coarse) + 1e-10);
+    assert.ok(Math.abs(exact - fine) / exact < .002);
+  }
+});
+
+test("3D shear preserves actual mesh volumes, polar incidence and a bounded shared viewport", () => {
+  for (const p of [1, 1.05, 1.5, 2, 4, 8]) {
+    const plain = mahler.mahlerPair3(p, 0);
+    for (const shear of [-.8, .8]) {
+      const pair = mahler.mahlerPair3(p, shear);
+      near(meshVolume(pair.body), meshVolume(plain.body));
+      near(meshVolume(pair.polar), meshVolume(plain.polar));
+      for (const mesh of [pair.body, pair.polar]) for (const point of mesh.vertices) {
+        assert.ok(point.every(Number.isFinite));
+        assert.ok(Math.hypot(...point) * .19 < .46, "fits under every orthographic rotation");
+      }
+      for (let i = 0; i < plain.body.vertices.length; i += 19) for (let j = 0; j < plain.polar.vertices.length; j += 19) {
+        const before = plain.body.vertices[i].reduce((sum, v, k) => sum + v * plain.polar.vertices[j][k], 0);
+        const after = pair.body.vertices[i].reduce((sum, v, k) => sum + v * pair.polar.vertices[j][k], 0);
+        near(before, after); assert.ok(after <= 1 + 1e-10);
+      }
+    }
+  }
+  for (let i = 0; i <= 140; i++) {
+    const p = 1 + i * .05, q = mahler.polarExponent(p), product = mahler.lpVolume3(p) * mahler.lpVolume3(q);
+    assert.ok(product >= 32 / 3 - 1e-10 && product <= 16 * Math.PI ** 2 / 9 + 1e-10);
+  }
+  assert.throws(() => mahler.lpSurface3(NaN), RangeError);
+  assert.throws(() => mahler.lpSurface3(2, 10000), RangeError);
+  assert.throws(() => mahler.mahlerPair3(2, 1), RangeError);
+});

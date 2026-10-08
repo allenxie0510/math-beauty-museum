@@ -13,3 +13,5 @@
 @media(max-width:520px){.torus-slice{gap:14px;padding:12px}.torus-slice figcaption{font-size:11px}}
 .voronoi-stage svg{display:block;width:100%;height:auto;aspect-ratio:120/124;cursor:crosshair}.voronoi-stage text{fill:#c8d8e6;font-size:2.6px}.voronoi-sampling{margin:24px 0;padding:22px;border:1px solid #ffffff25;border-radius:18px;background:#101928;color:#bdcbdc;font-size:13px;line-height:1.8}.voronoi-sampling h3{margin:0 0 8px;color:#e2e9f1;font-size:18px;font-weight:500}.voronoi-sampling progress{width:100%;height:9px;accent-color:#8bd4c4}.voronoi-stat{color:#8bd4c4;font-variant-numeric:tabular-nums}.voronoi-sampling small{font-size:12px}.research-presets button:disabled{opacity:.45;cursor:wait}
 @media(max-width:520px){.voronoi-sampling{padding:16px}.voronoi-sampling .research-presets{display:grid;grid-template-columns:1fr}.voronoi-stage text{font-size:3.2px}}
+
+.nodal-plot{position:relative;aspect-ratio:1;width:100%;overflow:hidden;background:#080f1c}.research-stage .nodal-plot canvas,.nodal-plot svg{position:absolute;inset:0;display:block;width:100%;height:100%}.nodal-plot svg{pointer-events:none}

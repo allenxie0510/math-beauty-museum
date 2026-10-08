@@ -171,3 +171,45 @@ test("3D shear preserves actual mesh volumes, polar incidence and a bounded shar
   assert.throws(() => mahler.lpSurface3(2, 10000), RangeError);
   assert.throws(() => mahler.mahlerPair3(2, 1), RangeError);
 });
+
+test("analytic nodal paths preserve exact crossing families at equal mixing", () => {
+  const parameters = { m: 1, n: 1, mix: 45, phase: 0 };
+  const paths = nodal.nodalPaths(parameters);
+  assert.equal(paths.length, 4);
+  assert.ok(paths.every((path) => path.length === 2));
+  for (const fixed of [.25, .75]) {
+    assert.ok(paths.some(([a, b]) => Math.abs(a[0] - fixed) < 1e-12 && Math.abs(b[0] - fixed) < 1e-12 && Math.abs(a[1] - b[1]) === 1));
+    assert.ok(paths.some(([a, b]) => Math.abs(a[1] - fixed) < 1e-12 && Math.abs(b[1] - fixed) < 1e-12 && Math.abs(a[0] - b[0]) === 1));
+  }
+});
+
+test("adaptive nodal chords remain close to zero at high frequencies and across periodic seams", () => {
+  let maxResidual = 0, maxSeamError = 0;
+  for (const [m, n] of [[1, 0], [1, 5], [5, 4], [5, 5]]) for (const mix of [0, 1, 35, 44, 45, 46, 89, 90]) for (const phase of [0, 85, 180, 360]) {
+    const parameters = { m, n, mix, phase }, paths = nodal.nodalPaths(parameters);
+    assert.ok(paths.length > 0);
+    for (const path of paths) for (let i = 1; i < path.length; i++) {
+      const [a, b] = [path[i - 1], path[i]];
+      for (const t of [0, .25, .5, .75, 1]) {
+        const x = a[0] + t * (b[0] - a[0]), y = a[1] + t * (b[1] - a[1]);
+        assert.ok(x >= 0 && x <= 1 && y >= 0 && y <= 1);
+        const residual = Math.abs(nodal.torusEigenfunction(x, y, parameters));
+        maxResidual = Math.max(maxResidual, residual);
+        assert.ok(residual < .001, `${JSON.stringify(parameters)}: ${residual}`);
+      }
+    }
+    // Non-degenerate cases have matching boundary crossings on opposite sides.
+    if (mix === 35 || mix === 44 || mix === 46) for (const axis of [0, 1]) {
+      const endpoints = paths.flatMap((path) => [path[0], path.at(-1)]);
+      const left = endpoints.filter((p) => p[axis] === 0).map((p) => p[1 - axis]).sort((a, b) => a - b);
+      const right = endpoints.filter((p) => p[axis] === 1).map((p) => p[1 - axis]).sort((a, b) => a - b);
+      assert.equal(left.length, right.length, JSON.stringify(parameters));
+      for (let i = 0; i < left.length; i++) {
+        const error = Math.abs(left[i] - right[i]);
+        maxSeamError = Math.max(maxSeamError, error);
+        assert.ok(error < 5e-5, `${JSON.stringify(parameters)}: seam ${error}`);
+      }
+    }
+  }
+  console.log({ nodalMaxResidual: maxResidual, nodalMaxSeamError: maxSeamError });
+});

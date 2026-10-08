@@ -128,3 +128,46 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
 - [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+
+## Xiao Pi: explicit opt-in and operating limits
+
+Updated 2026-10-08. Every new page starts with Xiao Pi in `quiet` mode, including
+visitors who previously saved `balanced` or `active`. Only cooldown and character
+position preferences persist. Ordinary clicks, keyboard activity, scrolling,
+and opening the character settings do not enable microphone capture, recognition,
+AI decisions, or speech. Choosing Balanced/Active explicitly enables assistance
+for that page; reloading starts quietly again. Muting cancels pending decisions,
+voice sessions and speech, including a microphone request that completes late.
+
+The active AI provider is Alibaba Cloud DashScope/Qwen, not OpenAI. The four
+observer routes perform decision generation, question answering, ASR and TTS.
+Text is billed by the applicable model's token usage, ASR by its audio pricing,
+and TTS by its synthesis pricing. A decision returning `silent` can still consume
+billable model usage. Frontend silence prevents normal automatic calls but does
+not disable the public server endpoints. Existing protection is a per-IP,
+per-process 60-second window (decide 24, ask 20, listen 18, speech 36); it is neither
+a distributed limiter nor a global spending cap. School networks sharing one IP
+may share those buckets. Before broad AI rollout, add distributed user/session
+quotas and a server-side daily budget/kill switch.
+
+Capacity is not a fixed number of open browser tabs. Most exhibit rendering and
+math computation run on visitors' devices; page/assets use Vercel, and hometown
+content/auth/media use Supabase. The platform's function-concurrency ceiling is
+not a tested visitor-capacity claim. Neither the account plans, actual Qwen model
+overrides, account quotas nor load-test results were available in this audit.
+For illustration only: the published `qwen3-asr-flash` default is 100 requests/min;
+at two recognition calls per person per minute, ASR alone permits roughly 50
+active speakers before accounting for bursts, retries, other callers and the
+answer/TTS bottlenecks. This is not a production capacity guarantee.
+
+References: [Vercel function limits](https://vercel.com/docs/functions/limitations),
+[DashScope rate limits](https://help.aliyun.com/zh/model-studio/rate-limit),
+[DashScope model pricing](https://help.aliyun.com/zh/model-studio/model-pricing).
+
+Validation: 40 tests and both build targets passed; targeted ESLint passed.
+Ego Lite verified a legacy Active preference still starts Quiet; navigation and
+opening settings produced zero observer requests, zero microphone attempts and
+zero wake recognition starts. With mocked microphone/AI services, explicit
+activation worked and muting before microphone completion prevented activation.
+After reload, Quiet and zero observer resource requests were confirmed again.
+No paid AI call was made during QA. See [settings screenshot](docs/qa-observer-quiet.png).

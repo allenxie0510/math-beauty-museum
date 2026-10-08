@@ -556,7 +556,6 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(css, /\.math-observer\.is-dragging/);
   assert.match(css, /\.math-observer\.settings-to-right/);
   assert.match(observer, /pendingActionRef/);
-  assert.match(observer, /affectCooldown: false/);
   assert.match(observer, /voiceRecoveryAttemptsRef/);
   assert.match(observer, /wake recognition did not become ready; rebuilding it/);
   assert.match(observer, /releaseVoiceStream\("play-and-record"\)/);

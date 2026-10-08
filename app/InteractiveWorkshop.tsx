@@ -27,7 +27,7 @@ const PANELS: GalleryPanel[] = [
   { color: "#9273bd", title: "凸体对偶", position: [3.56, 1.25, -4.08], id: "mahler" },
   { color: "#727e4e", title: "环面等周", position: [-1.2, -1.25, -4.08], id: "torus" },
   { color: "#92738f", title: "素数护城河", position: [1.18, -1.25, -4.08], id: "gaussian" },
-  { color: "#c4a33e", title: "Voronoi 渗流", position: [3.56, -1.25, -4.08], id: "voronoi" },
+  { color: "#829a9c", title: "Voronoi 渗流", position: [3.56, -1.25, -4.08], id: "voronoi" },
 ];
 
 function panelTexture(panel: GalleryPanel) {
@@ -42,7 +42,7 @@ function panelTexture(panel: GalleryPanel) {
   const mahlerContent = `<g fill="none" stroke="#f7f8fa" stroke-width="24"><path d="M500 830L760 530L1020 830L760 1130Z"/><path d="M1110 580H1530V1080H1110Z"/></g><text x="1024" y="1480" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="138">凸体对偶</text><text x="1024" y="1650" text-anchor="middle" fill="#e4d4ff" font-family="sans-serif" font-size="58">2026 数学前沿 · OpenAI</text>`;
   const torusContent = `<g fill="none" stroke="#f7f8fa" stroke-width="24"><circle cx="620" cy="820" r="180"/><path d="M910 640V1000M1170 640V1000"/><ellipse cx="1040" cy="640" rx="130" ry="45"/><ellipse cx="1040" cy="1000" rx="130" ry="45"/><path d="M1370 630V1030M1500 630V1030"/></g>`;
   const gaussianContent = `<g fill="#f7f8fa">${[[600,680],[720,800],[840,680],[960,920],[1080,800],[1200,920],[1320,680],[1440,800],[840,1040],[1440,1040]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="32"/>`).join("")}</g><path d="M600 680L720 800L840 680M960 920L1080 800L1200 920" fill="none" stroke="#f4bd85" stroke-width="18"/>`;
-  const voronoiContent = `<g stroke="#f7f8fa" stroke-width="16" stroke-linejoin="round"><path d="M620 560H990L890 850L580 950Z" fill="#8bd4c4"/><path d="M990 560H1410L1490 890L1180 950L890 850Z" fill="#485675"/><path d="M580 950L890 850L1180 950L1120 1160H640Z" fill="#485675"/><path d="M1180 950L1490 890L1430 1160H1120Z" fill="#8bd4c4"/></g>`;
+  const voronoiContent = `<g fill="none" stroke="#ffffff" stroke-width="24" stroke-linejoin="round"><path d="M620 560H1410L1490 890L1430 1160H640L580 950Z"/><path d="M990 560L890 850L580 950M890 850L1180 950L1490 890M1180 950L1120 1160"/></g>`;
   const frontierContent = `${panel.id === "torus" ? torusContent : panel.id === "voronoi" ? voronoiContent : gaussianContent}<text x="1024" y="1480" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="138">${panel.title}</text><text x="1024" y="1650" text-anchor="middle" fill="#e4d4ff" font-family="sans-serif" font-size="58">2026 数学前沿 · OpenAI</text>`;
   const content = panel.id === "torus" || panel.id === "gaussian" || panel.id === "voronoi" ? frontierContent : panel.id === "mahler" ? mahlerContent : panel.id === "paper" ? paperContent : panel.id === "slice" ? sliceContent : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><rect width="2048" height="2048" fill="${panel.color}"/>${content}</svg>`;

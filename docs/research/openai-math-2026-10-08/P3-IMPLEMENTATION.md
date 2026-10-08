@@ -68,3 +68,7 @@ Ego Lite 验收空间 58，桌面 1440×1000、手机模拟 390×844，完成后
 截图：[桌面分区](qa-p3/voronoi-desktop.png)、[手机分区](qa-p3/voronoi-mobile.png)、[重复采样](qa-p3/voronoi-sampling.png)。
 
 未覆盖实体手机、Safari、Firefox 或生产部署健康检查；GitHub 推送与线上部署状态分开报告。
+
+## 2026-10-08 入口视觉调整
+
+按用户截图反馈，Voronoi 圆形入口由黄底双色图案改为浅青灰底、纯白 Voronoi 分区线稿，与其他展板图示统一。仅修改工坊入口纹理与面板颜色，不改变渗流实验内容。Ego Lite 桌面已目视核对：[入口截图](qa-workspace/voronoi-entry.png)。

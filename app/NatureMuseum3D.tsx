@@ -9,6 +9,10 @@ import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 import { observeMathAction, setMathObserverScene } from "./math-observer-events";
 
+import EntranceArtworkPanel, { ENTRANCE_ARTWORKS } from "./entrance/EntranceArtworkPanel";
+import { DEFAULT_VORTEX, type VortexParameters } from "./entrance/burgers-vortex";
+import { makeVortexSculpture } from "./entrance/VortexSculpture";
+
 const LatticeEnergyLab = lazy(() => import("./research-exhibits/LatticeEnergyLab"));
 const StandardMapLab = lazy(() => import("./research-exhibits/StandardMapLab"));
 const NodalLinesLab = lazy(() => import("./research-exhibits/NodalLinesLab"));
@@ -1448,13 +1452,15 @@ function buildHallScene(hallIndex: number, lowPower: boolean, boardTextureScale:
 
 const ATRIUM_ARTWORK_DURATION_MS = 12_000;
 
-function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallIndex: number; atriumArtwork: number; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
+function MuseumCanvas({ hallIndex, atriumArtwork, vortexParameters, onSelect, onEnter }: { hallIndex: number; atriumArtwork: number; vortexParameters: VortexParameters; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [retryKey, setRetryKey] = useState(0);
   const fallbackHall = hallIndex >= 0 ? HALLS[hallIndex] : null;
   const onSelectRef = useRef(onSelect);
   const hallIndexRef = useRef(hallIndex);
   const atriumArtworkRef = useRef(atriumArtwork);
+  const vortexParametersRef = useRef(vortexParameters);
+  useEffect(() => { vortexParametersRef.current = vortexParameters; }, [vortexParameters]);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   useEffect(() => { hallIndexRef.current = hallIndex; }, [hallIndex]);
   useEffect(() => { atriumArtworkRef.current = atriumArtwork; }, [atriumArtwork]);
@@ -1644,6 +1650,12 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
 
     const continuum = new THREE.Group();
     continuum.position.set(0, 3.05, .25);
+    let currentVortexParameters = vortexParametersRef.current;
+    let vortex = makeVortexSculpture(currentVortexParameters, lowPower);
+    continuum.add(vortex.group);
+    const vortexFormula = makeFormulaHologram("∂ₜu + (u·∇)u = −∇p + νΔu  ·  ∇·u = 0", "#8fe1df", lowPower);
+    vortexFormula.position.set(0, 3.15, .08);
+    continuum.add(vortexFormula);
     const surfaceGeometry = makeSquareRootSurfaceGeometry(lowPower ? 18 : 30, lowPower ? 56 : 104);
     const surfaceParameters = {
       time: { value: 0 },
@@ -1982,11 +1994,26 @@ function MuseumCanvas({ hallIndex, atriumArtwork, onSelect, onEnter }: { hallInd
           });
         }
       }
-      const showSquareRootSurface = atriumArtworkRef.current === 0;
+      if (loadedHallIndex < 0 && atriumArtworkRef.current === 0) {
+        if (currentVortexParameters !== vortexParametersRef.current) {
+          continuum.remove(vortex.group);
+          disposeObject(vortex.group);
+          currentVortexParameters = vortexParametersRef.current;
+          vortex = makeVortexSculpture(currentVortexParameters, lowPower);
+          continuum.add(vortex.group);
+        }
+        vortex.update(reducedMotion ? 0 : elapsed);
+      }
+      const showVortex = atriumArtworkRef.current === 0;
+      const showSquareRootSurface = atriumArtworkRef.current === 1;
+      const showTesseract = atriumArtworkRef.current === 2;
+      vortex.group.visible = loadedHallIndex < 0 && showVortex;
+      vortexFormula.visible = loadedHallIndex < 0 && showVortex;
+      container.dataset.atriumArtwork = String(atriumArtworkRef.current);
       surface.visible = loadedHallIndex < 0 && showSquareRootSurface;
-      tesseract.visible = loadedHallIndex < 0 && !showSquareRootSurface;
+      tesseract.visible = loadedHallIndex < 0 && showTesseract;
       squareRootFormula.visible = loadedHallIndex < 0 && showSquareRootSurface;
-      tesseractFormula.visible = loadedHallIndex < 0 && !showSquareRootSurface;
+      tesseractFormula.visible = loadedHallIndex < 0 && showTesseract;
       renderer.render(scene, camera);
       adaptiveResolution.sample(now);
       metricsFrame++;
@@ -2992,6 +3019,8 @@ function MuseumPreview({ item, settings, signalRef }: { item: MuseumItem; settin
 export function NatureMuseumWorld() {
   const [hallIndex, setHallIndex] = useState(-1);
   const [atriumArtwork, setAtriumArtwork] = useState(0);
+  const [atriumPaused, setAtriumPaused] = useState(false);
+  const [vortexParameters, setVortexParameters] = useState(DEFAULT_VORTEX);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [researchOpen, setResearchOpen] = useState(false);
   const researchEntryRef = useRef<HTMLButtonElement>(null);
@@ -3039,7 +3068,7 @@ export function NatureMuseumWorld() {
   }, [hallIndex, selectedId, researchOpen, research]);
 
   useEffect(() => {
-    if (hallIndex !== -1 || transition !== "idle") return;
+    if (hallIndex !== -1 || transition !== "idle" || atriumPaused) return;
     const gallery = galleryRef.current;
     if (!gallery) return;
     let timer = 0;
@@ -3048,10 +3077,10 @@ export function NatureMuseumWorld() {
       stopCycling();
       if (!visible) return;
       setAtriumArtwork(0);
-      timer = window.setInterval(() => setAtriumArtwork((current) => current === 0 ? 1 : 0), ATRIUM_ARTWORK_DURATION_MS);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) timer = window.setInterval(() => setAtriumArtwork((current) => (current + 1) % ENTRANCE_ARTWORKS.length), ATRIUM_ARTWORK_DURATION_MS);
     });
     return () => { stopCycling(); stopObserving(); };
-  }, [hallIndex, transition]);
+  }, [hallIndex, transition, atriumPaused]);
 
   useEffect(() => {
     if (hallIndex < 0 || transition !== "idle") return;
@@ -3274,8 +3303,9 @@ export function NatureMuseumWorld() {
       data-hall={hall?.key ?? "atrium"}
       style={{ "--hall-accent": hall?.accent ?? "#9fb4ff" } as React.CSSProperties}
     >
-      <MuseumCanvas hallIndex={hallIndex} atriumArtwork={atriumArtwork} onSelect={select} onEnter={() => switchHall(1)} />
+      <MuseumCanvas hallIndex={hallIndex} atriumArtwork={atriumArtwork} vortexParameters={vortexParameters} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />
+      {!hall && <EntranceArtworkPanel artwork={atriumArtwork} paused={atriumPaused} parameters={vortexParameters} onPause={setAtriumPaused} onSelect={(index) => { setAtriumArtwork(index); setAtriumPaused(true); }} onParameters={setVortexParameters} />}
       <div className="nature-progress" aria-label={hall ? "已经发现 " + currentDiscoveries + " 个" + hall.category : "数学美学展序厅"}>
         <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
         <p>{hall?.category ?? "参观序章"}<br /><b>{hall ? currentDiscoveries === 3 ? "全部发现" : "等待探索" : "连续体正在变化"}</b></p>

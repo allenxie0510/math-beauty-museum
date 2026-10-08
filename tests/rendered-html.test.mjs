@@ -227,7 +227,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(museum, /"w² = z {2}· {2}w = ±√z"/);
   assert.match(museum, /"\(x, y, z, w\) {2}→ {2}\(X, Y, Z\)"/);
   assert.match(museum, /squareRootFormula\.visible = loadedHallIndex < 0 && showSquareRootSurface/);
-  assert.match(museum, /tesseract\.visible = loadedHallIndex < 0 && !showSquareRootSurface/);
+  assert.match(museum, /tesseract\.visible = loadedHallIndex < 0 && showTesseract/);
   assert.doesNotMatch(museum, /className="atrium-artwork-carousel"/);
   assert.match(museum, /const ATRIUM_ARTWORK_DURATION_MS = 12_000/);
   assert.match(museum, /setInterval\(\(\) => setAtriumArtwork/);

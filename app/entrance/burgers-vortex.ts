@@ -4,6 +4,8 @@
  */
 export type VortexParameters = { strain: number; viscosity: number; circulation: number };
 export type VortexPoint = readonly [number, number, number];
+export type VortexPlayback = { paused: boolean; speed: number };
+export const DEFAULT_PLAYBACK: VortexPlayback = { paused: false, speed: 1 };
 export const DEFAULT_VORTEX: VortexParameters = { strain: .75, viscosity: .16, circulation: 20 };
 export const FLUID_RESEARCH_COMMIT = "f9e8bc5b38b6e212696e8a30e3e91517af887bbd";
 export const FLUID_RESEARCH_URL = `https://github.com/openai/NavierStokesAndEuler/tree/${FLUID_RESEARCH_COMMIT}`;
@@ -24,6 +26,10 @@ export function vortexVelocity([x, y, z]: VortexPoint, p: VortexParameters): Vor
 }
 export function vortexVorticity(radius: number, p: VortexParameters) {
   return p.circulation * p.strain / (4 * Math.PI * p.viscosity) * Math.exp(-p.strain * radius * radius / (4 * p.viscosity));
+}
+/** Radius where axial vorticity drops to 1/e of its value on the axis. */
+export function vortexCoreRadius(p: VortexParameters) {
+  return Math.sqrt(4 * p.viscosity / p.strain);
 }
 /** ∇p for the exact steady solution; p_z=-a²z, p_r=u_theta²/r-a²r/4. */
 export function vortexPressureGradient([x, y, z]: VortexPoint, p: VortexParameters): VortexPoint {

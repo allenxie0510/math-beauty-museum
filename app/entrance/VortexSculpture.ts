@@ -21,7 +21,7 @@ export function makeVortexSculpture(parameters: VortexParameters, lowPower: bool
     const points = samples.map(([x, y, z]) => new THREE.Vector3(x, z, -y));
     paths.push({ points, duration });
     const curve = new THREE.CatmullRomCurve3(points, false, "centripetal");
-    const tube = new THREE.TubeGeometry(curve, steps, lowPower ? .027 : .025, 6, false);
+    const tube = new THREE.TubeGeometry(curve, steps, lowPower ? .017 : .014, 6, false);
     const colors = new Float32Array(tube.attributes.position.count * 3);
     const position = tube.attributes.position;
     for (let i = 0; i < position.count; i++) {
@@ -35,26 +35,47 @@ export function makeVortexSculpture(parameters: VortexParameters, lowPower: bool
   }
   const geometry = mergeGeometries(geometries)!;
   geometries.forEach((part) => part.dispose());
-  group.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .25, roughness: .43, emissive: "#123349", emissiveIntensity: .12 })));
-  const positions = new Float32Array(paths.length * 2 * 3);
-  const tracerGeometry = new THREE.BufferGeometry();
-  tracerGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
-  const tracers = new THREE.Points(tracerGeometry, new THREE.PointsMaterial({ color: "#fff4da", size: lowPower ? .047 : .058, transparent: true, opacity: .94, depthWrite: false, toneMapped: false }));
-  tracers.frustumCulled = false;
-  group.add(tracers);
+  group.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .25, roughness: .43, emissive: "#123349", emissiveIntensity: .12, transparent: true, opacity: .28, depthWrite: false })));
+  // Solid luminous heads and fading tails make advection visible against the steady field.
+  const count = paths.length * 2, tailSteps = lowPower ? 10 : 18, tailSeconds = .28;
+  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(lowPower ? .047 : .042, 8, 6), new THREE.MeshBasicMaterial({ color: "#fff2b1", toneMapped: false }), count);
+  heads.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  heads.frustumCulled = false;
+  group.add(heads);
+  const positions = new Float32Array(count * tailSteps * 6);
+  const colors = new Float32Array(positions.length);
+  const tailGeometry = new THREE.BufferGeometry();
+  tailGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+  const dim = new THREE.Color("#164960"), bright = new THREE.Color("#c5fff6");
+  for (let particle = 0; particle < count; particle++) for (let segment = 0; segment < tailSteps; segment++) {
+    for (let end = 0; end < 2; end++) dim.clone().lerp(bright, 1 - (segment + end) / tailSteps).toArray(colors, (particle * tailSteps + segment) * 6 + end * 3);
+  }
+  tailGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  const tails = new THREE.LineSegments(tailGeometry, new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false, transparent: true, opacity: .9, depthWrite: false }));
+  tails.frustumCulled = false;
+  group.add(tails);
+  const position = new THREE.Vector3(), matrix = new THREE.Matrix4();
+  const sample = (points: THREE.Vector3[], phase: number, target: THREE.Vector3) => {
+    const q = Math.max(0, Math.min(1, phase)) * (points.length - 1);
+    const start = Math.floor(q);
+    return target.copy(points[start]).lerp(points[Math.min(start + 1, points.length - 1)], q - start);
+  };
   const update = (time: number) => {
     paths.forEach(({ points, duration }, index) => {
       for (let copy = 0; copy < 2; copy++) {
-        const q = ((time * .55 / duration + index * .61803398875 + copy * .5) % 1) * (points.length - 1);
-        const start = Math.floor(q), fraction = q - start;
-        const a = points[start], b = points[Math.min(start + 1, points.length - 1)];
-        const offset = (index * 2 + copy) * 3;
-        positions[offset] = a.x + (b.x - a.x) * fraction;
-        positions[offset + 1] = a.y + (b.y - a.y) * fraction;
-        positions[offset + 2] = a.z + (b.z - a.z) * fraction;
+        const phase = (time / duration + index * .61803398875 + copy * .5) % 1;
+        const particle = index * 2 + copy;
+        sample(points, phase, position);
+        heads.setMatrixAt(particle, matrix.makeTranslation(position.x, position.y, position.z));
+        for (let segment = 0; segment < tailSteps; segment++) for (let end = 0; end < 2; end++) {
+          // Clamp the trailing end at the inlet; never draw a line across reinjection.
+          sample(points, phase - tailSeconds / duration * (segment + end) / tailSteps, position);
+          position.toArray(positions, (particle * tailSteps + segment) * 6 + end * 3);
+        }
       }
     });
-    tracerGeometry.attributes.position.needsUpdate = true;
+    heads.instanceMatrix.needsUpdate = true;
+    tailGeometry.attributes.position.needsUpdate = true;
   };
   update(0);
   return { group, update };

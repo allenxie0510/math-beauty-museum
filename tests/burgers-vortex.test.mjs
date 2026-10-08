@@ -57,3 +57,40 @@ test('tracers follow the velocity with exact radial contraction and axial stretc
   assert.throws(()=>v.vortexTrajectory(seed,2,512,{...p,viscosity:0}),RangeError);
   assert.throws(()=>v.vortexTrajectory(seed,2,10000,p),RangeError);
 });
+
+test('circulation reverses spin independently of contraction; viscosity and strain set the core width', () => {
+  const p=v.DEFAULT_VORTEX,q=[.7,.2,.3];
+  const forward=v.vortexVelocity(q,p),reverse=v.vortexVelocity(q,{...p,circulation:-p.circulation}),zero=v.vortexVelocity(q,{...p,circulation:0});
+  for(let i=0;i<3;i++) near((forward[i]+reverse[i])/2,zero[i],1e-12);
+  near(zero[0],-p.strain*q[0]/2,1e-12);near(zero[2],p.strain*q[2],1e-12);
+  const core=v.vortexCoreRadius(p);
+  near(v.vortexVorticity(core,p)/v.vortexVorticity(0,p),1/Math.E,1e-12);
+  near(v.vortexCoreRadius({...p,viscosity:p.viscosity*2})/core,Math.sqrt(2),1e-12);
+  near(v.vortexCoreRadius({...p,strain:p.strain*2})/core,1/Math.sqrt(2),1e-12);
+  const seed=[2,0,.05];
+  const a=v.vortexTrajectory(seed,2,512,p),b=v.vortexTrajectory(seed,2,512,{...p,circulation:-p.circulation});
+  a.forEach((point,i)=>{near(point[0],b[i][0],1e-12);near(point[1],-b[i][1],1e-12);near(point[2],b[i][2],1e-12);});
+});
+
+test('rendered tracer heads move, keep finite tails, and avoid bridging the inlet reset', async () => {
+  const rendererSource = await readFile(new URL('../app/entrance/VortexSculpture.ts', import.meta.url), 'utf8');
+  const rendererJs = ts.transpileModule(rendererSource, {compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText
+    .replace('"three"',JSON.stringify(import.meta.resolve('three')))
+    .replace('"three/examples/jsm/utils/BufferGeometryUtils.js"',JSON.stringify(import.meta.resolve('three/examples/jsm/utils/BufferGeometryUtils.js')))
+    .replace('"./burgers-vortex"',JSON.stringify(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`));
+  const {makeVortexSculpture}=await import(`data:text/javascript;base64,${Buffer.from(rendererJs).toString('base64')}`);
+  for(const circulation of [-24,0,24]) {
+    const scene=makeVortexSculpture({...v.DEFAULT_VORTEX,circulation},true);
+    const heads=scene.group.children.find(n=>n.isInstancedMesh),tails=scene.group.children.find(n=>n.isLineSegments);
+    const initial=[...heads.instanceMatrix.array];
+    scene.update(.5);
+    assert.notDeepEqual([...heads.instanceMatrix.array],initial);
+    for(const time of [0,.5,20,1000]) {
+      scene.update(time);
+      assert.ok([...heads.instanceMatrix.array,...tails.geometry.attributes.position.array].every(Number.isFinite));
+      const p=tails.geometry.attributes.position.array;
+      for(let i=0;i<p.length;i+=6) assert.ok(Math.hypot(p[i]-p[i+3],p[i+1]-p[i+4],p[i+2]-p[i+5])<.5,'tail must not bridge an outlet to inlet');
+    }
+    scene.group.traverse(n=>{if(n.isInstancedMesh)n.dispose();n.geometry?.dispose();n.material?.dispose();});
+  }
+});

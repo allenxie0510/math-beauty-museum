@@ -10,7 +10,7 @@ import { observeElementSize, observeElementVisibility } from "./viewport";
 import { observeMathAction, setMathObserverScene } from "./math-observer-events";
 
 import EntranceArtworkPanel, { ENTRANCE_ARTWORKS } from "./entrance/EntranceArtworkPanel";
-import { DEFAULT_VORTEX, type VortexParameters } from "./entrance/burgers-vortex";
+import { DEFAULT_VORTEX, DEFAULT_PLAYBACK, type VortexParameters, type VortexPlayback } from "./entrance/burgers-vortex";
 import { makeVortexSculpture } from "./entrance/VortexSculpture";
 
 const LatticeEnergyLab = lazy(() => import("./research-exhibits/LatticeEnergyLab"));
@@ -474,6 +474,7 @@ function physical(color: string, options: Partial<THREE.MeshPhysicalMaterialPara
 function disposeObject(root: THREE.Object3D) {
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Line) && !(child instanceof THREE.Points)) return;
+    if (child instanceof THREE.InstancedMesh) child.dispose();
     child.geometry?.dispose();
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((entry) => {
@@ -1452,7 +1453,7 @@ function buildHallScene(hallIndex: number, lowPower: boolean, boardTextureScale:
 
 const ATRIUM_ARTWORK_DURATION_MS = 12_000;
 
-function MuseumCanvas({ hallIndex, atriumArtwork, vortexParameters, onSelect, onEnter }: { hallIndex: number; atriumArtwork: number; vortexParameters: VortexParameters; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
+function MuseumCanvas({ hallIndex, atriumArtwork, vortexParameters, vortexPlayback, onSelect, onEnter }: { hallIndex: number; atriumArtwork: number; vortexParameters: VortexParameters; vortexPlayback: VortexPlayback; onSelect: (id: string, hallIndex: number) => void; onEnter: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [retryKey, setRetryKey] = useState(0);
   const fallbackHall = hallIndex >= 0 ? HALLS[hallIndex] : null;
@@ -1460,6 +1461,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, vortexParameters, onSelect, on
   const hallIndexRef = useRef(hallIndex);
   const atriumArtworkRef = useRef(atriumArtwork);
   const vortexParametersRef = useRef(vortexParameters);
+  const vortexPlaybackRef = useRef(vortexPlayback);
+  useEffect(() => { vortexPlaybackRef.current = vortexPlayback; }, [vortexPlayback]);
   useEffect(() => { vortexParametersRef.current = vortexParameters; }, [vortexParameters]);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   useEffect(() => { hallIndexRef.current = hallIndex; }, [hallIndex]);
@@ -1893,6 +1896,7 @@ function MuseumCanvas({ hallIndex, atriumArtwork, vortexParameters, onSelect, on
     const minimumFrameInterval = renderProfile.targetFps === 30 ? 1000 / 30 : 0;
     let activeStop = 0;
     let transitionStarted = 0;
+    let vortexTime = 0, previousVortexFrame = 0;
     let activeAtriumArtwork = atriumArtworkRef.current;
     let artworkStartedAt = 0;
     let atriumWasActive = false;
@@ -1907,6 +1911,8 @@ function MuseumCanvas({ hallIndex, atriumArtwork, vortexParameters, onSelect, on
       lastFrameAt = now;
       if (!isSceneVisible || document.hidden || document.body.classList.contains("exhibit-mode")) { adaptiveResolution.pause(); return; }
       const elapsed = clock.getElapsedTime();
+      const vortexDelta = Math.min(.1, Math.max(0, elapsed - previousVortexFrame));
+      previousVortexFrame = elapsed;
       const requestedHallIndex = Math.max(-1, Math.min(HALLS.length - 1, hallIndexRef.current));
       loadOnlyHall(requestedHallIndex);
       const atriumIsActiveNow = loadedHallIndex < 0;
@@ -2002,7 +2008,9 @@ function MuseumCanvas({ hallIndex, atriumArtwork, vortexParameters, onSelect, on
           vortex = makeVortexSculpture(currentVortexParameters, lowPower);
           continuum.add(vortex.group);
         }
-        vortex.update(reducedMotion ? 0 : elapsed);
+        if (!reducedMotion && !vortexPlaybackRef.current.paused) vortexTime += vortexDelta * vortexPlaybackRef.current.speed;
+        vortex.update(vortexTime);
+        container.dataset.vortexTime = vortexTime.toFixed(3);
       }
       const showVortex = atriumArtworkRef.current === 0;
       const showSquareRootSurface = atriumArtworkRef.current === 1;
@@ -3021,6 +3029,7 @@ export function NatureMuseumWorld() {
   const [atriumArtwork, setAtriumArtwork] = useState(0);
   const [atriumPaused, setAtriumPaused] = useState(false);
   const [vortexParameters, setVortexParameters] = useState(DEFAULT_VORTEX);
+  const [vortexPlayback, setVortexPlayback] = useState(DEFAULT_PLAYBACK);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [researchOpen, setResearchOpen] = useState(false);
   const researchEntryRef = useRef<HTMLButtonElement>(null);
@@ -3303,9 +3312,9 @@ export function NatureMuseumWorld() {
       data-hall={hall?.key ?? "atrium"}
       style={{ "--hall-accent": hall?.accent ?? "#9fb4ff" } as React.CSSProperties}
     >
-      <MuseumCanvas hallIndex={hallIndex} atriumArtwork={atriumArtwork} vortexParameters={vortexParameters} onSelect={select} onEnter={() => switchHall(1)} />
+      <MuseumCanvas hallIndex={hallIndex} atriumArtwork={atriumArtwork} vortexParameters={vortexParameters} vortexPlayback={vortexPlayback} onSelect={select} onEnter={() => switchHall(1)} />
       <div className="nature-museum-shade" aria-hidden="true" />
-      {!hall && <EntranceArtworkPanel artwork={atriumArtwork} paused={atriumPaused} parameters={vortexParameters} onPause={setAtriumPaused} onSelect={(index) => { setAtriumArtwork(index); setAtriumPaused(true); }} onParameters={setVortexParameters} />}
+      {!hall && <EntranceArtworkPanel artwork={atriumArtwork} paused={atriumPaused} parameters={vortexParameters} playback={vortexPlayback} onPlayback={setVortexPlayback} onPause={setAtriumPaused} onSelect={(index) => { setAtriumArtwork(index); setAtriumPaused(true); }} onParameters={setVortexParameters} />}
       <div className="nature-progress" aria-label={hall ? "已经发现 " + currentDiscoveries + " 个" + hall.category : "数学美学展序厅"}>
         <span>{hall ? currentDiscoveries : "00"}{hall && <small>/ 3</small>}</span>
         <p>{hall?.category ?? "参观序章"}<br /><b>{hall ? currentDiscoveries === 3 ? "全部发现" : "等待探索" : "连续体正在变化"}</b></p>

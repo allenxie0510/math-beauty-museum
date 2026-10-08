@@ -1,5 +1,7 @@
 .lattice-lab{position:relative;z-index:1;width:100%;height:100svh;overflow:auto;color:#f2f2f5;background:radial-gradient(ellipse at 25% 35%,#172333 0,#080e18 58%);font-size:14px;scrollbar-color:#535d6d #0b111c}
 .lattice-lab *{box-sizing:border-box}
+/* Keep floating voice controls from covering the full-screen experiment controls. */
+body:has(.lattice-lab) .math-observer{visibility:hidden;opacity:0;pointer-events:none}
 .lattice-header{padding:28px clamp(20px,4vw,64px) 24px;border-bottom:1px solid #ffffff16}
 .lattice-header>button{display:block;margin-bottom:24px;padding:8px 0;border:0;background:none;color:#c8cdd8;cursor:pointer;font-size:13px}
 .lattice-header>span{color:#e7aa73;font-size:11px;letter-spacing:.16em}

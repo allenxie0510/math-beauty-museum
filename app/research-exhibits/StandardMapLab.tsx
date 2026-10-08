@@ -47,7 +47,7 @@ export default function StandardMapLab({ onBack }: { onBack: () => void }) {
   const distances = useMemo(() => first.map((point, index) => torusDistance(point, second[index])), [first, second]);
   const update = (key: keyof typeof DEFAULT, value: number) => setSettings((previous) => ({ ...previous, [key]: value }));
   const distancePath = distances.map((value, i) => `${i ? "L" : "M"}${i / steps * 600},${110 - value / Math.SQRT1_2 * 100}`).join(" ");
-  return <ResearchLab title="标准映射混沌" subtitle="几乎相同的起点，会走向怎样不同的轨迹？" backLabel="返回轨道之舞" onBack={onBack} research={standardMapResearch} controls={<>
+  return <ResearchLab title="标准映射混沌" subtitle="几乎相同的起点，会走向怎样不同的轨迹？" backLabel="返回开普勒轨道" onBack={onBack} research={standardMapResearch} controls={<>
     <div className="lattice-console-heading"><span>每一步都保持面积</span><b>单位环面 · 相对边连接</b></div>
     <div className="research-presets">{[{ k: 0, name: "无扰动" }, { k: .15, name: "弱扰动" }, { k: .9, name: "强扰动" }].map((preset) => <button key={preset.k} aria-pressed={k === preset.k} onClick={() => update("k", preset.k)}>{preset.name}</button>)}</div>
     <ResearchRange item="standard-map" label="扰动强度 k" value={k} min={0} max={3} step={.01} display={k.toFixed(2)} onChange={(value) => update("k", value)} hint="不同参数可能同时出现规则区域与复杂区域；预设不是理论阈值。" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { observeMathAction } from "../math-observer-events";
 import type { ResearchRecord } from "./catalog";
 import "./lattice-energy.css";
@@ -46,12 +47,12 @@ export function ResearchModal({ title, close, children }: { title: string; close
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); close(); }
       if (event.key !== "Tab" || !ref.current) return;
-      const elements = Array.from(ref.current.querySelectorAll<HTMLElement>('button, input, summary, a[href]')).filter((element) => element.getClientRects().length > 0);
+      const elements = Array.from(ref.current.querySelectorAll<HTMLElement>('button, input, summary, a[href]')).filter((element) => element.getClientRects().length > 0 && (!element.closest("details:not([open])") || element.matches("details:not([open]) > summary")));
       if (event.shiftKey && document.activeElement === elements[0]) { event.preventDefault(); elements.at(-1)?.focus(); }
       else if (!event.shiftKey && document.activeElement === elements.at(-1)) { event.preventDefault(); elements[0]?.focus(); }
     };
     window.addEventListener("keydown", keydown);
     return () => { window.removeEventListener("keydown", keydown); previous?.focus(); };
   }, [close]);
-  return <div ref={ref} className="nature-lab-backdrop" role="dialog" aria-modal="true" aria-label={title}><button className="nature-lab-close" onClick={close} aria-label="关闭并返回互动工坊">×</button>{children}</div>;
+  return createPortal(<div ref={ref} className="nature-lab-backdrop" role="dialog" aria-modal="true" aria-label={title}><button className="nature-lab-close" onClick={close} aria-label="关闭并返回互动工坊">×</button>{children}</div>, document.body);
 }

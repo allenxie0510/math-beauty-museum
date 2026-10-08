@@ -3216,7 +3216,7 @@ export function NatureMuseumWorld() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (researchOpen && event.key === "Tab" && labDialogRef.current) {
-        const controls = Array.from(labDialogRef.current.querySelectorAll<HTMLElement>('button:not([tabindex="-1"]), input, summary, a[href]')).filter((node) => node.getClientRects().length > 0);
+        const controls = Array.from(labDialogRef.current.querySelectorAll<HTMLElement>('button:not([tabindex="-1"]), input, summary, a[href]')).filter((node) => node.getClientRects().length > 0 && (!node.closest("details:not([open])") || node.matches("details:not([open]) > summary")));
         const first = controls[0];
         const last = controls[controls.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }

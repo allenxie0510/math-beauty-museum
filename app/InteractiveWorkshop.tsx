@@ -1,24 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 import { SpaceSliceLab } from "./SpaceSliceLab";
 import { observeMathAction, setMathObserverScene } from "./math-observer-events";
 
+const MahlerWorkshopLab = lazy(() => import("./research-exhibits/MahlerWorkshopLab"));
+
 type GalleryPanel = {
   color: string;
   title: string;
   position: [number, number, number];
-  id?: "paper" | "slice";
+  id?: "paper" | "slice" | "mahler";
 };
 
 const PANEL_RADIUS = .84;
 const PANELS: GalleryPanel[] = [
   { color: "#c94b3a", title: "剪纸", position: [-1.2, 1.25, -4.05], id: "paper" },
   { color: "#368e97", title: "空间切片", position: [1.18, 1.25, -4.08], id: "slice" },
-  { color: "#6aaeba", title: "", position: [3.56, 1.25, -4.08] },
+  { color: "#9273bd", title: "凸体对偶", position: [3.56, 1.25, -4.08], id: "mahler" },
   { color: "#727e4e", title: "", position: [-1.2, -1.25, -4.08] },
   { color: "#92738f", title: "", position: [1.18, -1.25, -4.08] },
   { color: "#c4a33e", title: "", position: [3.56, -1.25, -4.08] },
@@ -33,7 +35,8 @@ function panelTexture(panel: GalleryPanel) {
   )).join("");
   const paperContent = `<g fill="#f7f8fa">${leaves}${innerPetals}<path d="M1024 708L1049 764L1110 748L1077 802L1125 842L1062 847L1055 910L1015 861L961 894L977 833L921 808L982 791Z"/><text x="1024" y="1515" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Noto Sans CJK SC',sans-serif" font-size="180" font-weight="650" letter-spacing="8">${panel.title}</text></g>`;
   const sliceContent = `<g fill="none" stroke="#f7f8fa" stroke-linejoin="round"><path d="M640 650L1025 430L1408 650L1024 873Z" stroke-width="34"/><path d="M640 650V1085L1024 1312V873M1408 650V1085L1024 1312" stroke-width="34"/><path d="M510 946L1535 672L1535 850L510 1124Z" fill="#d9fbff" fill-opacity=".5" stroke-width="24"/><circle cx="1024" cy="900" r="44" fill="#f7f8fa" stroke-width="0"/><text x="1024" y="1570" text-anchor="middle" fill="#f7f8fa" stroke="none" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Noto Sans CJK SC',sans-serif" font-size="152" font-weight="650" letter-spacing="4">${panel.title}</text></g>`;
-  const content = panel.id === "paper" ? paperContent : panel.id === "slice" ? sliceContent : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
+  const mahlerContent = `<g fill="none" stroke="#f7f8fa" stroke-width="24"><path d="M500 830L760 530L1020 830L760 1130Z"/><path d="M1110 580H1530V1080H1110Z"/></g><text x="1024" y="1480" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="138">凸体对偶</text><text x="1024" y="1650" text-anchor="middle" fill="#e4d4ff" font-family="sans-serif" font-size="58">2026 数学前沿 · OpenAI</text>`;
+  const content = panel.id === "mahler" ? mahlerContent : panel.id === "paper" ? paperContent : panel.id === "slice" ? sliceContent : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><rect width="2048" height="2048" fill="${panel.color}"/>${content}</svg>`;
   const texture = new THREE.TextureLoader().load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -44,7 +47,7 @@ function panelTexture(panel: GalleryPanel) {
   return texture;
 }
 
-function WorkshopGallery3D({ openDetail, detailOpen, reportError }: { openDetail: (id: "paper" | "slice") => void; detailOpen: "paper" | "slice" | null; reportError: () => void }) {
+function WorkshopGallery3D({ openDetail, detailOpen, reportError }: { openDetail: (id: "paper" | "slice" | "mahler") => void; detailOpen: "paper" | "slice" | "mahler" | null; reportError: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(openDetail);
   const detailOpenRef = useRef(detailOpen);
@@ -670,12 +673,13 @@ function PaperCutPreview({ close }: { close: () => void }) {
 }
 
 export function InteractiveWorkshop() {
-  const [detailOpen, setDetailOpen] = useState<"paper" | "slice" | null>(null);
+  const [detailOpen, setDetailOpen] = useState<"paper" | "slice" | "mahler" | null>(null);
+  const mahlerEntryRef = useRef<HTMLButtonElement>(null);
   const [webglError, setWebglError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const openDetail = useCallback((id: "paper" | "slice") => {
-    const scene = id === "slice" ? "workshop-slice" : "workshop-paper";
-    setMathObserverScene(scene, { game: id });
+  const openDetail = useCallback((id: "paper" | "slice" | "mahler") => {
+    const scene = id === "mahler" ? "workshop-mahler" : id === "slice" ? "workshop-slice" : "workshop-paper";
+    setMathObserverScene(scene, { game: id, ...(id === "mahler" ? { name: "Mahler 凸体对偶", formula: "|K| |K°| ≥ 8" } : {}) });
     setDetailOpen(id);
     observeMathAction({
       id: `workshop-open-${id}`,
@@ -683,12 +687,12 @@ export function InteractiveWorkshop() {
       action: "workshop_game_opened",
       outcome: "discovery",
       importance: .72,
-      suggestedCue: id === "slice" ? "先拖动光片，不急着切开。看实时截面怎样变化。" : "先圈出一个小形状，再展开看它怎样重复。",
+      suggestedCue: id === "mahler" ? "先把圆变成菱形，再只改变剪切，看看面积乘积。" : id === "slice" ? "先拖动光片，不急着切开。看实时截面怎样变化。" : "先圈出一个小形状，再展开看它怎样重复。",
       once: true,
       context: { game: id },
     });
   }, []);
-  const closeDetail = useCallback(() => { setMathObserverScene("workshop"); setDetailOpen(null); }, []);
+  const closeDetail = useCallback(() => { setMathObserverScene("workshop"); setDetailOpen(null); if (detailOpen === "mahler") window.requestAnimationFrame(() => mahlerEntryRef.current?.focus()); }, [detailOpen]);
   const reportWebglError = useCallback(() => setWebglError(true), []);
   return (
     <section className="workshop-world workshop-gallery" id="workshop" aria-labelledby="workshop-title">
@@ -699,10 +703,12 @@ export function InteractiveWorkshop() {
       <div className="workshop-entry-list">
         <button className="workshop-paper-entry" onClick={() => openDetail("paper")}><span>当前开放</span><b>进入剪纸工坊</b><i>↗</i></button>
         <button className="workshop-paper-entry workshop-space-entry" onClick={() => openDetail("slice")}><span>NEW · 空间几何</span><b>进入空间切片</b><i>↗</i></button>
+        <button ref={mahlerEntryRef} className="workshop-paper-entry workshop-frontier-entry" onClick={() => openDetail("mahler")}><span>2026 数学前沿 · OpenAI</span><b>Mahler 凸体对偶</b><i>↗</i></button>
       </div>
       <div className="workshop-gallery-hint"><i>◎</i><span>拖动视角探索空间 · 点击圆形展板进入</span></div>
       {detailOpen === "paper" && <PaperCutPreview close={closeDetail} />}
       {detailOpen === "slice" && <SpaceSliceLab close={closeDetail} />}
+      {detailOpen === "mahler" && <Suspense fallback={<div className="nature-lab-backdrop" role="dialog" aria-modal="true" aria-label="正在载入凸体对偶"><button className="nature-lab-close" onClick={closeDetail} aria-label="关闭并返回互动工坊">×</button><p role="status">正在载入凸体对偶…</p></div>}><MahlerWorkshopLab close={closeDetail} /></Suspense>}
     </section>
   );
 }

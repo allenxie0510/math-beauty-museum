@@ -1,0 +1,16 @@
+[
+  {
+    "file": "MahlerConjecture.lean",
+    "url": "https://raw.githubusercontent.com/openai/math/adc7f1241b42e322a6451854ab7e4b4c146bf78a/lean/ComparatorChallenges/MahlerConjecture.lean",
+    "sha256": "40718172f61fe01f6c96b4c28324a1d76491eb84af4776d8507d8cdcb3120ea0",
+    "checked_at": "2026-10-08",
+    "purpose": "P1 implementation targeted source check"
+  },
+  {
+    "file": "standard-map-introduction.tex",
+    "url": "https://raw.githubusercontent.com/openai/math/adc7f1241b42e322a6451854ab7e4b4c146bf78a/preprints/Positive-Metric-Entropy-for-the-Standard-Map-at-Large-Parameters-September-23-2026/build/sections/introduction.tex",
+    "sha256": "4dafbb49bc8fdb3d265c62a6408db1109badfe04d176b212296f3000abd4f4f1",
+    "checked_at": "2026-10-08",
+    "purpose": "P1 implementation targeted source check"
+  }
+]

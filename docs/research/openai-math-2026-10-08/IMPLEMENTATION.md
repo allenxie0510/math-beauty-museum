@@ -93,3 +93,5 @@ prototypes/mahler-polar.html 是对话内片段。面积和逆转置剪切逻辑
 ## 实施记录
 
 2026-10-08 已实现首件「三角晶格能量」，接入建筑馆「几何铺砌」扩展实验。代码、数值容限、构建结果及浏览器验收状态见 [LATTICE-IMPLEMENTATION.md](LATTICE-IMPLEMENTATION.md)。后续继续实施前先查看这份记录，避免重复已有工作。
+
+2026-10-08 接续实施 P0 与三件 P1：Mahler 对偶、标准映射、闭曲面节点线。入口、数学验收、补查和浏览器状态见 [P0-P1-IMPLEMENTATION.md](P0-P1-IMPLEMENTATION.md)。

@@ -7,8 +7,8 @@ import type { ResearchRecord } from "./catalog";
 import "./lattice-energy.css";
 import "./research-labs.css";
 
-export function ResearchRange({ label, value, min, max, step, display, hint, onChange, item }: { label: string; value: number; min: number; max: number; step: number; display?: string; hint?: string; onChange: (value: number) => void; item: string }) {
-  const record = () => observeMathAction({ id: `${item}-${label}`, scene: item === "mahler" ? "workshop-mahler" : "hall", action: "research_parameter_adjusted", outcome: "exploring", importance: .35, context: { item, parameter: label, value } });
+export function ResearchRange({ label, value, min, max, step, display, hint, onChange, item }: { label: string; value: number; min: number; max: number; step: number | "any"; display?: string; hint?: string; onChange: (value: number) => void; item: string }) {
+  const record = () => observeMathAction({ id: `${item}-${label}`, scene: ["mahler", "torus", "gaussian"].includes(item) ? `workshop-${item}` : "hall", action: "research_parameter_adjusted", outcome: "exploring", importance: .35, context: { item, parameter: label, value } });
   return <label className="lattice-control"><span>{label}<output>{display ?? value}</output></span>
     <input type="range" aria-label={label} min={min} max={max} step={step} value={value} style={{ "--lattice-progress": `${(value - min) / (max - min) * 100}%` } as CSSProperties} onChange={(event) => onChange(Number(event.target.value))} onPointerUp={record} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) record(); }} />
     {hint && <small>{hint}</small>}
@@ -47,7 +47,7 @@ export function ResearchModal({ title, close, children }: { title: string; close
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); close(); }
       if (event.key !== "Tab" || !ref.current) return;
-      const elements = Array.from(ref.current.querySelectorAll<HTMLElement>('button, input, summary, a[href]')).filter((element) => element.getClientRects().length > 0 && (!element.closest("details:not([open])") || element.matches("details:not([open]) > summary")));
+      const elements = Array.from(ref.current.querySelectorAll<HTMLElement>('button, input, select, summary, a[href], [tabindex="0"]')).filter((element) => element.getClientRects().length > 0 && (!element.closest("details:not([open])") || element.matches("details:not([open]) > summary")));
       if (event.shiftKey && document.activeElement === elements[0]) { event.preventDefault(); elements.at(-1)?.focus(); }
       else if (!event.shiftKey && document.activeElement === elements.at(-1)) { event.preventDefault(); elements[0]?.focus(); }
     };

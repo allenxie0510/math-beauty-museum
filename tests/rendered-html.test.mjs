@@ -453,7 +453,7 @@ test("ships four interactive WebGL halls and twelve concepts", async () => {
   assert.match(workshop, /new THREE\.CylinderGeometry/);
   assert.doesNotMatch(workshop, /new THREE\.(CircleGeometry|TorusGeometry)/);
   assert.match(workshop, /const PANEL_RADIUS = \.84/);
-  assert.equal((workshop.match(/title: ""/g) ?? []).length, 3);
+  assert.equal((workshop.match(/title: ""/g) ?? []).length, 1);
   assert.match(workshop, /title: "凸体对偶"/);
   assert.match(workshop, /title: "空间切片"/);
   assert.match(workshop, /color: "#368e97", title: "空间切片"/);

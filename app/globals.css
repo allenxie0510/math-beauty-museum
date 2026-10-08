@@ -404,3 +404,6 @@ body:not(.page-detail-open) .site-header{z-index:160;display:flex!important;visi
 @media(min-width:701px){.lattice-parent-console{max-height:270px;overflow-y:auto}}
 @media(max-width:520px){.lattice-entry{gap:8px}.lattice-entry>strong{font-size:9px}.lattice-entry .lattice-entry-title{font-size:11px}.lattice-entry-title small{font-size:9px}.immersive-lab-header .nature-lab-heading p{font-size:7px}}
 .research-mode-warning{margin:8px 0;padding:8px 10px;border:1px solid #e0b76d70;border-radius:8px;color:#f4cc91;font-size:11px;line-height:1.6}.workshop-entry-list .workshop-frontier-entry{border-color:#8d6bbe66;background:linear-gradient(120deg,#ede6fa,#e8edf4);color:#513c78}.workshop-frontier-entry>span{color:#785fa0}
+/* Keep all five workshop entries reachable on short screens. */
+.workshop-entry-list{max-height:calc(100svh - clamp(340px,48vh,470px) - 28px);overflow-y:auto;scrollbar-width:thin;padding:3px}
+@media(max-width:900px){.workshop-entry-list{max-height:calc(100svh - 300px)}}

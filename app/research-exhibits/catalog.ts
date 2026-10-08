@@ -54,3 +54,24 @@ export const nodalResearch: ResearchRecord = {
   verification: "范围页列出上述曲面上界，并另列高维反例。本展品不把结论推广到所有维数，也不使用有边界方板去验证闭曲面定理。本馆未独立审查证明或运行 Lean。",
   paperUrl: `${researchRoot}/preprints/Sharp-nodal-length-on-smooth-surfaces-September-23-2026/paper.pdf`, scopeUrl: `${researchRoot}/lean/docs/350.md`,
 };
+
+export const torusResearch: ResearchRecord = {
+  familyId: "354", title: "The Isoperimetric Conjecture for the Cubic Flat Three-Torus",
+  frontierTitle: "从三类候选，走向周期空间的全局等周分类",
+  version: "2026-09-24 手稿 · 2026-10-08 调研快照",
+  classicalBackground: "平坦环面 R³/Z³、球的面积和体积、圆管侧面积、补集共享界面，都是经典几何。这里的三维环面由立方体相对面连接而成，不是嵌入三维空间的甜甜圈曲面。",
+  experimentScope: "比较球、周期圆管、薄层三类候选的解析面积；网格只用于显示。三类中选最小值，不等于证明任意有限周长区域都不能更优。",
+  claim: "手稿声称：单位立方平坦三维环面内，任意体积分数 V 的全局最小界面面积为 min{(36π)¹ᐟ³v²ᐟ³, 2√(πv), 2}，其中 v=min(V,1−V)；最优区域由球、贯穿周期圆管、薄层及其补集给出。",
+  verification: "已按固定版本手稿和形式化范围页核对体积归一化、三类候选与转换点。本馆未独立审查证明，也未运行 Lean；此处明确区分手稿的全局分类主张与经典候选面积公式。",
+  paperUrl: `${researchRoot}/preprints/The-Isoperimetric-Conjecture-for-the-Cubic-Flat-Three-Torus-September-24-2026/article.pdf`, scopeUrl: `${researchRoot}/lean/docs/354.md`,
+};
+export const gaussianResearch: ResearchRecord = {
+  familyId: "028", title: "Bounded-Step Walks on Gaussian Primes",
+  frontierTitle: "从有限步长的连通分量，走向全平面的统一有限上界",
+  version: "2026-09-26 手稿 · 2026-10-08 调研快照",
+  classicalBackground: "高斯整数 a+bi、高斯素数的范数判定、欧氏距离和图的连通分量，都是经典概念。护城河指允许步长无法跨越的空隙，窗口边界没有这样的数学含义。",
+  experimentScope: "在有限整数窗口内完整判素并搜索连通分量，另检查可达点是否有允许连边伸向窗外。点数仅属于当前起点与窗口，不是全平面的统一上界。",
+  claim: "手稿声称：对每个固定有限步长 D，高斯素数按距离≤D连边后，全平面上每个连通分量的点数都不超过一个只依赖 D 的有限常数 B_D。这个上界是非显式的。",
+  verification: "已按固定版本手稿和形式化范围页核对有界步长、连通分量及统一非显式上界的范围。本馆未独立审查证明或运行 Lean；有限窗口实验不验证所有起点或任意 D 的主张。",
+  paperUrl: `${researchRoot}/preprints/Bounded-Step-Walks-on-Gaussian-Primes-September-26-2026/paper.pdf`, scopeUrl: `${researchRoot}/lean/docs/028.md`,
+};

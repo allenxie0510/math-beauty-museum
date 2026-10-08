@@ -8,7 +8,7 @@ import "./lattice-energy.css";
 import "./research-labs.css";
 
 export function ResearchRange({ label, value, min, max, step, display, hint, onChange, item }: { label: string; value: number; min: number; max: number; step: number | "any"; display?: string; hint?: string; onChange: (value: number) => void; item: string }) {
-  const record = () => observeMathAction({ id: `${item}-${label}`, scene: ["mahler", "torus", "gaussian"].includes(item) ? `workshop-${item}` : "hall", action: "research_parameter_adjusted", outcome: "exploring", importance: .35, context: { item, parameter: label, value } });
+  const record = () => observeMathAction({ id: `${item}-${label}`, scene: ["mahler", "torus", "gaussian", "voronoi"].includes(item) ? `workshop-${item}` : "hall", action: "research_parameter_adjusted", outcome: "exploring", importance: .35, context: { item, parameter: label, value } });
   return <label className="lattice-control"><span>{label}<output>{display ?? value}</output></span>
     <input type="range" aria-label={label} min={min} max={max} step={step} value={value} style={{ "--lattice-progress": `${(value - min) / (max - min) * 100}%` } as CSSProperties} onChange={(event) => onChange(Number(event.target.value))} onPointerUp={record} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) record(); }} />
     {hint && <small>{hint}</small>}
@@ -33,7 +33,7 @@ export function ResearchLab({ title, subtitle, backLabel, onBack, research, chil
       </section>
       <aside className="lattice-console" aria-label={`${title}参数`}>
         {controls}
-        <details className="lattice-details"><summary>OpenAI 研究来源与验证范围</summary><p>OpenAI math · 内部模型生成的研究手稿</p><p>{research.title}</p><p>{research.verification}</p><div className="lattice-sources"><a href={research.paperUrl} target="_blank" rel="noreferrer">手稿固定版本 ↗</a><a href={research.scopeUrl} target="_blank" rel="noreferrer">形式化范围 ↗</a>{research.comparatorUrl && <a href={research.comparatorUrl} target="_blank" rel="noreferrer">Comparator 声明 ↗</a>}</div></details>
+        <details className="lattice-details"><summary>OpenAI 研究来源与验证范围</summary><p>OpenAI math · 内部模型生成的研究手稿</p><p>{research.title}</p><p>{research.verification}</p><div className="lattice-sources"><a href={research.paperUrl} target="_blank" rel="noreferrer">手稿固定版本 ↗</a><a href={research.scopeUrl} target="_blank" rel="noreferrer">{research.scopeLabel ?? "形式化范围"} ↗</a>{research.comparatorUrl && <a href={research.comparatorUrl} target="_blank" rel="noreferrer">Comparator 声明 ↗</a>}</div></details>
       </aside>
     </div>
   </div>;

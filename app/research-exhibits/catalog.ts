@@ -20,7 +20,7 @@ export const triangularLatticeResearch = {
 export type ResearchRecord = {
   familyId: string; title: string; frontierTitle: string; version: string;
   classicalBackground: string; experimentScope: string; claim: string; verification: string;
-  paperUrl: string; scopeUrl: string; comparatorUrl?: string;
+  paperUrl: string; scopeUrl: string; comparatorUrl?: string; scopeLabel?: string;
 };
 
 export const mahlerResearch: ResearchRecord = {
@@ -74,4 +74,16 @@ export const gaussianResearch: ResearchRecord = {
   claim: "手稿声称：对每个固定有限步长 D，高斯素数按距离≤D连边后，全平面上每个连通分量的点数都不超过一个只依赖 D 的有限常数 B_D。这个上界是非显式的。",
   verification: "已按固定版本手稿和形式化范围页核对有界步长、连通分量及统一非显式上界的范围。本馆未独立审查证明或运行 Lean；有限窗口实验不验证所有起点或任意 D 的主张。",
   paperUrl: `${researchRoot}/preprints/Bounded-Step-Walks-on-Gaussian-Primes-September-26-2026/paper.pdf`, scopeUrl: `${researchRoot}/lean/docs/028.md`,
+};
+
+export const voronoiResearch: ResearchRecord = {
+  familyId: "224", title: "From critical crossings to quenched near-critical universality in Voronoi percolation",
+  frontierTitle: "从关键单元，走向固定随机环境下的近临界普适性",
+  version: "2026-10-05 手稿 · 2026-10-08 调研快照",
+  classicalBackground: "Voronoi 最近点划分、独立随机着色、贯穿事件、单调耦合与 pivotal（关键单元）都是已有概念。Cardy 公式不是 OpenAI 首创；研究新主张涉及它在 Poisson–Voronoi 模型中的成立及进一步的近临界普适性。",
+  experimentScope: "在单位正方形内固定 N 个均匀随机点，裁剪 Voronoi 单元并检查青色左右贯穿。点数不是 Poisson 随机变量，也未生成窗外点；重复采样只估计这个有限模型的样本频率。",
+  claim: "家族目录声称临界 Poisson–Voronoi 贯穿概率满足 Cardy 公式；所选后续手稿以此为输入，并声称：按各模型自己的期望关键点数归一化后，给定 Poisson 点集时，有理多边形四边形的近临界贯穿阈值联合分布，在环境概率意义下趋向三角晶格参考分布。",
+  verification: "本展品依据固定版本的研究目录与摘要，尚未审读该论文完整证明、独立复核或运行 Lean。临界结果与后续手稿的输入条件已分开说明；不以有限窗口、单个 p 或单张图验证 Cardy 公式、缩放极限或普适性。",
+  paperUrl: `${researchRoot}/preprints/From-critical-crossings-to-quenched-near-critical-universality-in-Voronoi-percolation-October-5-2026/critical-crossings-quenched-near-critical-universality-voronoi-percolation.pdf`,
+  scopeUrl: `${researchRoot}/CONTENTS.md`, scopeLabel: "研究目录与摘要",
 };

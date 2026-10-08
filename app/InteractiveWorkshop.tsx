@@ -10,7 +10,8 @@ import { observeMathAction, setMathObserverScene } from "./math-observer-events"
 const MahlerWorkshopLab = lazy(() => import("./research-exhibits/MahlerWorkshopLab"));
 
 const P2WorkshopLab = lazy(() => import("./research-exhibits/P2WorkshopLab"));
-type WorkshopKind = "paper" | "slice" | "mahler" | "torus" | "gaussian";
+const VoronoiWorkshopLab = lazy(() => import("./research-exhibits/VoronoiWorkshopLab"));
+type WorkshopKind = "paper" | "slice" | "mahler" | "torus" | "gaussian" | "voronoi";
 
 type GalleryPanel = {
   color: string;
@@ -26,7 +27,7 @@ const PANELS: GalleryPanel[] = [
   { color: "#9273bd", title: "凸体对偶", position: [3.56, 1.25, -4.08], id: "mahler" },
   { color: "#727e4e", title: "环面等周", position: [-1.2, -1.25, -4.08], id: "torus" },
   { color: "#92738f", title: "素数护城河", position: [1.18, -1.25, -4.08], id: "gaussian" },
-  { color: "#c4a33e", title: "", position: [3.56, -1.25, -4.08] },
+  { color: "#c4a33e", title: "Voronoi 渗流", position: [3.56, -1.25, -4.08], id: "voronoi" },
 ];
 
 function panelTexture(panel: GalleryPanel) {
@@ -41,8 +42,9 @@ function panelTexture(panel: GalleryPanel) {
   const mahlerContent = `<g fill="none" stroke="#f7f8fa" stroke-width="24"><path d="M500 830L760 530L1020 830L760 1130Z"/><path d="M1110 580H1530V1080H1110Z"/></g><text x="1024" y="1480" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="138">凸体对偶</text><text x="1024" y="1650" text-anchor="middle" fill="#e4d4ff" font-family="sans-serif" font-size="58">2026 数学前沿 · OpenAI</text>`;
   const torusContent = `<g fill="none" stroke="#f7f8fa" stroke-width="24"><circle cx="620" cy="820" r="180"/><path d="M910 640V1000M1170 640V1000"/><ellipse cx="1040" cy="640" rx="130" ry="45"/><ellipse cx="1040" cy="1000" rx="130" ry="45"/><path d="M1370 630V1030M1500 630V1030"/></g>`;
   const gaussianContent = `<g fill="#f7f8fa">${[[600,680],[720,800],[840,680],[960,920],[1080,800],[1200,920],[1320,680],[1440,800],[840,1040],[1440,1040]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="32"/>`).join("")}</g><path d="M600 680L720 800L840 680M960 920L1080 800L1200 920" fill="none" stroke="#f4bd85" stroke-width="18"/>`;
-  const frontierContent = `${panel.id === "torus" ? torusContent : gaussianContent}<text x="1024" y="1480" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="138">${panel.title}</text><text x="1024" y="1650" text-anchor="middle" fill="#e4d4ff" font-family="sans-serif" font-size="58">2026 数学前沿 · OpenAI</text>`;
-  const content = panel.id === "torus" || panel.id === "gaussian" ? frontierContent : panel.id === "mahler" ? mahlerContent : panel.id === "paper" ? paperContent : panel.id === "slice" ? sliceContent : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
+  const voronoiContent = `<g stroke="#f7f8fa" stroke-width="16" stroke-linejoin="round"><path d="M620 560H990L890 850L580 950Z" fill="#8bd4c4"/><path d="M990 560H1410L1490 890L1180 950L890 850Z" fill="#485675"/><path d="M580 950L890 850L1180 950L1120 1160H640Z" fill="#485675"/><path d="M1180 950L1490 890L1430 1160H1120Z" fill="#8bd4c4"/></g>`;
+  const frontierContent = `${panel.id === "torus" ? torusContent : panel.id === "voronoi" ? voronoiContent : gaussianContent}<text x="1024" y="1480" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="138">${panel.title}</text><text x="1024" y="1650" text-anchor="middle" fill="#e4d4ff" font-family="sans-serif" font-size="58">2026 数学前沿 · OpenAI</text>`;
+  const content = panel.id === "torus" || panel.id === "gaussian" || panel.id === "voronoi" ? frontierContent : panel.id === "mahler" ? mahlerContent : panel.id === "paper" ? paperContent : panel.id === "slice" ? sliceContent : `<text x="1024" y="1060" text-anchor="middle" fill="#20242a" fill-opacity=".72" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="128" font-weight="650" letter-spacing="18">COMING SOON</text>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><rect width="2048" height="2048" fill="${panel.color}"/>${content}</svg>`;
   const texture = new THREE.TextureLoader().load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -693,7 +695,7 @@ export function InteractiveWorkshop() {
       action: "workshop_game_opened",
       outcome: "discovery",
       importance: .72,
-      suggestedCue: id === "torus" ? "改变体积，看球、周期圆管和薄层的候选面积如何交替。" : id === "gaussian" ? "从一个高斯素数出发，调整步长，观察可达范围和跨窗连边。" : id === "mahler" ? "先比较八面体与立方体，再转动或剪切，看看体积乘积。" : id === "slice" ? "先拖动光片，不急着切开。看实时截面怎样变化。" : "先圈出一个小形状，再展开看它怎样重复。",
+      suggestedCue: id === "voronoi" ? "调高青色概率，观察贯穿通路；金圈标出翻转后能改变结果的关键单元。" : id === "torus" ? "改变体积，看球、周期圆管和薄层的候选面积如何交替。" : id === "gaussian" ? "从一个高斯素数出发，调整步长，观察可达范围和跨窗连边。" : id === "mahler" ? "先比较八面体与立方体，再转动或剪切，看看体积乘积。" : id === "slice" ? "先拖动光片，不急着切开。看实时截面怎样变化。" : "先圈出一个小形状，再展开看它怎样重复。",
       once: true,
       context: { game: id },
     });
@@ -712,11 +714,13 @@ export function InteractiveWorkshop() {
         <button ref={(el) => { frontierEntries.current.mahler = el; }} className="workshop-paper-entry workshop-frontier-entry" onClick={() => openDetail("mahler")}><span>2026 数学前沿 · OpenAI</span><b>Mahler 凸体对偶</b><i>↗</i></button>
         <button ref={(el) => { frontierEntries.current.torus = el; }} data-research="torus" className="workshop-paper-entry workshop-frontier-entry" onClick={() => openDetail("torus")}><span>2026 数学前沿 · 354</span><b>三维环面等周形态</b><i>↗</i></button>
         <button ref={(el) => { frontierEntries.current.gaussian = el; }} data-research="gaussian" className="workshop-paper-entry workshop-frontier-entry" onClick={() => openDetail("gaussian")}><span>2026 数学前沿 · 028</span><b>高斯素数护城河</b><i>↗</i></button>
+        <button ref={(el) => { frontierEntries.current.voronoi = el; }} data-research="voronoi" className="workshop-paper-entry workshop-frontier-entry" onClick={() => openDetail("voronoi")}><span>2026 数学前沿 · 224</span><b>Voronoi 渗流</b><i>↗</i></button>
       </div>
       <div className="workshop-gallery-hint"><i>◎</i><span>拖动视角探索空间 · 点击圆形展板进入</span></div>
       {detailOpen === "paper" && <PaperCutPreview close={closeDetail} />}
       {detailOpen === "slice" && <SpaceSliceLab close={closeDetail} />}
       {(detailOpen === "torus" || detailOpen === "gaussian") && <Suspense fallback={<div className="nature-lab-backdrop" role="dialog" aria-modal="true" aria-label="正在载入前沿展品"><button className="nature-lab-close" onClick={closeDetail} aria-label="关闭并返回互动工坊">×</button><p role="status">正在载入前沿展品…</p></div>}><P2WorkshopLab kind={detailOpen} close={closeDetail} /></Suspense>}
+      {detailOpen === "voronoi" && <Suspense fallback={<div className="nature-lab-backdrop" role="dialog" aria-modal="true" aria-label="正在载入 Voronoi 渗流"><button className="nature-lab-close" onClick={closeDetail} aria-label="关闭并返回互动工坊">×</button><p role="status">正在载入 Voronoi 渗流…</p></div>}><VoronoiWorkshopLab close={closeDetail} /></Suspense>}
       {detailOpen === "mahler" && <Suspense fallback={<div className="nature-lab-backdrop" role="dialog" aria-modal="true" aria-label="正在载入凸体对偶"><button className="nature-lab-close" onClick={closeDetail} aria-label="关闭并返回互动工坊">×</button><p role="status">正在载入凸体对偶…</p></div>}><MahlerWorkshopLab close={closeDetail} /></Suspense>}
     </section>
   );

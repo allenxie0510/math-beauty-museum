@@ -14,12 +14,15 @@ export default function MahlerSolidPlot({ mesh, polar, view, onRotate }: { mesh:
     const canvas = ref.current, context = canvas?.getContext("2d");
     if (!canvas || !context) return;
     return observeElementSize(canvas, () => {
-      const size = canvas.getBoundingClientRect().width;
+      const { width, height } = canvas.getBoundingClientRect();
+      const size = Math.min(width, height);
       if (!size) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(size * dpr); canvas.height = Math.round(size * dpr);
+      canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      context.clearRect(0, 0, size, size);
+      context.clearRect(0, 0, width, height);
+      // Center a square drawing viewport without stretching either axis.
+      context.translate((width - size) / 2, (height - size) / 2);
       const scale = size * .19, center = size / 2;
       const rotate = ([x, y, z]: Point3): Point3 => {
         const u = x * Math.cos(view.yaw) + z * Math.sin(view.yaw), w = -x * Math.sin(view.yaw) + z * Math.cos(view.yaw);
@@ -28,17 +31,17 @@ export default function MahlerSolidPlot({ mesh, polar, view, onRotate }: { mesh:
       const project = ([x, y]: Point3) => [center + x * scale, center - y * scale];
       const points = mesh.vertices.map(rotate);
       // Orthographic projection with one fixed scale for both solids, all p and all shears.
-      context.strokeStyle = "#ffffff0c"; context.lineWidth = 1;
+      context.strokeStyle = "#506f8110"; context.lineWidth = 1;
       for (let i = 1; i < 8; i++) { context.beginPath(); context.moveTo(i * size / 8, 12); context.lineTo(i * size / 8, size - 12); context.moveTo(12, i * size / 8); context.lineTo(size - 12, i * size / 8); context.stroke(); }
       const halo = context.createRadialGradient(center, center, 0, center, center, size * .48);
-      halo.addColorStop(0, polar ? "#8bd4c410" : "#f4bd8510"); halo.addColorStop(1, "transparent");
+      halo.addColorStop(0, polar ? "#55a99e16" : "#e8b8791c"); halo.addColorStop(1, "transparent");
       context.fillStyle = halo; context.fillRect(0, 0, size, size);
       const axes: Point3[] = [[1.85, 0, 0], [0, 1.85, 0], [0, 0, 1.85]];
       context.font = `${Math.max(10, size * .029)}px sans-serif`;
       axes.forEach((axis, i) => {
         const [x, y] = project(rotate(axis));
-        context.strokeStyle = ["#e8aa8770", "#8bd4c470", "#baa6ed70"][i]; context.beginPath(); context.moveTo(center, center); context.lineTo(x, y); context.stroke();
-        context.fillStyle = ["#e8aa87", "#8bd4c4", "#baa6ed"][i]; context.fillText(["x", "y", "z"][i], x + 4, y - 4);
+        context.strokeStyle = ["#ad744666", "#388f8466", "#8570a766"][i]; context.beginPath(); context.moveTo(center, center); context.lineTo(x, y); context.stroke();
+        context.fillStyle = ["#996339", "#307f77", "#79659a"][i]; context.fillText(["x", "y", "z"][i], x + 4, y - 4);
       });
       const faces = mesh.faces.map((face) => {
         const vertices = face.map((i) => points[i]), [a, b, c] = vertices;
@@ -49,17 +52,17 @@ export default function MahlerSolidPlot({ mesh, polar, view, onRotate }: { mesh:
       }).filter((face) => face.length > 1e-12 && face.normal[2] > 0).sort((a, b) => a.depth - b.depth);
       for (const face of faces) {
         const illumination = .43 + .57 * Math.max(0, (-.35 * face.normal[0] + .5 * face.normal[1] + .79 * face.normal[2]) / face.length);
-        const rgb = (polar ? [139, 212, 196] : [244, 189, 133]).map((v) => Math.round(v * illumination));
+        const rgb = (polar ? [83, 173, 159] : [231, 169, 99]).map((v) => Math.round(v * illumination));
         context.beginPath();
         face.vertices.forEach((vertex, i) => { const [x, y] = project(vertex); if (i) context.lineTo(x, y); else context.moveTo(x, y); });
         context.closePath(); context.fillStyle = `rgb(${rgb.join(",")})`; context.fill();
         // Cover antialias cracks on smooth meshes; emphasize the exact polyhedron edges.
-        context.strokeStyle = mesh.faces.length <= 8 ? (polar ? "#bbf8e7" : "#ffddb3") : context.fillStyle;
+        context.strokeStyle = mesh.faces.length <= 8 ? (polar ? "#b2ead9" : "#ffe1ac") : context.fillStyle;
         context.lineWidth = mesh.faces.length <= 8 ? 1.2 : .65; context.stroke();
       }
-      context.fillStyle = "#b4bfce"; context.font = `${Math.max(10, size * .025)}px sans-serif`;
+      context.fillStyle = "#607b87"; context.font = `${Math.max(10, size * .025)}px sans-serif`;
       context.fillText("1", size * .12 + scale / 2 - 3, size * .91 - 7);
-      context.strokeStyle = "#b4bfce80"; context.lineWidth = 1; context.beginPath();
+      context.strokeStyle = "#607b8780"; context.lineWidth = 1; context.beginPath();
       context.moveTo(size * .12, size * .91); context.lineTo(size * .12 + scale, size * .91); context.stroke();
     });
   }, [mesh, polar, view]);

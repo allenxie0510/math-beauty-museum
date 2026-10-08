@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { observeMathAction } from "../math-observer-events";
 import { triangularLatticeResearch as research } from "./catalog";
 import { cellArea, gaussianEnergy, latticePoints, LATTICE_DOMAIN, unitDensityBasis, type LatticeBasis } from "./lattice-energy";
@@ -112,7 +112,16 @@ export default function LatticeEnergyLab({ onBack }: { onBack: () => void }) {
           { key: "alpha", label: "势尺度 α", suffix: "", hint: "α 越大，远处粒子的贡献衰减得越快。" },
         ] as const).map(({ key, label, suffix, hint }) => <label className="lattice-control" key={key}>
           <span>{label}<output>{parameters[key].toFixed(key === "angle" ? 0 : 2)}{suffix}</output></span>
-          <input type="range" aria-label={label} {...LATTICE_DOMAIN[key]} value={parameters[key]} onChange={(event) => setParameters((previous: Parameters) => ({ ...previous, [key]: Number(event.target.value) }))} onPointerUp={() => record(key, parameters[key])} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) record(key, parameters[key]); }} />
+          <input
+            type="range"
+            aria-label={label}
+            {...LATTICE_DOMAIN[key]}
+            value={parameters[key]}
+            style={{ "--lattice-progress": `${(parameters[key] - LATTICE_DOMAIN[key].min) / (LATTICE_DOMAIN[key].max - LATTICE_DOMAIN[key].min) * 100}%` } as CSSProperties}
+            onChange={(event) => setParameters((previous: Parameters) => ({ ...previous, [key]: Number(event.target.value) }))}
+            onPointerUp={() => record(key, parameters[key])}
+            onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) record(key, parameters[key]); }}
+          />
           <small>{hint}</small>
         </label>)}
         <button type="button" className="lattice-reset" onClick={() => { setParameters(DEFAULTS); record("reset", 1); }}>恢复默认</button>

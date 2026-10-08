@@ -1,0 +1,46 @@
+<div id="mahler-polar-exhibit">
+  <h3>Mahler 对偶 · 形状改变，面积乘积如何变化？</h3>
+  <div class="viz-controls">
+    <label class="form-label" for="mp-p">形状指数 p <output id="mp-p-value" class="tabular-nums">2.00</output><input class="form-range" id="mp-p" type="range" min="1" max="8" step="0.05" value="2"></label>
+    <label class="form-label" for="mp-s">剪切量 s <output id="mp-s-value" class="tabular-nums">0.00</output><input class="form-range" id="mp-s" type="range" min="-0.8" max="0.8" step="0.02" value="0"></label>
+  </div>
+  <div class="mp-shapes">
+    <div><div>凸体 K</div><svg id="mp-body" role="img" aria-label="可调形状指数和剪切量的二维凸体"></svg></div>
+    <div><div>极对偶 K°</div><svg id="mp-dual" role="img" aria-label="凸体所对应的极对偶，采用逆转置剪切"></svg></div>
+  </div>
+  <div class="viz-row tabular-nums" aria-live="polite"><span id="mp-areas"></span><strong id="mp-product"></strong></div>
+  <div class="text-small text-muted">二维对称凸体 · 面积乘积下界 8 · 圆的面积乘积 π² ≈ 9.8696 · 数值采样</div>
+</div>
+<style>
+#mahler-polar-exhibit .mp-shapes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:16px 0}
+#mahler-polar-exhibit svg{width:100%;display:block;height:230px}
+#mahler-polar-exhibit .mp-axis{stroke:var(--border);stroke-width:1}
+#mahler-polar-exhibit .mp-shape{stroke:var(--viz-series-1);fill:var(--viz-series-1);fill-opacity:.13;stroke-width:2}
+#mahler-polar-exhibit #mp-dual .mp-shape{stroke:var(--viz-series-2);fill:var(--viz-series-2)}
+@media(max-width:420px){#mahler-polar-exhibit .mp-shapes{grid-template-columns:1fr}#mahler-polar-exhibit svg{height:210px}}
+</style>
+<script>
+(()=>{
+ const root=document.getElementById('mahler-polar-exhibit');
+ const pInput=root.querySelector('#mp-p'),sInput=root.querySelector('#mp-s');
+ const body=root.querySelector('#mp-body'),dual=root.querySelector('#mp-dual');
+ const ns='http://www.w3.org/2000/svg';
+ function points(p,s,polar){
+   if(!Number.isFinite(p))return [[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>polar?[x,y-s*x]:[x+s*y,y]);
+   return Array.from({length:2048},(_,i)=>{const t=2*Math.PI*i/2048,c=Math.cos(t),v=Math.sin(t);const x=Math.sign(c)*Math.pow(Math.abs(c),2/p),y=Math.sign(v)*Math.pow(Math.abs(v),2/p);return polar?[x,y-s*x]:[x+s*y,y]});
+ }
+ function area(a){return Math.abs(a.reduce((sum,[x,y],i)=>{const [u,v]=a[(i+1)%a.length];return sum+x*v-y*u},0))/2}
+ function el(tag,attrs){const n=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));return n}
+ function draw(svg,pts){
+   const w=Math.max(1,svg.getBoundingClientRect().width),h=svg.getBoundingClientRect().height,scale=Math.min(w/4.2,h/4.2);
+   svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.replaceChildren();
+   svg.append(el('line',{x1:8,y1:h/2,x2:w-8,y2:h/2,class:'mp-axis'}),el('line',{x1:w/2,y1:8,x2:w/2,y2:h-8,class:'mp-axis'}));
+   svg.append(el('path',{d:pts.map(([x,y],i)=>`${i?'L':'M'}${(w/2+x*scale).toFixed(3)},${(h/2-y*scale).toFixed(3)}`).join(' ')+'Z',class:'mp-shape'}));
+ }
+ function render(){const p=+pInput.value,s=+sInput.value,q=p===1?Infinity:p/(p-1),a=points(p,s,false),b=points(q,s,true);draw(body,a);draw(dual,b);root.querySelector('#mp-p-value').textContent=p.toFixed(2);root.querySelector('#mp-s-value').textContent=s.toFixed(2);root.querySelector('#mp-areas').textContent=`面积 ≈ ${area(a).toFixed(4)} × ${area(b).toFixed(4)}`;root.querySelector('#mp-product').textContent=`乘积 ≈ ${(area(a)*area(b)).toFixed(4)}`;}
+ function apply(state){const v=state?.modelContent;if(v?.exhibit==='mahler-polar'){if(Number.isFinite(v.p))pInput.value=Math.min(8,Math.max(1,v.p));if(Number.isFinite(v.s))sInput.value=Math.min(.8,Math.max(-.8,v.s))}render()}
+ [pInput,sInput].forEach(x=>x.addEventListener('input',()=>{render();if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{exhibit:'mahler-polar',p:+pInput.value,s:+sInput.value},privateContent:null}).catch(()=>{})}));
+ window.addEventListener('openai:set_globals',e=>{if(e.detail?.globals?.widgetState)apply(e.detail.globals.widgetState)});
+ new ResizeObserver(render).observe(root);apply(window.openai?.widgetState);
+})();
+</script>

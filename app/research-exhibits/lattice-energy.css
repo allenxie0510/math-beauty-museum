@@ -1,0 +1,62 @@
+.lattice-lab{position:relative;z-index:1;width:100%;height:100svh;overflow:auto;color:#f2f2f5;background:radial-gradient(ellipse at 25% 35%,#172333 0,#080e18 58%);font-size:14px;scrollbar-color:#535d6d #0b111c}
+.lattice-lab *{box-sizing:border-box}
+.lattice-header{padding:28px clamp(20px,4vw,64px) 24px;border-bottom:1px solid #ffffff16}
+.lattice-header>button{display:block;margin-bottom:24px;padding:8px 0;border:0;background:none;color:#c8cdd8;cursor:pointer;font-size:13px}
+.lattice-header>span{color:#e7aa73;font-size:11px;letter-spacing:.16em}
+.lattice-header h2{margin:12px 0 8px;font-size:clamp(26px,3vw,40px);font-weight:550;letter-spacing:.04em;color:#fff}
+.lattice-header p{margin:0;color:#a7b0bf;font-size:14px}
+.lattice-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:36px;max-width:1500px;margin:auto;padding:30px clamp(20px,4vw,64px) 45px}
+.lattice-comparison,.lattice-console{min-width:0}
+.lattice-plot-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.lattice-plot-grid figure{min-width:0;margin:0;border:1px solid #efb07635;border-radius:20px;overflow:hidden;background:linear-gradient(135deg,#efb07608,#0b121a55)}
+.lattice-plot-grid .lattice-reference{border-color:#8bd4c435;background:linear-gradient(135deg,#8bd4c409,#0b121a55)}
+.lattice-plot-grid figcaption{display:flex;justify-content:space-between;gap:8px;padding:20px 20px 0;font-size:12px;color:#eeb782}
+.lattice-plot-grid figcaption b{font-weight:500;color:#c9ced7}
+.lattice-reference figcaption{color:#8bd4c4}
+.lattice-plot-grid svg{display:block;width:100%;height:auto}
+.lattice-readout{display:flex;flex-wrap:wrap;gap:5px 12px;justify-content:space-between;align-items:center;padding:0 20px 20px}
+.lattice-readout span{color:#939fb1;font-size:12px}
+.lattice-readout output{font-size:clamp(17px,1.7vw,25px);font-variant-numeric:tabular-nums;color:#f4bd85}
+.lattice-reference output{color:#99ddcf}
+.lattice-legend{font-size:12px;line-height:1.8;color:#a0aaba;margin:16px 3px 24px}
+.lattice-result{padding:20px 22px;border:1px solid #ffffff14;background:#ffffff04;border-radius:16px}
+.lattice-result>span{font-size:12px;color:#abb3c2}.lattice-result strong{display:block;margin-top:7px;font-size:23px;font-weight:500;color:#f4bd85;font-variant-numeric:tabular-nums}
+.lattice-result p{font-size:12px;line-height:1.8;color:#a9b2c0;margin:8px 0 0}
+.lattice-energy-bars{display:grid;gap:12px;margin:24px 0;font-size:12px;color:#b6bfcc}
+.lattice-energy-bars>div{display:grid;grid-template-columns:65px 1fr 90px;gap:12px;align-items:center;font-variant-numeric:tabular-nums}
+.lattice-energy-bars i{height:5px;border-radius:9px;overflow:hidden;background:#ffffff0d}.lattice-energy-bars b{display:block;height:100%;background:#f4bd85}.lattice-energy-bars>div:last-child b{background:#8bd4c4}
+.lattice-console{padding:24px;border:1px solid #ffffff1a;border-radius:20px;background:#101826;align-self:start}
+.lattice-console-heading{display:flex;flex-direction:column;gap:9px;font-size:15px}.lattice-console-heading b{font-size:12px;font-weight:400;color:#8bd4c4}
+.lattice-presets{display:flex;gap:8px;margin:20px 0 24px}
+.lattice-presets button,.lattice-reset{min-height:44px;border:1px solid #ffffff24;border-radius:10px;background:#ffffff06;color:#c7ceda;cursor:pointer;font-size:13px}
+.lattice-presets button{flex:1;padding:8px}.lattice-presets button[aria-pressed=true]{border-color:#f4bd85;background:#f4bd8512;color:#f4bd85}
+.lattice-control{display:block;margin:22px 0}.lattice-control>span{display:flex;justify-content:space-between;font-size:13px;color:#d2d7e0}.lattice-control output{color:#f4bd85;font-variant-numeric:tabular-nums}
+.lattice-control input{display:block;width:100%;height:32px;margin:5px 0;accent-color:#f4bd85;cursor:pointer}.lattice-control small,.lattice-formula small{color:#9da8b9;font-size:12px;line-height:1.7}
+.lattice-reset{width:100%;margin:0 0 24px}.lattice-reset:hover,.lattice-presets button:hover{background:#ffffff10}
+.lattice-formula{padding:20px 0;border-top:1px solid #ffffff15}.lattice-formula>span{font-size:12px;color:#d8b697}.lattice-formula p{font-family:Georgia,serif;font-size:18px;color:#f2c391;margin:12px 0;overflow-wrap:anywhere}
+.lattice-details{padding:16px 0;border-top:1px solid #ffffff15;color:#aab5c5;font-size:12px;line-height:1.85}.lattice-details summary{cursor:pointer;color:#d4dbe5;font-size:13px}.lattice-details p{margin:12px 0}.lattice-sources{display:flex;flex-wrap:wrap;gap:8px 16px}.lattice-sources a{color:#eec297;text-decoration:underline;text-underline-offset:4px}
+.lattice-lab :focus-visible{outline:2px solid #f4bd85;outline-offset:4px}
+@media(min-width:1600px){.lattice-header{padding-left:max(64px,calc((100vw - 1372px)/2))}}
+@media(max-width:1000px){.lattice-body{grid-template-columns:1fr;gap:20px;max-width:850px}.lattice-console{width:100%}.lattice-header{padding-top:18px}.lattice-header>button{margin-bottom:18px}}
+@media(max-width:520px){.lattice-header{padding:18px 18px 20px}.lattice-header>button{font-size:12px}.lattice-body{padding:20px 14px 36px;gap:12px}.lattice-plot-grid{gap:8px}.lattice-plot-grid figure{border-radius:14px}.lattice-plot-grid figcaption{display:grid;gap:5px;padding:14px 12px 0;font-size:11px}.lattice-readout{padding:0 12px 14px;display:grid}.lattice-readout output{font-size:16px}.lattice-readout span{font-size:11px}.lattice-legend{font-size:12px;margin:12px 2px 16px}.lattice-console{padding:20px}.lattice-result{padding:16px}.lattice-result strong{font-size:21px}}
+
+/* Dated research provenance is visible before the experiment, not hidden in details. */
+.lattice-provenance{display:flex;align-items:center;flex-wrap:wrap;gap:10px;color:#c2b5eb;font-size:12px}
+.lattice-frontier-badge{display:inline-flex;padding:7px 11px;border:1px solid #c1a1ff70;border-radius:7px;background:#ac83ff18;color:#dfcbff;font-weight:650;letter-spacing:.06em}
+.lattice-header .lattice-version{margin-top:10px;color:#8996aa;font-size:11px}
+.lattice-frontier{margin-bottom:24px;padding:22px 24px;border:1px solid #b497ef55;border-radius:18px;background:linear-gradient(110deg,#a582f21a,#556bca08)}
+.lattice-frontier>span{color:#c6aeef;font-size:11px;letter-spacing:.08em}
+.lattice-frontier h3{margin:10px 0;font-size:24px;font-weight:550;color:#ece1ff}
+.lattice-frontier>p{margin:8px 0;font-size:14px;line-height:1.8;color:#d0c8e0}
+.lattice-frontier .lattice-frontier-claim{font-size:12px;color:#acafc5}
+.lattice-frontier>div{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:16px;font-size:11px}
+.lattice-frontier a{color:#d9bfff;text-decoration:underline;text-underline-offset:4px}.lattice-frontier>div>span{color:#a8a0bd}
+.lattice-experiment-label{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px;font-size:12px;color:#a9b2c2}
+.lattice-experiment-label>span{padding:4px 8px;border-radius:5px;background:#f4bd8514;color:#f4bd85;font-size:11px}
+.lattice-knowledge{border-top:1px solid #ffffff16;padding-top:18px;margin-top:28px}
+.lattice-knowledge h3{font-size:15px;font-weight:500;color:#d5dbe6;margin:0 0 18px}
+.lattice-knowledge>div{display:grid;grid-template-columns:70px 1fr;gap:14px;margin:12px 0;align-items:baseline}
+.lattice-knowledge>div>span{font-size:11px;color:#b6c2d3;padding:4px 7px;background:#ffffff08;border-radius:5px;text-align:center}
+.lattice-knowledge p{margin:0;color:#a6b1c2;font-size:12px;line-height:1.9}
+.lattice-knowledge .lattice-knowledge-frontier>span{background:#b497ef16;color:#d3b9ff}
+@media(max-width:520px){.lattice-provenance{font-size:11px;gap:8px}.lattice-frontier{padding:18px;margin-bottom:20px}.lattice-frontier h3{font-size:21px}.lattice-frontier>p{font-size:13px}.lattice-knowledge>div{grid-template-columns:64px 1fr;gap:10px}}

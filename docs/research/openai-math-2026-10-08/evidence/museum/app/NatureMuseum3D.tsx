@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
@@ -8,8 +8,6 @@ import { createAdaptiveResolutionController, getAutoRenderProfile } from "./adap
 import { createCompatibleAudioContext, resumeAudioContext } from "./audio";
 import { observeElementSize, observeElementVisibility } from "./viewport";
 import { observeMathAction, setMathObserverScene } from "./math-observer-events";
-
-const LatticeEnergyLab = lazy(() => import("./research-exhibits/LatticeEnergyLab"));
 
 type HallKey = "nature" | "architecture" | "sound" | "cosmos";
 type VisualKind =
@@ -2977,13 +2975,6 @@ export function NatureMuseumWorld() {
   const [hallIndex, setHallIndex] = useState(-1);
   const [atriumArtwork, setAtriumArtwork] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [latticeOpen, setLatticeOpen] = useState(false);
-  const latticeEntryRef = useRef<HTMLButtonElement>(null);
-  const labDialogRef = useRef<HTMLDivElement>(null);
-  const returnToTessellation = useCallback(() => {
-    setLatticeOpen(false);
-    window.requestAnimationFrame(() => latticeEntryRef.current?.focus());
-  }, []);
   const [settings, setSettings] = useState<MuseumSettings>({ ...DEFAULT_SETTINGS });
   const [discoveries, setDiscoveries] = useState<Set<string>>(() => new Set());
   const discoveriesRef = useRef<Set<string>>(new Set());
@@ -3011,15 +3002,15 @@ export function NatureMuseumWorld() {
       view: "exhibit",
       hall: currentHall.key,
       hallName: currentHall.name,
-      item: latticeOpen ? "lattice-energy" : currentItem.id,
-      name: latticeOpen ? "三角晶格能量" : currentItem.name,
-      formula: latticeOpen ? "Eα(L) = Σᵥ≠₀ exp(−α‖v‖²)" : currentItem.formula,
+      item: currentItem.id,
+      name: currentItem.name,
+      formula: currentItem.formula,
     } : {
       view: "hall",
       hall: currentHall.key,
       hallName: currentHall.name,
     });
-  }, [hallIndex, selectedId, latticeOpen]);
+  }, [hallIndex, selectedId]);
 
   useEffect(() => {
     if (hallIndex !== -1 || transition !== "idle") return;
@@ -3060,7 +3051,6 @@ export function NatureMuseumWorld() {
     });
     setHallIndex(targetHallIndex);
     setSelectedId(id);
-    setLatticeOpen(false);
     setIsAutoPlaying(false);
     setActiveControlKey(item?.controls[0]?.key ?? null);
     if (!discoveriesRef.current.has(id)) {
@@ -3109,7 +3099,7 @@ export function NatureMuseumWorld() {
     if (transition !== "idle") return;
     if (direction < 0 && hallIndex <= -1) return;
     if (direction > 0 && hallIndex >= HALLS.length - 1) return;
-    setSelectedId(null); setLatticeOpen(false);
+    setSelectedId(null);
     setIsAutoPlaying(false);
     setTransitionDirection(direction < 0 ? "previous" : "next");
     setTransition("leaving");
@@ -3198,22 +3188,14 @@ export function NatureMuseumWorld() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (latticeOpen && event.key === "Tab" && labDialogRef.current) {
-        const controls = Array.from(labDialogRef.current.querySelectorAll<HTMLElement>('button:not([tabindex="-1"]), input, summary, a[href]')).filter((node) => node.getClientRects().length > 0);
-        const first = controls[0];
-        const last = controls[controls.length - 1];
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-      }
       if (event.key === "Escape") {
-        if (latticeOpen) { returnToTessellation(); return; }
-        setSelectedId(null); setLatticeOpen(false);
+        setSelectedId(null);
         setIsAutoPlaying(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [latticeOpen, returnToTessellation]);
+  }, []);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -3286,24 +3268,21 @@ export function NatureMuseumWorld() {
 
       {selected && hall && (
         <div
-          ref={labDialogRef}
           className="nature-lab-backdrop"
           role="dialog"
           aria-modal="true"
-          aria-label={(latticeOpen ? "三角晶格能量" : selected.name) + "互动实验"}
+          aria-label={selected.name + "互动实验"}
           onWheel={(event) => event.stopPropagation()}
           onTouchMove={(event) => event.stopPropagation()}
-
         >
-          <button className="dialog-outside-dismiss" onClick={() => { setSelectedId(null); setLatticeOpen(false); setIsAutoPlaying(false); }} aria-label="关闭并返回当前展馆" tabIndex={-1}/>
-          <button className="nature-lab-close" onClick={() => { setSelectedId(null); setLatticeOpen(false); setIsAutoPlaying(false); }} aria-label="关闭并返回当前展馆">×</button>
-          <Suspense fallback={<div className="lattice-loading" role="status">正在载入三角晶格能量实验…</div>}>
-          {latticeOpen && selected.id === "tessellation" ? <LatticeEnergyLab onBack={returnToTessellation} /> : <div className={"nature-lab-shell " + (hall.key === "sound" ? "sound-lab-shell" : "")} style={{ "--nature-color": selected.color } as React.CSSProperties}>
+          <button className="dialog-outside-dismiss" onClick={() => { setSelectedId(null); setIsAutoPlaying(false); }} aria-label="关闭并返回当前展馆" tabIndex={-1}/>
+          <button className="nature-lab-close" onClick={() => { setSelectedId(null); setIsAutoPlaying(false); }} aria-label="关闭并返回当前展馆">×</button>
+          <div className={"nature-lab-shell " + (hall.key === "sound" ? "sound-lab-shell" : "")} style={{ "--nature-color": selected.color } as React.CSSProperties}>
             <header className="immersive-lab-header">
               <span className="nature-lab-index">{hall.english} / DISCOVERY {selected.index}</span>
-              <div className="nature-lab-heading"><i>{selected.icon}</i><div><h3>{selected.name}</h3><p>经典数学 · {selected.english}</p></div></div>
+              <div className="nature-lab-heading"><i>{selected.icon}</i><div><h3>{selected.name}</h3><p>{selected.english}</p></div></div>
               <div className="nature-lab-formula">
-                <div className="nature-formula-expression"><span>经典数学 · 模型与规律</span><strong className={`math-formula ${selected.formula.includes("\n") ? "multiline" : ""}`} role="math">{selected.formula}</strong></div>
+                <div className="nature-formula-expression"><span>隐藏规律</span><strong className={`math-formula ${selected.formula.includes("\n") ? "multiline" : ""}`} role="math">{selected.formula}</strong></div>
                 <div className="nature-lab-live-vars" aria-live="polite" aria-label="公式实时变量">
                   {selected.controls.map((control) => {
                     const value = settings[control.key] ?? control.defaultValue;
@@ -3319,7 +3298,7 @@ export function NatureMuseumWorld() {
                 ? <Galaxy3DPreview settings={settings} />
                 : <MuseumPreview item={selected} settings={settings} signalRef={soundSignalRef} />}
             </div>
-            <aside className={"nature-lab-controls " + (hall.key === "sound" ? "sound-console" : selected.id === "tessellation" ? "lattice-parent-console" : "")}>
+            <aside className={"nature-lab-controls " + (hall.key === "sound" ? "sound-console" : "")}>
               <div className="nature-console-story">
                 <p className="nature-lab-discovery">{selected.discovery}</p>
                 <p className="nature-lab-copy">{selected.explanation}</p>
@@ -3327,11 +3306,6 @@ export function NatureMuseumWorld() {
               </div>
               {hall.key === "sound" && <SoundDrivePanel signalRef={soundSignalRef} />}
               <div className="nature-console-parameters">
-                {selected.id === "tessellation" && <button ref={latticeEntryRef} className="lattice-entry" type="button" onClick={() => {
-                  setIsAutoPlaying(false);
-                  setLatticeOpen(true);
-                  observeMathAction({ id: "lattice-energy-open", scene: "hall", action: "lattice_energy_opened", outcome: "discovery", importance: .7, once: true, context: { item: "lattice-energy", parent: "tessellation" } });
-                }}><strong>2026 数学前沿</strong><span className="lattice-entry-title">三角晶格能量 <small>OpenAI 研究手稿 · 普适最优性</small></span><span aria-hidden="true">→</span></button>}
                 <div className="nature-lab-try">
                   <span>控制台 · 变量与图形同步变化</span>
                   <div className="nature-console-actions">
@@ -3371,8 +3345,7 @@ export function NatureMuseumWorld() {
                 </div>
               </div>
             </aside>
-          </div>}
-          </Suspense>
+          </div>
         </div>
       )}
     </section>
